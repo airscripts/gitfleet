@@ -4,8 +4,8 @@ on:
   workflow_call:
 
 jobs:
-  test:
-    name: Test
+  cli:
+    name: CLI
     runs-on: ubuntu-latest
 
     steps:
