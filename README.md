@@ -1,10 +1,12 @@
 # Gitfleet
 
 [![Main](https://github.com/airscripts/gitfleet/actions/workflows/main.yml/badge.svg)](https://github.com/airscripts/gitfleet/actions/workflows/main.yml)
-[![License](https://img.shields.io/github/license/airscripts/gitfleet)](https://github.com/airscripts/gitfleet/blob/main/LICENSE)
-[![Coverage](https://img.shields.io/badge/coverage-87%25-brightgreen)](./coverage)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Line Coverage](https://img.shields.io/badge/line%20coverage-92%25-brightgreen)](./coverage)
 
 Command every repository as one fleet.
+
+![Gitfleet](gitfleet-assets/gitfleet.png)
 
 ## Table of Contents
 
