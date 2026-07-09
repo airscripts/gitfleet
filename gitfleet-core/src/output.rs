@@ -157,13 +157,6 @@ impl Renderer {
             return;
         }
 
-        fn pad_right(s: &str, width: usize) -> String {
-            let visible_len = strip_ansi(s).len();
-
-            let padding = width.saturating_sub(visible_len);
-            format!("{}{}", s, " ".repeat(padding))
-        }
-
         let mut widths: Vec<usize> = keys.iter().map(|k| k.len()).collect();
 
         let rendered_rows: Vec<Vec<String>> = rows
@@ -224,7 +217,9 @@ impl Renderer {
         let p = &self.palette;
 
         for (label, value) in entries {
-            println!("{:<16} {}", p.muted(label), value);
+            let rendered_label = p.muted(&format!("{label}:"));
+
+            println!("{} {}", pad_right(&rendered_label, 16), value);
         }
 
         println!();
@@ -405,6 +400,13 @@ fn strip_ansi(s: &str) -> String {
         .expect("ANSI escape regex is valid")
         .replace_all(s, "")
         .into_owned()
+}
+
+fn pad_right(s: &str, width: usize) -> String {
+    let visible_len = strip_ansi(s).len();
+
+    let padding = width.saturating_sub(visible_len);
+    format!("{}{}", s, " ".repeat(padding))
 }
 
 #[cfg(test)]
