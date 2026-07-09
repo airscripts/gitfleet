@@ -3,6 +3,7 @@
   "schedule": ["before 3am"],
   "extends": ["config:recommended"],
 
+  "prConcurrentLimit": 5,
   "prHourlyLimit": 5,
   "rebaseWhen": "behind-base-branch"
 }

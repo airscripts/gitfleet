@@ -26,8 +26,8 @@ jobs:
       - run: cargo build --release
         name: Build Release Binary
 
-      - run: cargo run --release -- --help
+      - run: cargo run --release --bin gitfleet -- --help
         name: Test CLI Help
 
-      - run: cargo run --release -- version
+      - run: cargo run --release --bin gitfleet -- version
         name: Test CLI Version
