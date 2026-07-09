@@ -1,0 +1,16 @@
+pre-commit:
+  piped: true
+  follow: true
+
+  commands:
+    fmt:
+      run: cargo fmt --check
+
+    clippy:
+      run: cargo clippy -- -D warnings
+
+    build:
+      run: cargo build --workspace
+
+    test:
+      run: cargo test --workspace

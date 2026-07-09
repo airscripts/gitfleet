@@ -1,0 +1,22 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+  push:
+    tags: ["*"]
+
+jobs:
+  verify:
+    name: Verify
+    uses: ./.github/workflows/verify.yml
+
+  build:
+    name: Build
+    needs: verify
+    uses: ./.github/workflows/build.yml
+
+  test:
+    name: Test
+    needs: build
+    uses: ./.github/workflows/test.yml

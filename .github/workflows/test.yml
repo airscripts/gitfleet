@@ -1,0 +1,36 @@
+name: Test
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout Code
+
+      - uses: dtolnay/rust-toolchain@stable
+        name: Install Rust Toolchain
+        with:
+          components: llvm-tools-preview
+
+      - uses: Swatinem/rust-cache@v2
+        name: Cache Cargo
+
+      - run: cargo install cargo-llvm-cov
+        name: Install cargo-llvm-cov
+
+      - run: cargo test --workspace
+        name: Run Tests
+
+      - run: cargo llvm-cov --fail-under 80 --workspace
+        name: Check Coverage
+
+      - uses: actions/upload-artifact@v4
+        name: Upload Coverage Report
+        with:
+          name: coverage-report
+          path: target/llvm-cov/

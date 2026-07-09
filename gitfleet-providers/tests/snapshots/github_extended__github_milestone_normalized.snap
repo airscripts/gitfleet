@@ -1,0 +1,15 @@
+---
+source: gitfleet-providers/tests/github_extended.rs
+expression: milestone
+---
+{
+  "id": 1,
+  "url": "https://api.github.com/repos/org/repo/milestones/1",
+  "title": "v1.0",
+  "number": 1,
+  "html_url": "https://github.com/org/repo/milestone/1",
+  "open_issues": 3,
+  "state": "Open",
+  "due_on": "2024-12-31T00:00:00Z",
+  "closed_issues": 7
+}

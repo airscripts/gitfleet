@@ -1,0 +1,17 @@
+[workspace]
+members = [
+    "gitfleet-core",
+    "gitfleet-providers",
+    "gitfleet-cli",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["airscripts"]
+
+[workspace.dependencies]
+gitfleet-core = { path = "gitfleet-core" }
+gitfleet-providers = { path = "gitfleet-providers" }

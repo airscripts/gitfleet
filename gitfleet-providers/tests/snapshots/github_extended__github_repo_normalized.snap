@@ -1,0 +1,23 @@
+---
+source: gitfleet-providers/tests/github_extended.rs
+expression: repo
+---
+{
+  "archived": false,
+  "clone_url": null,
+  "default_branch": "main",
+  "description": "Test repo",
+  "fork": false,
+  "full_name": "org/repo",
+  "homepage": null,
+  "html_url": "https://github.com/org/repo",
+  "id": 1,
+  "name": "repo",
+  "open_issues_count": null,
+  "owner": null,
+  "parent": null,
+  "private": true,
+  "pushed_at": null,
+  "stargazers_count": 42,
+  "visibility": null
+}

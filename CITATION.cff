@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: If you use this software in your work, please cite it using the following metadata
+title: Gitfleet
+authors:
+  - family-names: Sardone
+    given-names: Francesco
+keywords:
+  - credit
+  - citation
+version: 0.1.0
+date-released: 2026-07-01
+license: MIT
+repository-code: https://github.com/airscripts/gitfleet

@@ -1,0 +1,15 @@
+---
+source: gitfleet-providers/tests/gitlab_extended.rs
+expression: milestone
+---
+{
+  "id": 5,
+  "url": "https://gitlab.com/org/repo/-/milestones/5",
+  "title": "v2.0",
+  "number": 5,
+  "html_url": "https://gitlab.com/org/repo/-/milestones/5",
+  "open_issues": 2,
+  "state": "Open",
+  "due_on": "2024-12-31",
+  "closed_issues": 8
+}

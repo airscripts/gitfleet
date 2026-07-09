@@ -1,0 +1,30 @@
+name: Verify
+
+on:
+  workflow_call:
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout Code
+
+      - uses: dtolnay/rust-toolchain@stable
+        name: Install Rust Toolchain
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        name: Cache Cargo
+
+      - run: cargo fmt --check
+        name: Check Formatting
+
+      - run: cargo clippy -- -D warnings
+        name: Lint Code
+
+      - run: cargo check --workspace
+        name: Check Compilation

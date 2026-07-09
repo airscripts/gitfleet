@@ -1,0 +1,8 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "schedule": ["before 3am"],
+  "extends": ["config:recommended"],
+
+  "prHourlyLimit": 5,
+  "rebaseWhen": "behind-base-branch"
+}

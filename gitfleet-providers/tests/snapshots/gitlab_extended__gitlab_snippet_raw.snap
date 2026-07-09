@@ -1,0 +1,17 @@
+---
+source: gitfleet-providers/tests/gitlab_extended.rs
+expression: snippet
+---
+{
+  "author": {
+    "username": "alice"
+  },
+  "created_at": "2024-01-01T00:00:00Z",
+  "file_name": "main.py",
+  "id": 42,
+  "raw_url": "https://gitlab.com/snippets/42/raw",
+  "title": "My Snippet",
+  "updated_at": "2024-01-02T00:00:00Z",
+  "visibility": "internal",
+  "web_url": "https://gitlab.com/snippets/42"
+}

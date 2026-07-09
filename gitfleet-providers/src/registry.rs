@@ -1,0 +1,272 @@
+use gitfleet_core::errors::UnsupportedCapabilityError;
+use gitfleet_core::provider::{GitProvider, ProviderCapability, ProviderId};
+
+pub struct ProviderRegistry {
+    providers: std::collections::HashMap<ProviderId, Box<dyn GitProvider>>,
+}
+
+impl ProviderRegistry {
+    pub fn new() -> Self {
+        let mut providers: std::collections::HashMap<ProviderId, Box<dyn GitProvider>> =
+            std::collections::HashMap::new();
+
+        let github = crate::github::GitHubProvider::new();
+        providers.insert(github.id(), Box::new(github));
+
+        let gitlab = crate::gitlab::GitLabProvider::new();
+        providers.insert(gitlab.id(), Box::new(gitlab));
+
+        Self { providers }
+    }
+
+    pub fn with_provider(id: ProviderId, provider: Box<dyn GitProvider>) -> Self {
+        let mut providers: std::collections::HashMap<ProviderId, Box<dyn GitProvider>> =
+            std::collections::HashMap::new();
+        providers.insert(id, provider);
+        Self { providers }
+    }
+
+    pub fn get(
+        &self,
+        provider: ProviderId,
+    ) -> Result<&dyn GitProvider, UnsupportedCapabilityError> {
+        self.providers
+            .get(&provider)
+            .map(|p| p.as_ref())
+            .ok_or_else(|| {
+                UnsupportedCapabilityError::new(provider, ProviderCapability::Repositories)
+            })
+    }
+
+    pub fn require_capability(
+        &self,
+        provider: ProviderId,
+        capability: ProviderCapability,
+    ) -> Result<&dyn GitProvider, UnsupportedCapabilityError> {
+        let implementation = self.get(provider)?;
+
+        if !implementation.capabilities().contains(&capability) {
+            return Err(UnsupportedCapabilityError::new(provider, capability));
+        }
+
+        Ok(implementation)
+    }
+}
+
+impl Default for ProviderRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use gitfleet_core::provider::ProviderId;
+
+    use super::*;
+
+    #[test]
+    fn test_registry_new() {
+        let registry = ProviderRegistry::new();
+
+        let github = registry.get(ProviderId::GitHub);
+
+        assert!(github.is_ok());
+
+        let gitlab = registry.get(ProviderId::GitLab);
+
+        assert!(gitlab.is_ok());
+    }
+
+    #[test]
+    fn test_registry_get_github() {
+        let registry = ProviderRegistry::new();
+
+        let provider = registry.get(ProviderId::GitHub).unwrap();
+
+        assert_eq!(provider.id(), ProviderId::GitHub);
+
+        assert_eq!(provider.default_host(), "github.com");
+    }
+
+    #[test]
+    fn test_registry_get_gitlab() {
+        let registry = ProviderRegistry::new();
+
+        let provider = registry.get(ProviderId::GitLab).unwrap();
+
+        assert_eq!(provider.id(), ProviderId::GitLab);
+
+        assert_eq!(provider.default_host(), "gitlab.com");
+    }
+
+    #[test]
+    fn test_registry_require_capability_supported() {
+        let registry = ProviderRegistry::new();
+
+        let result =
+            registry.require_capability(ProviderId::GitHub, ProviderCapability::Repositories);
+        assert!(result.is_ok());
+
+        assert_eq!(result.unwrap().id(), ProviderId::GitHub);
+    }
+
+    #[test]
+    fn test_registry_require_capability_all_github() {
+        let registry = ProviderRegistry::new();
+
+        let capabilities = [
+            ProviderCapability::Repositories,
+            ProviderCapability::Changes,
+            ProviderCapability::Issues,
+            ProviderCapability::Pipelines,
+            ProviderCapability::Releases,
+            ProviderCapability::Wiki,
+            ProviderCapability::Discussions,
+            ProviderCapability::Webhooks,
+            ProviderCapability::Search,
+            ProviderCapability::Labels,
+            ProviderCapability::Notifications,
+        ];
+
+        for cap in &capabilities {
+            let result = registry.require_capability(ProviderId::GitHub, *cap);
+
+            assert!(result.is_ok(), "GitHub should support {:?}", cap);
+        }
+    }
+
+    #[test]
+    fn test_registry_require_capability_gitlab_supported() {
+        let registry = ProviderRegistry::new();
+
+        let capabilities = [
+            ProviderCapability::Repositories,
+            ProviderCapability::Changes,
+            ProviderCapability::Issues,
+            ProviderCapability::Pipelines,
+            ProviderCapability::Labels,
+            ProviderCapability::Webhooks,
+        ];
+
+        for cap in &capabilities {
+            let result = registry.require_capability(ProviderId::GitLab, *cap);
+
+            assert!(result.is_ok(), "GitLab should support {:?}", cap);
+        }
+    }
+
+    #[test]
+    fn test_github_provider_has_many_capabilities() {
+        let registry = ProviderRegistry::new();
+
+        let provider = registry.get(ProviderId::GitHub).unwrap();
+
+        assert!(provider.capabilities().len() > 10);
+    }
+
+    #[test]
+    fn test_gitlab_provider_has_capabilities() {
+        let registry = ProviderRegistry::new();
+
+        let provider = registry.get(ProviderId::GitLab).unwrap();
+
+        assert!(provider.capabilities().len() > 5);
+    }
+
+    #[test]
+    fn test_github_provider_ops() {
+        let registry = ProviderRegistry::new();
+
+        let provider = registry.get(ProviderId::GitHub).unwrap();
+
+        assert!(provider.repo_ops().is_some());
+
+        assert!(provider.change_ops().is_some());
+        assert!(provider.issue_ops().is_some());
+
+        assert!(provider.pipeline_ops().is_some());
+        assert!(provider.release_ops().is_some());
+
+        assert!(provider.label_ops().is_some());
+        assert!(provider.notification_ops().is_some());
+
+        assert!(provider.webhook_ops().is_some());
+        assert!(provider.search_ops().is_some());
+
+        assert!(provider.code_ops().is_some());
+        assert!(provider.environment_ops().is_some());
+
+        assert!(provider.runner_ops().is_some());
+        assert!(provider.secret_ops().is_some());
+
+        assert!(provider.variable_ops().is_some());
+        assert!(provider.discussion_ops().is_some());
+
+        assert!(provider.deploy_ops().is_some());
+        assert!(provider.access_ops().is_some());
+
+        assert!(provider.identity_ops().is_some());
+        assert!(provider.analytics_ops().is_some());
+
+        assert!(provider.governance_ops().is_some());
+        assert!(provider.license_ops().is_some());
+
+        assert!(provider.browse_ops().is_some());
+    }
+
+    #[test]
+    fn test_gitlab_provider_ops() {
+        let registry = ProviderRegistry::new();
+
+        let provider = registry.get(ProviderId::GitLab).unwrap();
+
+        assert!(provider.repo_ops().is_some());
+
+        assert!(provider.change_ops().is_some());
+        assert!(provider.issue_ops().is_some());
+
+        assert!(provider.pipeline_ops().is_some());
+        assert!(provider.release_ops().is_some());
+
+        assert!(provider.label_ops().is_some());
+        assert!(provider.notification_ops().is_some());
+
+        assert!(provider.webhook_ops().is_some());
+        assert!(provider.search_ops().is_some());
+
+        assert!(provider.code_ops().is_some());
+        assert!(provider.environment_ops().is_some());
+
+        assert!(provider.runner_ops().is_some());
+        assert!(provider.variable_ops().is_some());
+
+        assert!(provider.discussion_ops().is_some());
+        assert!(provider.access_ops().is_some());
+
+        assert!(provider.identity_ops().is_some());
+        assert!(provider.browse_ops().is_some());
+
+        assert!(provider.template_ops().is_some());
+    }
+
+    #[test]
+    fn test_gitlab_provider_missing_ops() {
+        let registry = ProviderRegistry::new();
+
+        let provider = registry.get(ProviderId::GitLab).unwrap();
+
+        assert!(provider.deploy_ops().is_some());
+
+        assert!(provider.analytics_ops().is_some());
+        assert!(provider.governance_ops().is_some());
+
+        assert!(provider.secret_ops().is_some());
+        assert!(provider.license_ops().is_some());
+
+        assert!(provider.dependency_ops().is_some());
+        assert!(provider.advisory_ops().is_some());
+
+        assert!(provider.attestation_ops().is_some());
+    }
+}

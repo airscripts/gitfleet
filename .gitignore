@@ -1,0 +1,9 @@
+.env
+.ghitgudrc
+.gitfleetrc
+
+target/
+metadata/
+
+*.profraw
+*.profdata

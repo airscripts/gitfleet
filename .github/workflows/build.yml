@@ -1,0 +1,33 @@
+name: Build
+
+on:
+  workflow_call:
+
+jobs:
+  build:
+    name: Build
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout Code
+
+      - uses: dtolnay/rust-toolchain@stable
+        name: Install Rust Toolchain
+
+      - uses: Swatinem/rust-cache@v2
+        name: Cache Cargo
+
+      - run: cargo build --release
+        name: Build Release Binary
+
+      - run: cargo run --release -- --help
+        name: Test CLI Help
+
+      - run: cargo run --release -- version
+        name: Test CLI Version

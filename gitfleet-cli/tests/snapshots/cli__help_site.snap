@@ -1,0 +1,21 @@
+---
+source: gitfleet-cli/tests/cli.rs
+expression: output
+---
+Repository pages
+
+Usage: gitfleet site [OPTIONS] <COMMAND>
+
+Commands:
+  get     Get Pages site information for a repository.
+  create  Enable Pages for a repository.
+  delete  Disable Pages for a repository.
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
+      --json           
+      --debug          
+      --theme <THEME>  [default: auto]
+      --yes            
+      --dry-run        
+  -h, --help           Print help

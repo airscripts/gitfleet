@@ -1,0 +1,16 @@
+---
+source: gitfleet-providers/tests/gitlab_extended.rs
+expression: tags
+---
+[
+  {
+    "id": 1,
+    "pattern": "v*",
+    "created_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": 2,
+    "pattern": "release-*",
+    "created_at": "2024-02-01T00:00:00Z"
+  }
+]

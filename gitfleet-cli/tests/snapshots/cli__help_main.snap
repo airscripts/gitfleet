@@ -1,0 +1,69 @@
+---
+source: gitfleet-cli/tests/cli.rs
+assertion_line: 1814
+expression: output
+---
+ ██████╗ ██╗████████╗███████╗██╗     ███████╗███████╗████████╗
+██╔════╝ ██║╚══██╔══╝██╔════╝██║     ██╔════╝██╔════╝╚══██╔══╝
+██║  ███╗██║   ██║   █████╗  ██║     █████╗  █████╗     ██║   
+██║   ██║██║   ██║   ██╔══╝  ██║     ██╔══╝  ██╔══╝     ██║   
+╚██████╔╝██║   ██║   ██║     ███████╗███████╗███████╗   ██║   
+ ╚═════╝ ╚═╝   ╚═╝   ╚═╝     ╚══════╝╚══════╝╚══════╝   ╚═╝   
+
+Command every repository as one fleet.
+
+Usage: gitfleet [OPTIONS] <COMMAND>
+
+Commands:
+  access       Organization access management
+  advisory     Security advisory operations
+  alias        Command aliases
+  analytics    Repository and pipeline analytics
+  api          Raw provider API access
+  attestation  Attestation operations
+  auth         Provider authentication and profiles
+  browse       Browse repository resources
+  change       Proposed changes, stacks, and merge automation
+  code         Code navigation and search
+  completion   Shell completion generation
+  config       Configuration management
+  deps         Dependency review and analysis
+  deploy       Deployment management
+  dev          Development environments
+  discussion   Discussion management
+  environment  Environment management
+  govern       Fleet governance
+  identity     Account keys (SSH, GPG)
+  inbox        Notification management
+  issue        Issue management
+  label        Label management
+  license      License discovery
+  planning     Planning boards, milestones, and projects
+  pipeline     CI/CD pipeline definitions, runs, and caches
+  policy       Repository protection policies
+  registry     Package registry
+  release      Release management
+  repo         Repository lifecycle, forks, and synchronization
+  review       Reviews, comments, and reactions
+  runner       CI/CD runner management
+  search       Search repositories and code
+  secret       Repository secrets
+  security     Security audit, leaks, and compliance
+  site         Repository pages
+  snippet      Hosted snippets
+  template     Repository templates
+  variable     Repository variables
+  version      Version information
+  webhook      Webhook management
+  wiki         Repository wiki pages
+  workspace    Named fleets and multi-repository execution
+  help         Print this message or the help of the given subcommand(s)
+
+Options:
+      --json           
+      --debug          
+      --theme <THEME>  [default: auto]
+      --yes            
+      --dry-run        
+  -h, --help           Print help
+  -V, --version        Print version

@@ -1,0 +1,31 @@
+---
+source: gitfleet-cli/tests/cli.rs
+assertion_line: 1820
+expression: output
+---
+Repository lifecycle, forks, and synchronization
+
+Usage: gitfleet repo [OPTIONS] <COMMAND>
+
+Commands:
+  create     Create a repository.
+  list       List repositories.
+  view       View repository details.
+  clone      Clone a repository.
+  delete     Delete a repository.
+  archive    Archive a repository.
+  unarchive  Unarchive a repository.
+  rename     Rename a repository.
+  star       Star a repository.
+  unstar     Remove a star from a repository.
+  fork       Manage repository forks.
+  edit       Edit repository metadata.
+  help       Print this message or the help of the given subcommand(s)
+
+Options:
+      --json           
+      --debug          
+      --theme <THEME>  [default: auto]
+      --yes            
+      --dry-run        
+  -h, --help           Print help
