@@ -71,12 +71,26 @@ a capability error instead of pretending another provider supports them.
 
 ## Installation
 
-Gitfleet is a Rust CLI. Build from source with Cargo:
+Gitfleet is a Rust CLI. Install the CLI package from this checkout with Cargo:
 
 ```bash
-cargo build --release
-./target/release/gitfleet version
-./target/release/gf version
+cargo install --path gitfleet-cli
+
+gitfleet version
+gf version
+```
+
+This builds optimized release binaries and installs both commands into Cargo's
+binary directory.
+
+Cargo installs binaries into `~/.cargo/bin`; make sure that directory is on
+your `PATH` if the commands are not found.
+
+After pulling new source changes, reinstall the local package to refresh the
+commands:
+
+```bash
+cargo install --path gitfleet-cli --force
 ```
 
 ## Authentication
@@ -306,6 +320,17 @@ Automated tests never make real HTTP requests.
 
 ## Development
 
+Build release binaries inside the repository when you want to inspect the local
+artifacts directly:
+
+```bash
+cargo build --release
+./target/release/gitfleet version
+./target/release/gf version
+```
+
+Run the required local gates before handing off changes:
+
 ```bash
 cargo fmt --check
 cargo clippy -- -D warnings
@@ -313,6 +338,12 @@ cargo check
 cargo test --workspace
 cargo llvm-cov --fail-under-lines 80
 cargo build --release
+```
+
+The workspace currently lists 2,239 Rust test entries as reported by Cargo:
+
+```bash
+cargo test --workspace -- --list | grep -c ': test$'
 ```
 
 Coverage must remain at or above 80 percent. See [AGENTS.md](./AGENTS.md) for
