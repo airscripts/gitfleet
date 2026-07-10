@@ -6,7 +6,7 @@ use crate::constants::{
     CREDENTIALS_FILE, DEFAULT_PROFILE_NAME, GITFLEET_FOLDER, GITFLEET_PROFILE_ENV,
 };
 use crate::errors::ConfigError;
-use crate::provider::ProviderId;
+use crate::provider::{ProviderCapability, ProviderContext, ProviderId, TokenSource};
 use crate::types::{CredentialsFile, Profile, ProfileRcFile};
 
 fn gitfleet_folder() -> PathBuf {
@@ -67,17 +67,53 @@ pub fn get_token() -> Result<String, ConfigError> {
 }
 
 pub fn get_token_optional() -> Option<String> {
-    let provider = get_resolved_profile()
+    resolve_provider_context()
         .ok()
-        .and_then(|name| get_profile(&name).ok().flatten())
-        .and_then(|profile| match profile.provider.as_deref() {
-            Some("gitlab") => Some(ProviderId::GitLab),
-            Some("github") | None => Some(ProviderId::GitHub),
-            Some(_) => None,
-        })
-        .unwrap_or(ProviderId::GitHub);
+        .and_then(|context| context.token)
+}
 
-    get_provider_token_optional(provider)
+pub fn resolve_provider_context() -> Result<ProviderContext, ConfigError> {
+    let profile_name = get_resolved_profile()?;
+
+    let profile = get_profile(&profile_name)?.unwrap_or(Profile {
+        token: None,
+        host: None,
+        provider: None,
+        extra: Default::default(),
+    });
+
+    let provider = match profile.provider.as_deref() {
+        Some("gitlab") => ProviderId::GitLab,
+        _ => ProviderId::GitHub,
+    };
+
+    let host = profile.host.unwrap_or_else(|| match provider {
+        ProviderId::GitHub => "github.com".to_string(),
+        ProviderId::GitLab => "gitlab.com".to_string(),
+    });
+
+    let environment_token = match provider {
+        ProviderId::GitHub => std::env::var("GITFLEET_GITHUB_TOKEN").ok(),
+        ProviderId::GitLab => std::env::var("GITFLEET_GITLAB_TOKEN").ok(),
+    }
+    .filter(|token| !token.is_empty());
+
+    let (token, token_source) = match environment_token {
+        Some(token) => (Some(token), TokenSource::Environment),
+        None => match profile.token {
+            Some(token) => (Some(token), TokenSource::Profile),
+            None => (None, TokenSource::None),
+        },
+    };
+
+    Ok(ProviderContext {
+        profile_name,
+        provider,
+        host,
+        token,
+        token_source,
+        capabilities: Vec::<ProviderCapability>::new(),
+    })
 }
 
 pub fn get_provider_token_optional(provider: ProviderId) -> Option<String> {
@@ -558,6 +594,57 @@ mod tests {
         assert_eq!(token, Some("gl-token-123".into()));
 
         std::env::remove_var("GITFLEET_GITLAB_TOKEN");
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_resolve_provider_context_prefers_provider_environment_token() {
+        let tmp_dir = std::env::temp_dir().join("gitfleet_test_provider_context");
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+        std::fs::create_dir_all(&tmp_dir).unwrap();
+
+        let original_home = std::env::var("HOME").ok();
+        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
+        std::env::remove_var("GITFLEET_GITLAB_TOKEN");
+
+        add_profile(
+            "gitlab-work",
+            Profile {
+                token: Some("profile-token".to_string()),
+                host: Some("git.example.com:8443".to_string()),
+                provider: Some("gitlab".to_string()),
+                extra: Default::default(),
+            },
+        )
+        .unwrap();
+        set_active_profile("gitlab-work").unwrap();
+
+        let profile_context = resolve_provider_context().unwrap();
+
+        assert_eq!(profile_context.profile_name, "gitlab-work");
+        assert_eq!(profile_context.provider, ProviderId::GitLab);
+        assert_eq!(profile_context.host, "git.example.com:8443");
+        assert_eq!(profile_context.token, Some("profile-token".to_string()));
+        assert_eq!(profile_context.token_source, TokenSource::Profile);
+
+        std::env::set_var("GITFLEET_GITLAB_TOKEN", "environment-token");
+
+        let environment_context = resolve_provider_context().unwrap();
+
+        assert_eq!(
+            environment_context.token,
+            Some("environment-token".to_string())
+        );
+        assert_eq!(environment_context.token_source, TokenSource::Environment);
+
+        std::env::remove_var("GITFLEET_GITLAB_TOKEN");
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+
+        if let Some(home) = original_home {
+            std::env::set_var("HOME", home);
+        }
     }
 
     #[test]

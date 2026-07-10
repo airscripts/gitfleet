@@ -17,6 +17,30 @@ pub enum ProviderId {
     GitLab,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TokenSource {
+    Environment,
+    Profile,
+    None,
+}
+
+#[derive(Clone)]
+pub struct ProviderContext {
+    pub profile_name: String,
+    pub provider: ProviderId,
+    pub host: String,
+    pub token: Option<String>,
+    pub token_source: TokenSource,
+    pub capabilities: Vec<ProviderCapability>,
+}
+
+impl ProviderContext {
+    pub fn with_capabilities(mut self, capabilities: &[ProviderCapability]) -> Self {
+        self.capabilities = capabilities.to_vec();
+        self
+    }
+}
+
 impl fmt::Display for ProviderId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -1206,6 +1230,24 @@ mod tests {
         let gitlab: ProviderId = serde_json::from_str("\"GitLab\"").unwrap();
 
         assert_eq!(gitlab, ProviderId::GitLab);
+    }
+
+    #[test]
+    fn test_provider_context_tracks_capabilities() {
+        let context = ProviderContext {
+            profile_name: "work".to_string(),
+            provider: ProviderId::GitLab,
+            host: "git.example.com".to_string(),
+            token: Some("token".to_string()),
+            token_source: TokenSource::Profile,
+            capabilities: Vec::new(),
+        }
+        .with_capabilities(&[ProviderCapability::Repositories]);
+
+        assert_eq!(context.profile_name, "work");
+        assert_eq!(context.provider, ProviderId::GitLab);
+        assert_eq!(context.token_source, TokenSource::Profile);
+        assert_eq!(context.capabilities, vec![ProviderCapability::Repositories]);
     }
 
     #[test]

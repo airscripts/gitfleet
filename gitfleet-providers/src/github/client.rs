@@ -12,6 +12,7 @@ const USER_AGENT: &str = "gitfleet/0.1.0";
 pub struct ProviderClient {
     http: Client,
     base_url_override: Option<String>,
+    configured_token: Option<String>,
 }
 
 impl Default for ProviderClient {
@@ -29,6 +30,7 @@ impl ProviderClient {
         Self {
             http,
             base_url_override: None,
+            configured_token: None,
         }
     }
 
@@ -40,11 +42,18 @@ impl ProviderClient {
         Self {
             http,
             base_url_override: Some(base_url.to_string()),
+            configured_token: None,
         }
     }
 
     pub fn with_host(host: &str) -> Self {
         Self::with_base_url(&format!("https://{host}/api/v3"))
+    }
+
+    pub fn with_context(host: &str, token: Option<String>) -> Self {
+        let mut client = Self::with_host(host);
+        client.configured_token = token;
+        client
     }
 
     fn build_headers(
@@ -156,11 +165,15 @@ impl ProviderClient {
         token: Option<&str>,
         host: Option<&str>,
     ) -> Result<reqwest::Response, GitfleetError> {
-        let env_token = gitfleet_core::config::get_provider_token_optional(
-            gitfleet_core::provider::ProviderId::GitHub,
-        );
+        let effective_token = token
+            .map(|token| token.to_string())
+            .or_else(|| self.configured_token.clone());
 
-        let effective_token: Option<String> = token.map(|t| t.to_string()).or(env_token);
+        let effective_token = effective_token.or_else(|| {
+            gitfleet_core::config::get_provider_token_optional(
+                gitfleet_core::provider::ProviderId::GitHub,
+            )
+        });
 
         if effective_token.is_none() {
             return Err(GitfleetError::from(TokenRequiredError::new(
@@ -181,11 +194,15 @@ impl ProviderClient {
         token: Option<&str>,
         host: Option<&str>,
     ) -> Result<reqwest::Response, GitfleetError> {
-        let env_token = gitfleet_core::config::get_provider_token_optional(
-            gitfleet_core::provider::ProviderId::GitHub,
-        );
+        let effective_token = token
+            .map(|token| token.to_string())
+            .or_else(|| self.configured_token.clone());
 
-        let effective_token: Option<String> = token.map(|t| t.to_string()).or(env_token);
+        let effective_token = effective_token.or_else(|| {
+            gitfleet_core::config::get_provider_token_optional(
+                gitfleet_core::provider::ProviderId::GitHub,
+            )
+        });
 
         self.request(method, endpoint, body, effective_token.as_deref(), host)
             .await

@@ -1,5 +1,5 @@
 use gitfleet_core::errors::UnsupportedCapabilityError;
-use gitfleet_core::provider::{GitProvider, ProviderCapability, ProviderId};
+use gitfleet_core::provider::{GitProvider, ProviderCapability, ProviderContext, ProviderId};
 
 pub struct ProviderRegistry {
     providers: std::collections::HashMap<ProviderId, Box<dyn GitProvider>>,
@@ -42,6 +42,25 @@ impl ProviderRegistry {
         };
 
         providers.insert(ProviderId::GitLab, gitlab);
+        Self { providers }
+    }
+
+    pub fn with_context(context: &ProviderContext) -> Self {
+        let mut providers: std::collections::HashMap<ProviderId, Box<dyn GitProvider>> =
+            std::collections::HashMap::new();
+
+        let github: Box<dyn GitProvider> = match context.provider {
+            ProviderId::GitHub => Box::new(crate::github::GitHubProvider::with_context(context)),
+            ProviderId::GitLab => Box::new(crate::github::GitHubProvider::new()),
+        };
+        providers.insert(ProviderId::GitHub, github);
+
+        let gitlab: Box<dyn GitProvider> = match context.provider {
+            ProviderId::GitHub => Box::new(crate::gitlab::GitLabProvider::new()),
+            ProviderId::GitLab => Box::new(crate::gitlab::GitLabProvider::with_context(context)),
+        };
+        providers.insert(ProviderId::GitLab, gitlab);
+
         Self { providers }
     }
 

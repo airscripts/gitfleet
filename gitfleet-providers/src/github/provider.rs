@@ -75,6 +75,15 @@ impl GitHubProvider {
             client: crate::github::client::ProviderClient::with_host(host),
         }
     }
+
+    pub fn with_context(context: &gitfleet_core::provider::ProviderContext) -> Self {
+        Self {
+            client: crate::github::client::ProviderClient::with_context(
+                &context.host,
+                context.token.clone(),
+            ),
+        }
+    }
 }
 
 impl GitProvider for GitHubProvider {
