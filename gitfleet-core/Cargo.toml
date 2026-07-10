@@ -28,7 +28,7 @@ url = "2"
 base64 = "0.22"
 async-trait = "0.1"
 
-dryoc = "0.8"
+dryoc = "0.9"
 
 [dev-dependencies]
 serial_test = "3"
