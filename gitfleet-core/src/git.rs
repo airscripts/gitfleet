@@ -30,6 +30,28 @@ pub fn get_remote_url(remote: Option<&str>) -> Result<String, ConfigError> {
     Err(ConfigError::new(crate::constants::ERROR_NO_REMOTE_URL))
 }
 
+pub fn get_remote_host(url: &str) -> Result<String, ConfigError> {
+    let url = url.trim();
+
+    if let Some(rest) = url.strip_prefix("git@") {
+        if let Some((host, _)) = rest.split_once(':') {
+            return Ok(host.to_string());
+        }
+    }
+
+    let parsed = url::Url::parse(url)
+        .map_err(|_| ConfigError::new(crate::constants::ERROR_NO_REMOTE_URL))?;
+
+    let host = parsed
+        .host_str()
+        .ok_or_else(|| ConfigError::new(crate::constants::ERROR_NO_REMOTE_URL))?;
+
+    Ok(match parsed.port() {
+        Some(port) => format!("{host}:{port}"),
+        None => host.to_string(),
+    })
+}
+
 pub fn get_remote_names() -> Result<Vec<String>, ConfigError> {
     let output = std::process::Command::new("git")
         .args(["remote"])
@@ -227,6 +249,27 @@ mod tests {
     #[test]
     fn test_is_inside_repo_returns_bool() {
         let _ = is_inside_repo();
+    }
+
+    #[test]
+    fn test_get_remote_host_parses_ssh_url() {
+        let host = get_remote_host("git@gitlab.example.com:group/project.git").unwrap();
+
+        assert_eq!(host, "gitlab.example.com");
+    }
+
+    #[test]
+    fn test_get_remote_host_parses_https_url() {
+        let host = get_remote_host("https://github.example.com/org/repo.git").unwrap();
+
+        assert_eq!(host, "github.example.com");
+    }
+
+    #[test]
+    fn test_get_remote_host_preserves_https_port() {
+        let host = get_remote_host("https://git.example.com:8443/group/project.git").unwrap();
+
+        assert_eq!(host, "git.example.com:8443");
     }
 
     #[test]

@@ -69,6 +69,12 @@ impl GitHubProvider {
             client: crate::github::client::ProviderClient::with_base_url(base_url),
         }
     }
+
+    pub fn with_host(host: &str) -> Self {
+        Self {
+            client: crate::github::client::ProviderClient::with_host(host),
+        }
+    }
 }
 
 impl GitProvider for GitHubProvider {

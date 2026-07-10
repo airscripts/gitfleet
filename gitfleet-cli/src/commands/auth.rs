@@ -1,7 +1,26 @@
-use clap::Subcommand;
-use gitfleet_core::errors::{GitfleetError, TokenRequiredError};
+use clap::{Subcommand, ValueEnum};
+use gitfleet_core::errors::{ConfigError, GitfleetError, TokenRequiredError};
+use gitfleet_core::provider::ProviderId;
 
 use crate::app::App;
+
+#[derive(Clone, Debug, ValueEnum)]
+pub enum ProviderArg {
+    #[value(name = "github")]
+    GitHub,
+
+    #[value(name = "gitlab")]
+    GitLab,
+}
+
+impl ProviderArg {
+    fn id(&self) -> ProviderId {
+        match self {
+            Self::GitHub => ProviderId::GitHub,
+            Self::GitLab => ProviderId::GitLab,
+        }
+    }
+}
 
 #[derive(Subcommand, Debug)]
 pub enum AuthCommand {
@@ -9,8 +28,13 @@ pub enum AuthCommand {
     Login {
         #[arg(long)]
         token: Option<String>,
-        #[arg(long, default_value = "github.com")]
-        host: String,
+
+        #[arg(long)]
+        host: Option<String>,
+
+        #[arg(long, value_enum)]
+        provider: Option<ProviderArg>,
+
         #[arg(long, default_value = "default")]
         profile: String,
     },
@@ -54,6 +78,7 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
         AuthCommand::Login {
             token,
             host,
+            provider,
             profile,
         } => {
             let token = match token {
@@ -68,10 +93,22 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
                 )));
             }
 
-            let provider = if host.contains("gitlab") {
-                "gitlab"
-            } else {
-                "github"
+            let provider =
+                provider
+                    .map(|provider| provider.id())
+                    .unwrap_or_else(|| match host.as_deref() {
+                        Some(host) if host.contains("gitlab") => ProviderId::GitLab,
+                        _ => ProviderId::GitHub,
+                    });
+
+            let host = host.unwrap_or_else(|| match provider {
+                ProviderId::GitHub => "github.com".to_string(),
+                ProviderId::GitLab => "gitlab.com".to_string(),
+            });
+
+            let provider_name = match provider {
+                ProviderId::GitHub => "github",
+                ProviderId::GitLab => "gitlab",
             };
 
             gitfleet_core::config::add_profile(
@@ -79,7 +116,7 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
                 gitfleet_core::types::Profile {
                     token: Some(token.trim().to_string()),
                     host: Some(host),
-                    provider: Some(provider.to_string()),
+                    provider: Some(provider_name.to_string()),
                     extra: Default::default(),
                 },
             )?;
@@ -117,7 +154,11 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
                     .map(|p| {
                         if show_token {
                             let token_display = if p.has_token {
-                                let t = gitfleet_core::config::read("token").unwrap_or_default();
+                                let t = gitfleet_core::config::get_profile(&p.name)
+                                    .ok()
+                                    .flatten()
+                                    .and_then(|profile| profile.token)
+                                    .unwrap_or_default();
 
                                 if t.len() > 12 {
                                     format!("{}...{}", &t[..8], &t[t.len().saturating_sub(4)..])
@@ -225,12 +266,17 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
         }
 
         AuthCommand::Detect => {
-            match gitfleet_core::git::get_repo_root() {
-                Ok(root) => app
-                    .renderer()
-                    .write_value(&format!("Repository root: {}", root.display())),
-                Err(_) => app.renderer().write_value("Not inside a git repository."),
-            }
+            let remote_url = gitfleet_core::git::get_remote_url(None)?;
+            let host = gitfleet_core::git::get_remote_host(&remote_url)?;
+
+            let profile = gitfleet_core::config::find_profile_by_host(&host)?.ok_or_else(|| {
+                ConfigError::new(format!("No profile configured for host \"{host}\"."))
+            })?;
+
+            gitfleet_core::config::set_active_profile(&profile)?;
+
+            app.renderer()
+                .write_value(&format!("Switched to profile '{profile}' for {host}."));
 
             Ok(())
         }

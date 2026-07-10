@@ -11,6 +11,7 @@ Command every repository as one fleet.
 ## Table of Contents
 
 - [Overview](#overview)
+- [Providers](#providers)
 - [Architecture](#architecture)
 - [Features](#features)
 - [Installation](#installation)
@@ -37,9 +38,30 @@ delivery, security, analytics, and governance. It keeps portable concepts such
 as changes, pipelines, planning, and development environments consistent while
 retaining provider-specific capabilities when they exist.
 
+It is a provider-neutral fleet-management CLI, not a replacement name for a
+single provider's CLI. Where `gh` is focused on GitHub and `glab` is focused on
+GitLab, Gitfleet gives teams that use both providers one vocabulary, one command
+surface, and named profiles for working across their repositories. It preserves
+real provider differences: a command only runs when the selected provider
+supports the required capability.
+
 The `gitfleet` and `gf` binaries are equivalent. Human-readable output is the
 default, and every automation workflow can opt into structured output with
 `--json`.
+
+## Providers
+
+Gitfleet currently includes these providers:
+
+| Provider | Default host | Use with Gitfleet |
+| -------- | ------------ | ----------------- |
+| GitHub   | `github.com` | GitHub repositories and GitHub Enterprise hosts configured with `--host` |
+| GitLab   | `gitlab.com` | GitLab repositories through the same provider-neutral command families |
+
+Configure a profile per provider or account, then switch profiles or let
+`gitfleet auth detect` select the profile from the current repository remote.
+This makes mixed GitHub and GitLab fleets manageable without changing tools or
+learning provider-specific root command families.
 
 ## Architecture
 
@@ -109,6 +131,17 @@ GitHub Enterprise is supported through an explicit host:
 gitfleet auth login \
   --host github.example.com \
   --profile work \
+  --token <token>
+```
+
+For GitLab, select the provider explicitly. This is required for a
+self-managed GitLab host whose name does not include `gitlab`:
+
+```bash
+gitfleet auth login \
+  --provider gitlab \
+  --host git.example.com \
+  --profile work-gitlab \
   --token <token>
 ```
 
@@ -275,6 +308,7 @@ Workspace targets may be provider-qualified:
 ```text
 github@github.com:owner/repository
 github@github.example.com:platform/repository
+gitlab@gitlab.com:group/project
 ```
 
 ## Output Formats

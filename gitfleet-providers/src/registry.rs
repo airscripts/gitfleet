@@ -26,6 +26,25 @@ impl ProviderRegistry {
         Self { providers }
     }
 
+    pub fn with_host(provider_id: ProviderId, host: &str) -> Self {
+        let mut providers: std::collections::HashMap<ProviderId, Box<dyn GitProvider>> =
+            std::collections::HashMap::new();
+
+        let github: Box<dyn GitProvider> = match provider_id {
+            ProviderId::GitHub => Box::new(crate::github::GitHubProvider::with_host(host)),
+            ProviderId::GitLab => Box::new(crate::github::GitHubProvider::new()),
+        };
+
+        providers.insert(ProviderId::GitHub, github);
+        let gitlab: Box<dyn GitProvider> = match provider_id {
+            ProviderId::GitHub => Box::new(crate::gitlab::GitLabProvider::new()),
+            ProviderId::GitLab => Box::new(crate::gitlab::GitLabProvider::with_host(host)),
+        };
+
+        providers.insert(ProviderId::GitLab, gitlab);
+        Self { providers }
+    }
+
     pub fn get(
         &self,
         provider: ProviderId,

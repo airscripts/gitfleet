@@ -43,6 +43,10 @@ impl ProviderClient {
         }
     }
 
+    pub fn with_host(host: &str) -> Self {
+        Self::with_base_url(&format!("https://{host}/api/v3"))
+    }
+
     fn build_headers(
         &self,
         token: Option<&str>,
@@ -1793,6 +1797,15 @@ mod tests {
         let url = client.api_base_url(None);
 
         assert_eq!(url, "http://localhost:8080");
+    }
+
+    #[test]
+    fn test_api_base_url_profile_host() {
+        let client = ProviderClient::with_host("github.example.com");
+
+        let url = client.api_base_url(None);
+
+        assert_eq!(url, "https://github.example.com/api/v3");
     }
 
     #[test]

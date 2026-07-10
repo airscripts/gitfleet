@@ -67,7 +67,17 @@ pub fn get_token() -> Result<String, ConfigError> {
 }
 
 pub fn get_token_optional() -> Option<String> {
-    get_provider_token_optional(ProviderId::GitHub)
+    let provider = get_resolved_profile()
+        .ok()
+        .and_then(|name| get_profile(&name).ok().flatten())
+        .and_then(|profile| match profile.provider.as_deref() {
+            Some("gitlab") => Some(ProviderId::GitLab),
+            Some("github") | None => Some(ProviderId::GitHub),
+            Some(_) => None,
+        })
+        .unwrap_or(ProviderId::GitHub);
+
+    get_provider_token_optional(provider)
 }
 
 pub fn get_provider_token_optional(provider: ProviderId) -> Option<String> {
@@ -147,6 +157,27 @@ pub fn get_profile(name: &str) -> Result<Option<Profile>, ConfigError> {
     let creds = read_credentials()?;
 
     Ok(creds.profiles.get(name).cloned())
+}
+
+pub fn find_profile_by_host(host: &str) -> Result<Option<String>, ConfigError> {
+    let creds = read_credentials()?;
+    let normalized_host = host.trim_end_matches('/').to_ascii_lowercase();
+
+    let mut matches: Vec<String> = creds
+        .profiles
+        .iter()
+        .filter_map(|(name, profile)| {
+            profile.host.as_ref().and_then(|profile_host| {
+                (profile_host
+                    .trim_end_matches('/')
+                    .eq_ignore_ascii_case(&normalized_host))
+                .then(|| name.clone())
+            })
+        })
+        .collect();
+
+    matches.sort();
+    Ok(matches.into_iter().next())
 }
 
 pub fn list_profiles() -> Result<Vec<ProfileEntry>, ConfigError> {

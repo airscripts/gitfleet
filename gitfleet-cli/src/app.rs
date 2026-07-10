@@ -26,12 +26,19 @@ impl App {
     }
 
     pub fn from_config(renderer: Renderer, dry_run: bool) -> Result<Self, GitfleetError> {
-        let registry = ProviderRegistry::new();
-
         let profile = gitfleet_core::config::get_resolved_profile()
             .unwrap_or_else(|_| gitfleet_core::constants::DEFAULT_PROFILE_NAME.to_string());
 
         let provider_id = resolve_provider_id(&profile)?;
+        let host = gitfleet_core::config::get_profile(&profile)?
+            .and_then(|profile| profile.host)
+            .unwrap_or_else(|| match provider_id {
+                ProviderId::GitHub => "github.com".to_string(),
+                ProviderId::GitLab => "gitlab.com".to_string(),
+            });
+
+        let registry = ProviderRegistry::with_host(provider_id, &host);
+
         Ok(Self::new(registry, renderer, provider_id, dry_run))
     }
 

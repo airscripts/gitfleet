@@ -66,6 +66,12 @@ impl GitLabProvider {
             client: crate::gitlab::client::ProviderClient::with_base_url(base_url),
         }
     }
+
+    pub fn with_host(host: &str) -> Self {
+        Self {
+            client: crate::gitlab::client::ProviderClient::with_host(host),
+        }
+    }
 }
 
 impl GitProvider for GitLabProvider {
