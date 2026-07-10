@@ -127,34 +127,72 @@ impl ProviderClient {
         accept: Option<&str>,
         content_type: Option<&str>,
     ) -> Result<reqwest::Response, GitfleetError> {
-        let headers = self.build_headers(token, accept, content_type)?;
+        let mut attempt = 1;
 
-        let mut req = self.http.request(method, url).headers(headers);
+        loop {
+            let headers = self.build_headers(token, accept, content_type)?;
+            let mut req = self.http.request(method.clone(), url).headers(headers);
 
-        if let Some(b) = body {
-            req = req.json(&b);
+            if let Some(body) = body.as_ref() {
+                req = req.json(body);
+            }
+
+            let response = match req.send().await {
+                Ok(response) => response,
+                Err(error) => {
+                    if let Some(delay) = crate::retry::delay_for(&method, None, None, attempt) {
+                        tracing::warn!(
+                            provider = "github",
+                            method = %method,
+                            attempt,
+                            ?delay,
+                            "retrying transient transport failure"
+                        );
+
+                        tokio::time::sleep(delay).await;
+                        attempt += 1;
+                        continue;
+                    }
+
+                    return Err(GitfleetError::new(format!(
+                        "Network request failed: {error}"
+                    )));
+                }
+            };
+
+            let status = response.status().as_u16();
+
+            if (STATUS_OK_MIN..=STATUS_OK_MAX).contains(&status) {
+                return Ok(response);
+            }
+
+            if let Some(delay) =
+                crate::retry::delay_for(&method, Some(status), Some(response.headers()), attempt)
+            {
+                tracing::warn!(
+                    provider = "github",
+                    method = %method,
+                    status,
+                    attempt,
+                    ?delay,
+                    "retrying transient provider response"
+                );
+
+                tokio::time::sleep(delay).await;
+                attempt += 1;
+                continue;
+            }
+
+            return Err(handle_error(
+                status,
+                &response,
+                token.is_some()
+                    || gitfleet_core::config::get_provider_token_optional(
+                        gitfleet_core::provider::ProviderId::GitHub,
+                    )
+                    .is_some(),
+            ));
         }
-
-        let response = req
-            .send()
-            .await
-            .map_err(|e| GitfleetError::new(format!("Network request failed: {e}")))?;
-
-        let status = response.status().as_u16();
-
-        if (STATUS_OK_MIN..=STATUS_OK_MAX).contains(&status) {
-            return Ok(response);
-        }
-
-        Err(handle_error(
-            status,
-            &response,
-            token.is_some()
-                || gitfleet_core::config::get_provider_token_optional(
-                    gitfleet_core::provider::ProviderId::GitHub,
-                )
-                .is_some(),
-        ))
     }
 
     pub async fn request_token_required(
@@ -214,11 +252,14 @@ impl ProviderClient {
         token: Option<&str>,
         host: Option<&str>,
     ) -> Result<Vec<T>, GitfleetError> {
-        let env_token = gitfleet_core::config::get_provider_token_optional(
-            gitfleet_core::provider::ProviderId::GitHub,
-        );
-
-        let effective_token: Option<String> = token.map(|t| t.to_string()).or(env_token);
+        let effective_token = token
+            .map(|token| token.to_string())
+            .or_else(|| self.configured_token.clone())
+            .or_else(|| {
+                gitfleet_core::config::get_provider_token_optional(
+                    gitfleet_core::provider::ProviderId::GitHub,
+                )
+            });
 
         let base = self.api_base_url(host);
         let mut url = format!("{base}{endpoint}");
