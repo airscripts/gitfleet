@@ -354,24 +354,32 @@ Automated tests never make real HTTP requests.
 
 ## Development
 
-Build release binaries inside the repository when you want to inspect the local
-artifacts directly:
+Install Lefthook once after cloning or when recreating the local Git metadata:
+
+```bash
+lefthook install
+```
+
+Make sure `lefthook` and `cargo-llvm-cov` are available on your `PATH` before
+committing. Install the coverage tool with `cargo install cargo-llvm-cov` if
+needed.
+
+The pre-commit hook runs formatting, linting, a workspace build, and
+`cargo llvm-cov --fail-under-lines 80 --workspace`. Coverage runs the test
+suite, so a separate `cargo test --workspace` step is unnecessary for the
+normal pre-commit workflow. To run the hook manually:
+
+```bash
+lefthook run pre-commit
+```
+
+Build release binaries separately when you want to inspect the optimized
+artifacts or perform the final release check:
 
 ```bash
 cargo build --release
 ./target/release/gitfleet version
 ./target/release/gf version
-```
-
-Run the required local gates before handing off changes:
-
-```bash
-cargo fmt --check
-cargo clippy -- -D warnings
-cargo check
-cargo test --workspace
-cargo llvm-cov --fail-under-lines 80
-cargo build --release
 ```
 
 The workspace currently lists 2,239 Rust test entries as reported by Cargo:

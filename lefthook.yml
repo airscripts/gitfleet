@@ -13,4 +13,4 @@ pre-commit:
       run: cargo build --workspace
 
     test:
-      run: cargo test --workspace
+      run: cargo llvm-cov --fail-under-lines 80 --workspace
