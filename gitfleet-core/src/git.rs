@@ -232,18 +232,29 @@ mod tests {
     #[serial_test::serial]
     fn test_get_current_branch_returns_string() {
         let original_dir = std::env::current_dir().unwrap();
+        let repo_dir = tempfile::tempdir().unwrap();
 
-        std::env::set_current_dir(env!("CARGO_MANIFEST_DIR")).unwrap();
+        let init = std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(repo_dir.path())
+            .output()
+            .unwrap();
+        assert!(init.status.success());
+
+        let branch = std::process::Command::new("git")
+            .args(["symbolic-ref", "HEAD", "refs/heads/test-branch"])
+            .current_dir(repo_dir.path())
+            .output()
+            .unwrap();
+        assert!(branch.status.success());
+
+        std::env::set_current_dir(repo_dir.path()).unwrap();
 
         let result = get_current_branch();
 
         std::env::set_current_dir(original_dir).unwrap();
 
-        assert!(result.is_ok());
-
-        let branch = result.unwrap();
-
-        assert!(!branch.contains('\n'));
+        assert_eq!(result.unwrap(), "test-branch");
     }
 
     #[test]
