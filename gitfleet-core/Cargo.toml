@@ -17,7 +17,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4", features = ["derive"] }
 inquire = "0.9"
-indicatif = "0.17"
+indicatif = "0.18"
 owo-colors = { version = "4", features = ["supports-colors"] }
 dirs = "6"
 time = { version = "0.3", features = ["formatting", "serde"] }
