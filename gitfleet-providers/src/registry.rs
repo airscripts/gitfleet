@@ -91,6 +91,25 @@ impl ProviderRegistry {
     }
 }
 
+pub fn validate_capability_list(capabilities: &[ProviderCapability]) -> Result<(), String> {
+    let mut seen = std::collections::HashSet::new();
+
+    for capability in capabilities {
+        if capability.to_string().is_empty() {
+            return Err("Provider capability has an empty display name.".to_string());
+        }
+
+        if !seen.insert(*capability) {
+            return Err(format!(
+                "Provider capability '{}' is duplicated.",
+                capability
+            ));
+        }
+    }
+
+    Ok(())
+}
+
 impl Default for ProviderRegistry {
     fn default() -> Self {
         Self::new()
@@ -306,5 +325,16 @@ mod tests {
         assert!(provider.advisory_ops().is_some());
 
         assert!(provider.attestation_ops().is_some());
+    }
+
+    #[test]
+    fn test_builtin_provider_capability_lists_are_valid() {
+        let registry = ProviderRegistry::new();
+
+        for provider_id in [ProviderId::GitHub, ProviderId::GitLab] {
+            let provider = registry.get(provider_id).unwrap();
+
+            assert!(validate_capability_list(provider.capabilities()).is_ok());
+        }
     }
 }

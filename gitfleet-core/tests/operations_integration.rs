@@ -1,4 +1,6 @@
-use gitfleet_core::operations::{get_operation_family, operation_families};
+use gitfleet_core::operations::{
+    get_operation_family, operation_families, validate_capability_contract,
+};
 use gitfleet_core::provider::{ProviderCapability, ProviderId};
 
 #[test]
@@ -110,6 +112,11 @@ fn test_operation_family_capability_alignment() {
         !capability_names.is_empty(),
         "At least some families should have capabilities"
     );
+}
+
+#[test]
+fn test_capability_contract_is_valid() {
+    assert!(validate_capability_contract().is_ok());
 }
 
 #[test]

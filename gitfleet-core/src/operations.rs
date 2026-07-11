@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::provider::ProviderCapability;
 
 pub struct OperationFamily {
@@ -218,6 +220,37 @@ pub fn get_operation_family(name: &str) -> Option<OperationFamily> {
         })
 }
 
+pub fn validate_capability_contract() -> Result<(), String> {
+    let mut seen_capabilities = HashSet::new();
+
+    for family in operation_families() {
+        if family.name.is_empty() || family.description.is_empty() {
+            return Err(format!(
+                "Operation family '{}' must have a name and description.",
+                family.name
+            ));
+        }
+
+        if let Some(capability) = family.capability {
+            if capability.to_string().is_empty() {
+                return Err(format!(
+                    "Operation family '{}' has an unnamed capability.",
+                    family.name
+                ));
+            }
+
+            if !seen_capabilities.insert(capability) {
+                return Err(format!(
+                    "Capability '{}' is mapped to multiple operation families.",
+                    capability
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -261,6 +294,11 @@ mod tests {
     #[test]
     fn test_get_operation_family_unknown() {
         assert!(get_operation_family("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_validate_capability_contract() {
+        assert!(validate_capability_contract().is_ok());
     }
 
     #[test]
