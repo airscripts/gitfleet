@@ -190,3 +190,52 @@ async fn gitlab_rejects_malformed_pagination_metadata() {
 
     assert!(error.contains("Malformed GitLab pagination"));
 }
+
+#[tokio::test]
+async fn gitlab_unstar_accepts_already_unstarred_response() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("DELETE"))
+        .and(path("/unstar"))
+        .respond_with(ResponseTemplate::new(304))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let client = gitfleet_providers::gitlab::ProviderClient::with_base_url(&server.uri());
+    let response = client
+        .request_url(
+            Method::DELETE,
+            &format!("{}/unstar", server.uri()),
+            None,
+            Some("token"),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), 304);
+}
+
+#[tokio::test]
+async fn gitlab_does_not_treat_not_modified_reads_as_success() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/repo"))
+        .respond_with(ResponseTemplate::new(304))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let client = gitfleet_providers::gitlab::ProviderClient::with_base_url(&server.uri());
+    let result = client
+        .request_url(
+            Method::GET,
+            &format!("{}/repo", server.uri()),
+            None,
+            Some("token"),
+        )
+        .await;
+
+    assert!(result.is_err());
+}

@@ -153,7 +153,7 @@ impl ProviderClient {
 
             let status = response.status().as_u16();
 
-            if (STATUS_OK_MIN..=STATUS_OK_MAX).contains(&status) {
+            if is_successful_response(&method, url, status) {
                 return Ok(response);
             }
 
@@ -319,6 +319,13 @@ fn with_default_per_page(endpoint: &str) -> String {
     } else {
         format!("{endpoint}?per_page=100")
     }
+}
+
+fn is_successful_response(method: &reqwest::Method, url: &str, status: u16) -> bool {
+    (STATUS_OK_MIN..=STATUS_OK_MAX).contains(&status)
+        || (status == reqwest::StatusCode::NOT_MODIFIED.as_u16()
+            && *method == reqwest::Method::DELETE
+            && url.ends_with("/unstar"))
 }
 
 fn replace_page_parameter(url: &str, page: u32) -> String {
@@ -1778,6 +1785,24 @@ mod tests {
 
         assert!(!client.is_ok(301));
         assert!(!client.is_ok(404));
+    }
+
+    #[test]
+    fn test_gitlab_unstar_accepts_not_modified() {
+        assert!(is_successful_response(
+            &reqwest::Method::DELETE,
+            "https://gitlab.example/api/v4/projects/org%2Frepo/unstar",
+            304,
+        ));
+    }
+
+    #[test]
+    fn test_gitlab_does_not_accept_not_modified_for_other_requests() {
+        assert!(!is_successful_response(
+            &reqwest::Method::GET,
+            "https://gitlab.example/api/v4/projects/org%2Frepo",
+            304,
+        ));
     }
 
     #[test]
