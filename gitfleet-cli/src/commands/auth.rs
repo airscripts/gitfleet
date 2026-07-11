@@ -49,6 +49,9 @@ pub enum AuthCommand {
     Status {
         #[arg(long)]
         show_token: bool,
+
+        #[arg(long)]
+        capabilities: bool,
     },
 
     #[command(about = "Print the current token.")]
@@ -141,7 +144,55 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
             Ok(())
         }
 
-        AuthCommand::Status { show_token } => {
+        AuthCommand::Status {
+            show_token,
+            capabilities,
+        } => {
+            if capabilities {
+                let capability_names: Vec<String> =
+                    app.capabilities().iter().map(ToString::to_string).collect();
+
+                let status = serde_json::json!({
+                    "profile": app.profile_name(),
+                    "provider": app.provider_id().to_string(),
+                    "host": app.provider_host(),
+                    "capabilities": capability_names,
+                });
+
+                if app.renderer().is_json() {
+                    app.renderer().write_result(&status);
+                } else {
+                    let rows: Vec<serde_json::Value> = status["capabilities"]
+                        .as_array()
+                        .cloned()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(|capability| {
+                            serde_json::json!({
+                                "CAPABILITY": capability,
+                            })
+                        })
+                        .collect();
+
+                    app.renderer().render_summary(
+                        "Active Provider",
+                        &[
+                            ("Profile", app.profile_name().to_string()),
+                            ("Provider", app.provider_id().to_string()),
+                            ("Host", app.provider_host().to_string()),
+                        ],
+                    );
+                    app.renderer().render_table_titled(
+                        &rows,
+                        Some("No capabilities reported."),
+                        Some("Capabilities"),
+                        Some(&["CAPABILITY"]),
+                    );
+                }
+
+                return Ok(());
+            }
+
             let profiles = gitfleet_core::config::list_profiles()?;
 
             if app.renderer().is_json() {

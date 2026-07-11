@@ -695,7 +695,8 @@ fn test_auth_status_help() {
         .arg("status")
         .arg("--help")
         .assert()
-        .success();
+        .success()
+        .stdout(predicate::str::contains("--capabilities"));
 }
 
 #[test]

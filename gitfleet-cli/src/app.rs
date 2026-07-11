@@ -83,6 +83,14 @@ impl App {
         &self.context.host
     }
 
+    pub fn profile_name(&self) -> &str {
+        &self.context.profile_name
+    }
+
+    pub fn capabilities(&self) -> &[gitfleet_core::provider::ProviderCapability] {
+        &self.context.capabilities
+    }
+
     pub fn dry_run(&self) -> bool {
         self.dry_run
     }
