@@ -27,7 +27,7 @@ jobs:
       - run: cargo llvm-cov --fail-under-lines 80 --workspace --html
         name: Run Tests
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         name: Upload Coverage Report
         with:
           name: coverage-report
