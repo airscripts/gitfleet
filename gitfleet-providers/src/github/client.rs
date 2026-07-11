@@ -47,7 +47,13 @@ impl ProviderClient {
     }
 
     pub fn with_host(host: &str) -> Self {
-        Self::with_base_url(&format!("https://{host}/api/v3"))
+        let base_url = if host == "github.com" {
+            GITHUB_API_BASE_URL.to_string()
+        } else {
+            format!("https://{host}/api/v3")
+        };
+
+        Self::with_base_url(&base_url)
     }
 
     pub fn with_context(host: &str, token: Option<String>) -> Self {
@@ -1920,6 +1926,15 @@ mod tests {
         let url = client.api_base_url(None);
 
         assert_eq!(url, "https://github.example.com/api/v3");
+    }
+
+    #[test]
+    fn test_api_base_url_profile_github_com_host() {
+        let client = ProviderClient::with_host("github.com");
+
+        let url = client.api_base_url(None);
+
+        assert_eq!(url, GITHUB_API_BASE_URL);
     }
 
     #[test]
