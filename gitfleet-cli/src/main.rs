@@ -359,7 +359,7 @@ async fn main() {
             let fallback_renderer = gitfleet_core::output::Renderer::new(mode)
                 .with_theme(theme)
                 .with_yes(cli.yes);
-            fallback_renderer.write_error(&e.to_string(), None);
+            fallback_renderer.write_error_for(&e);
             std::process::exit(1);
         }
     };
@@ -434,7 +434,7 @@ async fn main() {
     };
 
     if let Err(e) = result {
-        app.renderer().write_error(&e.to_string(), None);
+        app.renderer().write_error_for(&e);
         std::process::exit(1);
     }
 }

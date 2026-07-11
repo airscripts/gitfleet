@@ -253,8 +253,8 @@ impl ProviderClient {
             });
 
         let base = self.api_base_url(host);
-        let separator = if endpoint.contains('?') { "&" } else { "?" };
-        let mut url = format!("{base}{endpoint}{separator}per_page=100");
+        let endpoint = with_default_per_page(endpoint);
+        let mut url = format!("{base}{endpoint}");
 
         let mut all_items: Vec<T> = Vec::new();
 
@@ -267,7 +267,16 @@ impl ProviderClient {
                 .headers()
                 .get("x-next-page")
                 .and_then(|v| v.to_str().ok())
-                .map(|s| s.to_string());
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| {
+                    value.parse::<u32>().map_err(|_| {
+                        GitfleetError::new(format!(
+                            "Malformed GitLab pagination X-Next-Page header: {value}."
+                        ))
+                    })
+                })
+                .transpose()?;
 
             let items: Vec<T> = response.json().await.map_err(|e| {
                 GitfleetError::new(format!("Failed to parse paginated response: {e}"))
@@ -277,12 +286,7 @@ impl ProviderClient {
 
             match next_page {
                 Some(page) => {
-                    let base_url = url
-                        .split('&')
-                        .filter(|s| !s.starts_with("page="))
-                        .collect::<Vec<_>>()
-                        .join("&");
-                    url = format!("{base_url}&page={page}");
+                    url = replace_page_parameter(&url, page);
                 }
 
                 None => break,
@@ -299,6 +303,46 @@ impl ProviderClient {
     pub fn is_not_found(&self, status: u16) -> bool {
         status == STATUS_NOT_FOUND
     }
+}
+
+fn with_default_per_page(endpoint: &str) -> String {
+    let has_per_page = endpoint
+        .split('?')
+        .nth(1)
+        .map(|query| query.split('&').any(|part| part.starts_with("per_page=")))
+        .unwrap_or(false);
+
+    if has_per_page {
+        endpoint.to_string()
+    } else if endpoint.contains('?') {
+        format!("{endpoint}&per_page=100")
+    } else {
+        format!("{endpoint}?per_page=100")
+    }
+}
+
+fn replace_page_parameter(url: &str, page: u32) -> String {
+    let (base, query) = url.split_once('?').unwrap_or((url, ""));
+    let mut found = false;
+
+    let mut params: Vec<String> = query
+        .split('&')
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            if part.starts_with("page=") {
+                found = true;
+                format!("page={page}")
+            } else {
+                part.to_string()
+            }
+        })
+        .collect();
+
+    if !found {
+        params.push(format!("page={page}"));
+    }
+
+    format!("{base}?{}", params.join("&"))
 }
 
 fn handle_error(status: u16, response: &reqwest::Response, has_token: bool) -> GitfleetError {
@@ -1941,5 +1985,29 @@ mod tests {
         let url = client.api_base_url(None);
 
         assert_eq!(url, GITLAB_API_BASE_URL);
+    }
+
+    #[test]
+    fn test_gitlab_with_default_per_page_preserves_existing_value() {
+        assert_eq!(
+            with_default_per_page("/projects?per_page=25"),
+            "/projects?per_page=25"
+        );
+    }
+
+    #[test]
+    fn test_gitlab_replace_page_parameter() {
+        assert_eq!(
+            replace_page_parameter("https://gitlab.example/projects?per_page=25&page=1", 2),
+            "https://gitlab.example/projects?per_page=25&page=2"
+        );
+    }
+
+    #[test]
+    fn test_gitlab_replace_page_parameter_adds_page() {
+        assert_eq!(
+            replace_page_parameter("https://gitlab.example/projects?per_page=25", 2),
+            "https://gitlab.example/projects?per_page=25&page=2"
+        );
     }
 }

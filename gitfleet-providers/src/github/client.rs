@@ -262,6 +262,7 @@ impl ProviderClient {
             });
 
         let base = self.api_base_url(host);
+        let endpoint = with_default_per_page(endpoint);
         let mut url = format!("{base}{endpoint}");
 
         let mut all_items: Vec<T> = Vec::new();
@@ -290,8 +291,12 @@ impl ProviderClient {
 
             all_items.extend(items);
 
-            match link_header.and_then(|lh| parse_next_link(&lh)) {
-                Some(next) => url = next,
+            match link_header {
+                Some(link_header) => match parse_next_link(&link_header)? {
+                    Some(next) => url = next,
+                    None => break,
+                },
+
                 None => break,
             }
         }
@@ -1710,20 +1715,48 @@ impl gitfleet_core::provider::TemplateOps for ProviderClient {
     }
 }
 
-fn parse_next_link(link_header: &str) -> Option<String> {
+fn with_default_per_page(endpoint: &str) -> String {
+    let has_per_page = endpoint
+        .split('?')
+        .nth(1)
+        .map(|query| query.split('&').any(|part| part.starts_with("per_page=")))
+        .unwrap_or(false);
+
+    if has_per_page {
+        endpoint.to_string()
+    } else if endpoint.contains('?') {
+        format!("{endpoint}&per_page=100")
+    } else {
+        format!("{endpoint}?per_page=100")
+    }
+}
+
+fn parse_next_link(link_header: &str) -> Result<Option<String>, GitfleetError> {
     for part in link_header.split(',') {
         let part = part.trim();
 
         if part.contains("rel=\"next\"") {
-            if let Some(start) = part.find('<') {
-                if let Some(end) = part.find('>') {
-                    return Some(part[start + 1..end].to_string());
-                }
+            let start = part.find('<').ok_or_else(|| {
+                GitfleetError::new("Malformed GitHub pagination Link header: missing '<'.")
+            })?;
+
+            let end = part[start + 1..].find('>').map(|offset| start + 1 + offset);
+            let end = end.ok_or_else(|| {
+                GitfleetError::new("Malformed GitHub pagination Link header: missing '>'.")
+            })?;
+
+            let next = &part[start + 1..end];
+            if next.is_empty() {
+                return Err(GitfleetError::new(
+                    "Malformed GitHub pagination Link header: empty next URL.",
+                ));
             }
+
+            return Ok(Some(next.to_string()));
         }
     }
 
-    None
+    Ok(None)
 }
 
 #[cfg(test)]
@@ -1741,7 +1774,7 @@ mod tests {
         let result = parse_next_link(header);
 
         assert_eq!(
-            result,
+            result.unwrap(),
             Some("https://api.github.com/repos?page=2".to_string())
         );
     }
@@ -1751,14 +1784,14 @@ mod tests {
         let header = r#"<https://api.github.com/repos?page=1>; rel="first""#;
         let result = parse_next_link(header);
 
-        assert_eq!(result, None);
+        assert_eq!(result.unwrap(), None);
     }
 
     #[test]
     fn test_parse_next_link_empty() {
         let result = parse_next_link("");
 
-        assert_eq!(result, None);
+        assert_eq!(result.unwrap(), None);
     }
 
     #[test]
@@ -1767,7 +1800,7 @@ mod tests {
         let result = parse_next_link(header);
 
         assert_eq!(
-            result,
+            result.unwrap(),
             Some("https://api.github.com/repos?page=3".to_string())
         );
     }
@@ -1778,8 +1811,31 @@ mod tests {
         let result = parse_next_link(header);
 
         assert_eq!(
-            result,
+            result.unwrap(),
             Some("https://api.github.com/repos?page=3".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_next_link_malformed_next() {
+        let result = parse_next_link(r#"rel="next""#);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_with_default_per_page_preserves_existing_value() {
+        assert_eq!(
+            with_default_per_page("/repos?per_page=25"),
+            "/repos?per_page=25"
+        );
+    }
+
+    #[test]
+    fn test_with_default_per_page_adds_value() {
+        assert_eq!(
+            with_default_per_page("/repos?sort=updated"),
+            "/repos?sort=updated&per_page=100"
         );
     }
 

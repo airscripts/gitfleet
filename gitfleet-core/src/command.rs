@@ -9,7 +9,7 @@ where
     match f().await {
         Ok(()) => Ok(()),
         Err(e) => {
-            renderer.write_error(&e.to_string(), None);
+            renderer.write_error_for(&e);
 
             Err(e)
         }

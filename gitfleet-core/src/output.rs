@@ -1,6 +1,7 @@
 use crate::icons::Icons;
 use crate::output_state::OutputMode;
 use crate::theme::{Palette, Theme};
+use crate::{errors::GitfleetError, errors::RateLimitError};
 
 pub struct Renderer {
     mode: OutputMode,
@@ -73,6 +74,28 @@ impl Renderer {
     }
 
     pub fn write_error(&self, message: &str, hint: Option<&str>) {
+        self.write_error_with_details(message, hint, None);
+    }
+
+    pub fn write_error_for(&self, error: &GitfleetError) {
+        match error {
+            GitfleetError::RateLimit(rate_limit) => {
+                let hint = rate_limit_hint(rate_limit);
+                let details = rate_limit_details(rate_limit);
+
+                self.write_error_with_details(&error.to_string(), Some(&hint), Some(&details));
+            }
+
+            _ => self.write_error(&error.to_string(), None),
+        }
+    }
+
+    fn write_error_with_details(
+        &self,
+        message: &str,
+        hint: Option<&str>,
+        details: Option<&serde_json::Value>,
+    ) {
         if self.is_silent() {
             return;
         }
@@ -85,6 +108,10 @@ impl Renderer {
 
             if let Some(h) = hint {
                 obj["hint"] = serde_json::Value::String(h.to_string());
+            }
+
+            if let Some(details) = details {
+                obj["rate_limit"] = details.clone();
             }
 
             if let Ok(json) = serde_json::to_string_pretty(&obj) {
@@ -385,6 +412,40 @@ impl Renderer {
     }
 }
 
+fn rate_limit_hint(error: &RateLimitError) -> String {
+    match format_reset_at(error) {
+        Some(reset_at) => format!(
+            "Retry after {reset_at}; remaining quota: {}/{}.",
+            error.remaining, error.limit
+        ),
+        None => format!(
+            "Retry later; rate-limit reset time is unavailable. Remaining quota: {}/{}.",
+            error.remaining, error.limit
+        ),
+    }
+}
+
+fn rate_limit_details(error: &RateLimitError) -> serde_json::Value {
+    let reset_at = format_reset_at(error).map(serde_json::Value::String);
+
+    serde_json::json!({
+        "reset_at": reset_at,
+        "remaining": error.remaining,
+        "limit": error.limit,
+    })
+}
+
+fn format_reset_at(error: &RateLimitError) -> Option<String> {
+    if error.reset_at == time::OffsetDateTime::UNIX_EPOCH {
+        return None;
+    }
+
+    error
+        .reset_at
+        .format(&time::format_description::well_known::Rfc3339)
+        .ok()
+}
+
 fn json_to_string(v: &serde_json::Value) -> String {
     match v {
         serde_json::Value::String(s) => s.clone(),
@@ -412,6 +473,7 @@ fn pad_right(s: &str, width: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::errors::RateLimitError;
     use crate::output_state::OutputMode;
 
     #[test]
@@ -515,6 +577,51 @@ mod tests {
     fn test_write_error_without_hint() {
         let r = Renderer::new(OutputMode::Human).with_theme(Theme::Dark);
         r.write_error("something failed", None);
+    }
+
+    #[test]
+    fn test_rate_limit_details_include_reset_metadata() {
+        let error = RateLimitError::new(
+            "Rate limit reached.",
+            time::OffsetDateTime::from_unix_timestamp(1_700_000_000).unwrap(),
+            2,
+            100,
+        );
+        let details = rate_limit_details(&error);
+        let hint = rate_limit_hint(&error);
+
+        assert!(details["reset_at"].is_string());
+        assert_eq!(details["remaining"], 2);
+        assert_eq!(details["limit"], 100);
+        assert!(hint.contains("remaining quota: 2/100"));
+    }
+
+    #[test]
+    fn test_rate_limit_details_handle_missing_reset_metadata() {
+        let error = RateLimitError::new(
+            "Rate limit reached.",
+            time::OffsetDateTime::UNIX_EPOCH,
+            0,
+            60,
+        );
+        let details = rate_limit_details(&error);
+        let hint = rate_limit_hint(&error);
+
+        assert!(details["reset_at"].is_null());
+        assert!(hint.contains("reset time is unavailable"));
+    }
+
+    #[test]
+    fn test_write_rate_limit_error() {
+        let renderer = Renderer::new(OutputMode::Json);
+        let error = GitfleetError::from(RateLimitError::new(
+            "Rate limit reached.",
+            time::OffsetDateTime::UNIX_EPOCH,
+            0,
+            60,
+        ));
+
+        renderer.write_error_for(&error);
     }
 
     #[test]
