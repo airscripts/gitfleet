@@ -79,6 +79,10 @@ impl App {
         self.context.provider
     }
 
+    pub fn provider_host(&self) -> &str {
+        &self.context.host
+    }
+
     pub fn dry_run(&self) -> bool {
         self.dry_run
     }

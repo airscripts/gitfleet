@@ -19,6 +19,8 @@ pub enum GitfleetError {
     #[error("{0}")]
     UnsupportedCapability(#[from] UnsupportedCapabilityError),
     #[error("{0}")]
+    PartialFailure(#[from] PartialFailureError),
+    #[error("{0}")]
     Other(String),
 }
 
@@ -138,6 +140,20 @@ impl SecretEncryptionError {
 pub struct UnsupportedCapabilityError {
     provider: ProviderId,
     capability: ProviderCapability,
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("{message}")]
+pub struct PartialFailureError {
+    message: String,
+}
+
+impl PartialFailureError {
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
 }
 
 impl UnsupportedCapabilityError {
