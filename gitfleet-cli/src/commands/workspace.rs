@@ -1,8 +1,8 @@
 use clap::Subcommand;
-use gitfleet_core::errors::{GitfleetError, PartialFailureError, UnsupportedCapabilityError};
-use gitfleet_core::provider::ProviderCapability;
+use gitfleet_core::errors::GitfleetError;
 
 use crate::app::App;
+use crate::service;
 
 #[derive(Subcommand, Debug)]
 pub enum WorkspaceCommand {
@@ -27,7 +27,12 @@ pub enum WorkspaceCommand {
 pub async fn run(cmd: WorkspaceCommand, app: &App) -> Result<(), GitfleetError> {
     match cmd {
         WorkspaceCommand::Define { name, repos } => {
-            let ws = gitfleet_core::workspace::define(&name, &repos)?;
+            let ws = gitfleet_core::workspace::define_with_defaults(
+                &name,
+                &repos,
+                app.provider_id(),
+                app.provider_host(),
+            )?;
 
             if app.renderer().is_json() {
                 app.renderer()
@@ -83,138 +88,19 @@ pub async fn run(cmd: WorkspaceCommand, app: &App) -> Result<(), GitfleetError> 
             Ok(())
         }
 
-        WorkspaceCommand::Archive { name } => archive(&name, app).await,
+        WorkspaceCommand::Archive { name } => service::workspace::archive(&name, app).await,
     }
-}
-
-async fn archive(name: &str, app: &App) -> Result<(), GitfleetError> {
-    let workspace = gitfleet_core::workspace::get(name)?;
-    let provider = app.provider()?;
-
-    let repo_ops = provider.repo_ops().ok_or_else(|| {
-        GitfleetError::from(UnsupportedCapabilityError::new(
-            app.provider_id(),
-            ProviderCapability::Repositories,
-        ))
-    })?;
-
-    let mut results = Vec::with_capacity(workspace.repositories.len());
-    let mut has_partial_failure = false;
-
-    for repository in workspace.repositories {
-        let target = format!("{}/{}", repository.namespace, repository.name);
-
-        if repository.provider != app.provider_id() || repository.host != app.provider_host() {
-            has_partial_failure = true;
-
-            results.push(serde_json::json!({
-                "repository": target,
-                "provider": repository.provider.to_string(),
-                "host": repository.host,
-                "status": "skipped",
-                "reason": "Repository does not match the active provider profile.",
-            }));
-
-            continue;
-        }
-
-        results.push(serde_json::json!({
-            "repository": target,
-            "provider": repository.provider.to_string(),
-            "host": repository.host,
-            "status": if app.dry_run() { "would_archive" } else { "pending" },
-        }));
-    }
-
-    let has_pending_targets = results.iter().any(|result| result["status"] == "pending");
-
-    if !app.dry_run() && has_pending_targets {
-        gitfleet_core::prompt::confirm_destructive(
-            &format!("Archive compatible repositories in workspace '{name}'?"),
-            app.renderer().mode(),
-            app.renderer().yes(),
-        )?;
-    }
-
-    if !app.dry_run() && has_pending_targets {
-        for result in &mut results {
-            if result["status"] != "pending" {
-                continue;
-            }
-
-            let target = result["repository"].as_str().unwrap_or_default();
-
-            match repo_ops.archive_repo(target).await {
-                Ok(()) => result["status"] = serde_json::json!("archived"),
-                Err(error) => {
-                    has_partial_failure = true;
-                    result["status"] = serde_json::json!("failed");
-                    result["reason"] = serde_json::json!(error.to_string());
-                }
-            }
-        }
-    }
-
-    let archived = results
-        .iter()
-        .filter(|result| result["status"] == "archived")
-        .count();
-
-    let would_archive = results
-        .iter()
-        .filter(|result| result["status"] == "would_archive")
-        .count();
-
-    let skipped = results
-        .iter()
-        .filter(|result| result["status"] == "skipped")
-        .count();
-
-    let failed = results
-        .iter()
-        .filter(|result| result["status"] == "failed")
-        .count();
-
-    let report = serde_json::json!({
-        "operation": "archive",
-        "workspace": name,
-        "provider": app.provider_id().to_string(),
-        "host": app.provider_host(),
-        "dry_run": app.dry_run(),
-        "results": results,
-        "summary": {
-            "total": archived + would_archive + skipped + failed,
-            "archived": archived,
-            "would_archive": would_archive,
-            "skipped": skipped,
-            "failed": failed,
-        },
-    });
-
-    if app.renderer().is_json() {
-        app.renderer().write_result(&report);
-    } else {
-        let rows = report["results"].as_array().cloned().unwrap_or_default();
-
-        app.renderer().render_table_titled(
-            &rows,
-            Some("Workspace has no repositories."),
-            Some(&format!("Workspace '{name}' archive")),
-            None,
-        );
-    }
-
-    if has_partial_failure {
-        return Err(GitfleetError::from(PartialFailureError::new(
-            "Workspace archive completed with skipped or failed repositories.",
-        )));
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
+    use gitfleet_core::output::Renderer;
+    use gitfleet_core::output_state::OutputMode;
+    use gitfleet_core::provider::ProviderId;
+    use gitfleet_providers::{GitHubProvider, ProviderRegistry};
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
     use super::super::test_helpers;
     use super::*;
 
@@ -402,6 +288,56 @@ mod tests {
         .await;
 
         assert!(result.unwrap_err().to_string().contains("--yes"));
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn test_workspace_archive_reports_partial_provider_failure() {
+        let _dir = setup_test_env();
+        std::env::set_var("GITFLEET_GITHUB_TOKEN", "test-token");
+
+        let server = MockServer::start().await;
+
+        Mock::given(method("PATCH"))
+            .and(path("/repos/org/repo1"))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        Mock::given(method("PATCH"))
+            .and(path("/repos/org/repo2"))
+            .respond_with(ResponseTemplate::new(404))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let provider = GitHubProvider::with_base_url(&server.uri());
+        let registry = ProviderRegistry::with_provider(ProviderId::GitHub, Box::new(provider));
+        let renderer = Renderer::new(OutputMode::Silent).with_yes(true);
+        let app = App::new(registry, renderer, ProviderId::GitHub, false);
+
+        run(
+            WorkspaceCommand::Define {
+                name: "partial-ws".into(),
+                repos: vec!["org/repo1".into(), "org/repo2".into()],
+            },
+            &app,
+        )
+        .await
+        .unwrap();
+
+        let result = run(
+            WorkspaceCommand::Archive {
+                name: "partial-ws".into(),
+            },
+            &app,
+        )
+        .await;
+
+        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
+
+        assert!(matches!(result, Err(GitfleetError::PartialFailure(_))));
     }
 
     #[tokio::test]

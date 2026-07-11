@@ -324,7 +324,7 @@ fn with_default_per_page(endpoint: &str) -> String {
 fn is_successful_response(method: &reqwest::Method, url: &str, status: u16) -> bool {
     (STATUS_OK_MIN..=STATUS_OK_MAX).contains(&status)
         || (status == reqwest::StatusCode::NOT_MODIFIED.as_u16()
-            && *method == reqwest::Method::DELETE
+            && *method == reqwest::Method::POST
             && url.ends_with("/unstar"))
 }
 
@@ -1790,7 +1790,7 @@ mod tests {
     #[test]
     fn test_gitlab_unstar_accepts_not_modified() {
         assert!(is_successful_response(
-            &reqwest::Method::DELETE,
+            &reqwest::Method::POST,
             "https://gitlab.example/api/v4/projects/org%2Frepo/unstar",
             304,
         ));

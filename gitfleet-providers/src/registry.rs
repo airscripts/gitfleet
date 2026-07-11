@@ -110,6 +110,62 @@ pub fn validate_capability_list(capabilities: &[ProviderCapability]) -> Result<(
     Ok(())
 }
 
+pub fn validate_provider_capabilities(provider: &dyn GitProvider) -> Result<(), String> {
+    validate_capability_list(provider.capabilities())?;
+
+    for capability in provider.capabilities() {
+        let implemented = match capability {
+            ProviderCapability::Repositories => provider.repo_ops().is_some(),
+            ProviderCapability::Changes => provider.change_ops().is_some(),
+            ProviderCapability::Reviews => provider.review_ops().is_some(),
+            ProviderCapability::Issues => provider.issue_ops().is_some(),
+            ProviderCapability::Pipelines => provider.pipeline_ops().is_some(),
+            ProviderCapability::Releases => provider.release_ops().is_some(),
+            ProviderCapability::Planning => provider.planning_ops().is_some(),
+            ProviderCapability::Wiki => provider.wiki_ops().is_some(),
+            ProviderCapability::Site => provider.site_ops().is_some(),
+            ProviderCapability::Discussions => provider.discussion_ops().is_some(),
+            ProviderCapability::Security => provider.security_ops().is_some(),
+            ProviderCapability::Registry => provider.registry_ops().is_some(),
+            ProviderCapability::DevelopmentEnvironments => provider.dev_env_ops().is_some(),
+            ProviderCapability::Deployments => provider.deploy_ops().is_some(),
+            ProviderCapability::Environments => provider.environment_ops().is_some(),
+            ProviderCapability::Runners => provider.runner_ops().is_some(),
+            ProviderCapability::Webhooks => provider.webhook_ops().is_some(),
+            ProviderCapability::Access => provider.access_ops().is_some(),
+            ProviderCapability::Identity => provider.identity_ops().is_some(),
+            ProviderCapability::Analytics => provider.analytics_ops().is_some(),
+            ProviderCapability::Snippets => provider.snippet_ops().is_some(),
+            ProviderCapability::Governance => provider.governance_ops().is_some(),
+            ProviderCapability::MergeAutomation => provider.merge_automation_ops().is_some(),
+            ProviderCapability::RepositoryPolicies => provider.policy_ops().is_some(),
+            ProviderCapability::Notifications => provider.notification_ops().is_some(),
+            ProviderCapability::Search => provider.search_ops().is_some(),
+            ProviderCapability::Code => provider.code_ops().is_some(),
+            ProviderCapability::Labels => provider.label_ops().is_some(),
+            ProviderCapability::Templates => provider.template_ops().is_some(),
+            ProviderCapability::Dependencies => provider.dependency_ops().is_some(),
+            ProviderCapability::Advisories => provider.advisory_ops().is_some(),
+            ProviderCapability::Attestations => provider.attestation_ops().is_some(),
+            ProviderCapability::Secrets => provider.secret_ops().is_some(),
+            ProviderCapability::Variables => provider.variable_ops().is_some(),
+            ProviderCapability::Licenses => provider.license_ops().is_some(),
+            ProviderCapability::Browsing => provider.browse_ops().is_some(),
+            ProviderCapability::RawApi => provider.raw_api_ops().is_some(),
+        };
+
+        if !implemented {
+            return Err(format!(
+                "Provider '{}' declares '{}' without implementing its operation trait.",
+                provider.id(),
+                capability
+            ));
+        }
+    }
+
+    Ok(())
+}
+
 impl Default for ProviderRegistry {
     fn default() -> Self {
         Self::new()
@@ -334,7 +390,7 @@ mod tests {
         for provider_id in [ProviderId::GitHub, ProviderId::GitLab] {
             let provider = registry.get(provider_id).unwrap();
 
-            assert!(validate_capability_list(provider.capabilities()).is_ok());
+            assert!(validate_provider_capabilities(provider).is_ok());
         }
     }
 }

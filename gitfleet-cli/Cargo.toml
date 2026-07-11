@@ -30,3 +30,4 @@ tempfile = "3"
 async-trait = "0.1"
 serial_test = "3"
 insta = { version = "1", features = ["json"] }
+wiremock = "0.6"

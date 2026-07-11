@@ -62,7 +62,16 @@ fn save_all(workspaces: &[Workspace]) -> Result<(), GitfleetError> {
         .map_err(|e| GitfleetError::new(format!("Failed to write workspaces: {e}")))
 }
 
+#[cfg(test)]
 fn parse_repository(value: &str) -> Result<RepositoryRef, GitfleetError> {
+    parse_repository_with_defaults(value, ProviderId::GitHub, "github.com")
+}
+
+fn parse_repository_with_defaults(
+    value: &str,
+    default_provider: ProviderId,
+    default_host: &str,
+) -> Result<RepositoryRef, GitfleetError> {
     let re = regex::Regex::new(r"(?i)^([a-z][a-z0-9-]*)@([^:]+):(.+)$")
         .expect("workspace regex is valid");
 
@@ -128,18 +137,29 @@ fn parse_repository(value: &str) -> Result<RepositoryRef, GitfleetError> {
 
     let namespace = segments[..segments.len() - 1].join("/");
     Ok(RepositoryRef {
-        provider: ProviderId::GitHub,
-        host: "github.com".to_string(),
+        provider: default_provider,
+        host: default_host.to_string(),
         namespace,
         name,
     })
 }
 
 pub fn define(name: &str, repos: &[String]) -> Result<Workspace, GitfleetError> {
+    define_with_defaults(name, repos, ProviderId::GitHub, "github.com")
+}
+
+pub fn define_with_defaults(
+    name: &str,
+    repos: &[String],
+    default_provider: ProviderId,
+    default_host: &str,
+) -> Result<Workspace, GitfleetError> {
     let mut workspaces = load_all()?;
 
-    let repositories: Result<Vec<RepositoryRef>, GitfleetError> =
-        repos.iter().map(|r| parse_repository(r)).collect();
+    let repositories: Result<Vec<RepositoryRef>, GitfleetError> = repos
+        .iter()
+        .map(|r| parse_repository_with_defaults(r, default_provider, default_host))
+        .collect();
 
     let workspace = Workspace {
         name: name.to_string(),
@@ -211,6 +231,17 @@ mod tests {
         assert_eq!(result.host, "github.com");
         assert_eq!(result.namespace, "org");
 
+        assert_eq!(result.name, "repo");
+    }
+
+    #[test]
+    fn test_parse_repository_gitlab_shorthand_with_defaults() {
+        let result =
+            parse_repository_with_defaults("group/repo", ProviderId::GitLab, "gitlab.com").unwrap();
+
+        assert_eq!(result.provider, ProviderId::GitLab);
+        assert_eq!(result.host, "gitlab.com");
+        assert_eq!(result.namespace, "group");
         assert_eq!(result.name, "repo");
     }
 

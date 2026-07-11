@@ -25,6 +25,9 @@ setup
 step "Auth Status"
 expect_exit_0 "auth status succeeds" gitfleet auth status
 
+step "Auth Capability Status"
+expect_exit_0 "auth capability status succeeds" gitfleet auth status --capabilities
+
 step "Auth Token (masked)"
 expect_exit_0 "auth token succeeds" gitfleet auth token
 

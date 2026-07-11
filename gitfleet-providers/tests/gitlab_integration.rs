@@ -424,7 +424,7 @@ async fn test_gitlab_star_repo() {
 async fn test_gitlab_unstar_repo() {
     let server = MockServer::start().await;
 
-    Mock::given(method("DELETE"))
+    Mock::given(method("POST"))
         .and(path("/projects/testgroup%2Fmy-project/unstar"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
         .respond_with(ResponseTemplate::new(200).set_body_json(single_project_json()))

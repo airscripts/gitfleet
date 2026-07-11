@@ -155,7 +155,7 @@ impl ProjectsApi {
         let endpoint = format!("/projects/{encoded}/unstar");
 
         client
-            .request_token_required(reqwest::Method::DELETE, &endpoint, None, None, None)
+            .request_token_required(reqwest::Method::POST, &endpoint, None, None, None)
             .await?;
 
         Ok(())

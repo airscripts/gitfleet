@@ -195,7 +195,7 @@ async fn gitlab_rejects_malformed_pagination_metadata() {
 async fn gitlab_unstar_accepts_already_unstarred_response() {
     let server = MockServer::start().await;
 
-    Mock::given(method("DELETE"))
+    Mock::given(method("POST"))
         .and(path("/unstar"))
         .respond_with(ResponseTemplate::new(304))
         .expect(1)
@@ -205,7 +205,7 @@ async fn gitlab_unstar_accepts_already_unstarred_response() {
     let client = gitfleet_providers::gitlab::ProviderClient::with_base_url(&server.uri());
     let response = client
         .request_url(
-            Method::DELETE,
+            Method::POST,
             &format!("{}/unstar", server.uri()),
             None,
             Some("token"),

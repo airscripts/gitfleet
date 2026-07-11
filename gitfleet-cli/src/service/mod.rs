@@ -17,6 +17,7 @@ pub mod secrets;
 pub mod variables;
 pub mod webhooks;
 pub mod wiki;
+pub mod workspace;
 
 #[cfg(test)]
 mod tests {
