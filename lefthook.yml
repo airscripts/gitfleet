@@ -7,10 +7,10 @@ pre-commit:
       run: cargo fmt --check
 
     clippy:
-      run: cargo clippy -- -D warnings
+      run: CARGO_BUILD_JOBS=4 cargo clippy -- -D warnings
 
     build:
-      run: cargo build --workspace
+      run: CARGO_BUILD_JOBS=4 cargo build --workspace
 
     test:
-      run: cargo llvm-cov --fail-under-lines 80 --workspace
+      run: CARGO_BUILD_JOBS=4 cargo llvm-cov --fail-under-lines 80 --workspace

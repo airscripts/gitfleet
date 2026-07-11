@@ -365,7 +365,8 @@ committing. Install the coverage tool with `cargo install cargo-llvm-cov` if
 needed.
 
 The pre-commit hook runs formatting, linting, a workspace build, and
-`cargo llvm-cov --fail-under-lines 80 --workspace`. Coverage runs the test
+`cargo llvm-cov --fail-under-lines 80 --workspace`, each capped at four Cargo
+build jobs to keep local resource usage manageable. Coverage runs the test
 suite, so a separate `cargo test --workspace` step is unnecessary for the
 normal pre-commit workflow. To run the hook manually:
 
@@ -377,7 +378,7 @@ Build release binaries separately when you want to inspect the optimized
 artifacts or perform the final release check:
 
 ```bash
-cargo build --release
+CARGO_BUILD_JOBS=4 cargo build --release
 ./target/release/gitfleet version
 ./target/release/gf version
 ```
@@ -385,7 +386,7 @@ cargo build --release
 The workspace currently lists 2,239 Rust test entries as reported by Cargo:
 
 ```bash
-cargo test --workspace -- --list | grep -c ': test$'
+CARGO_BUILD_JOBS=4 cargo test --workspace -- --list | grep -c ': test$'
 ```
 
 Coverage must remain at or above 80 percent. See [AGENTS.md](./AGENTS.md) for

@@ -112,11 +112,11 @@ Required gates:
 
 ```bash
 cargo fmt --check
-cargo clippy -- -D warnings
-cargo check
-cargo test --workspace
-cargo llvm-cov --fail-under-lines 80
-cargo build --release
+CARGO_BUILD_JOBS=4 cargo clippy -- -D warnings
+CARGO_BUILD_JOBS=4 cargo check
+CARGO_BUILD_JOBS=4 cargo test --workspace
+CARGO_BUILD_JOBS=4 cargo llvm-cov --fail-under-lines 80
+CARGO_BUILD_JOBS=4 cargo build --release
 ```
 
 ## Playbooks
