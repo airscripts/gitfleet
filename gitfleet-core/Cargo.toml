@@ -21,7 +21,7 @@ indicatif = "0.18"
 owo-colors = { version = "4", features = ["supports-colors"] }
 dirs = "6"
 time = { version = "0.3", features = ["formatting", "serde"] }
-sha2 = "0.10"
+sha2 = "0.11"
 hex = "0.4"
 regex = "1"
 url = "2"
