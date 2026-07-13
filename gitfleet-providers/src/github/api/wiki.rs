@@ -8,39 +8,16 @@ use crate::github::client::ProviderClient;
 pub struct WikiApi;
 
 impl WikiApi {
-    pub async fn list(client: &ProviderClient, repo: &str) -> Result<Vec<WikiPage>, GitfleetError> {
+    pub async fn list(
+        client: &ProviderClient,
+        _repo: &str,
+    ) -> Result<Vec<WikiPage>, GitfleetError> {
         ensure_public_wiki_reads(client)?;
 
-        let response = client
-            .request_url(
-                reqwest::Method::GET,
-                &format!(
-                    "https://raw.githubusercontent.com/wiki/{}",
-                    encode_path(repo)
-                ),
-                None,
-                None,
-                None,
-                None,
-            )
-            .await;
-
-        let response = match response {
-            Ok(response) => response,
-            Err(GitfleetError::NotFound(_)) => return Ok(vec![]),
-            Err(error) => return Err(error),
-        };
-
-        let _text = crate::read_response_text(response)
-            .await
-            .map_err(|e| GitfleetError::new(format!("Failed to read wiki: {e}")))?;
-
-        Ok(vec![WikiPage {
-            path: "Home".to_string(),
-            title: "Home".to_string(),
-            format: "markdown".to_string(),
-            filename: "Home.md".to_string(),
-        }])
+        Err(GitfleetError::from(UnsupportedCapabilityError::new(
+            ProviderId::GitHub,
+            ProviderCapability::Wiki,
+        )))
     }
 
     pub async fn get_page(
@@ -57,7 +34,14 @@ impl WikiApi {
         );
 
         let response = client
-            .request_url(reqwest::Method::GET, &url, None, None, None, None)
+            .request_url_optional_token(
+                reqwest::Method::GET,
+                &url,
+                None,
+                None,
+                Some("text/plain"),
+                Some("text/plain"),
+            )
             .await?;
 
         let content = crate::read_response_text(response)
@@ -163,6 +147,18 @@ mod tests {
     #[tokio::test]
     async fn test_wiki_reads_reject_non_public_host() {
         let client = ProviderClient::with_host("github.example.com");
+
+        let result = WikiApi::list(&client, "org/repo").await;
+
+        assert!(matches!(
+            result,
+            Err(GitfleetError::UnsupportedCapability(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_wiki_list_is_explicitly_unsupported() {
+        let client = ProviderClient::new();
 
         let result = WikiApi::list(&client, "org/repo").await;
 

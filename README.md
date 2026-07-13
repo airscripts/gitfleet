@@ -61,6 +61,10 @@ Gitfleet currently includes these providers:
 | GitHub   | `github.com` | GitHub repositories and GitHub Enterprise hosts configured with `--host` |
 | GitLab   | `gitlab.com` | GitLab repositories through the same provider-neutral command families |
 
+GitHub supports viewing and mutating individual wiki pages. GitHub does not
+provide a supported API for enumerating wiki pages, so `wiki list` reports the
+capability as unavailable instead of returning an incomplete page list.
+
 Configure a profile per provider or account, then switch profiles or let
 `gitfleet auth detect` select the profile from the current repository remote.
 This makes mixed GitHub and GitLab fleets manageable without changing tools or

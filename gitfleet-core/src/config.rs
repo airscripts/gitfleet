@@ -9,6 +9,7 @@ use crate::constants::{
     KEYRING_SERVICE,
 };
 use crate::errors::ConfigError;
+use crate::file_lock::FileLock;
 use crate::provider::{ProviderCapability, ProviderContext, ProviderId, TokenSource};
 use crate::types::{CredentialsFile, Profile, ProfileRcFile};
 
@@ -22,15 +23,56 @@ fn credentials_path() -> Result<PathBuf, ConfigError> {
     Ok(gitfleet_folder()?.join(CREDENTIALS_FILE))
 }
 
+fn with_credentials_lock<T, F>(exclusive: bool, operation: F) -> Result<T, ConfigError>
+where
+    F: FnOnce() -> Result<T, ConfigError>,
+{
+    let folder = gitfleet_folder()?;
+    std::fs::create_dir_all(&folder)
+        .map_err(|e| ConfigError::new(format!("Failed to create config directory: {e}")))?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        std::fs::set_permissions(&folder, std::fs::Permissions::from_mode(0o700))
+            .map_err(|e| ConfigError::new(format!("Failed to secure config directory: {e}")))?;
+    }
+
+    let lock_path = folder.join(format!(".{CREDENTIALS_FILE}.lock"));
+    let _lock = if exclusive {
+        FileLock::exclusive(&lock_path)
+    } else {
+        FileLock::shared(&lock_path)
+    }
+    .map_err(|e| ConfigError::new(format!("Failed to lock credentials: {e}")))?;
+
+    operation()
+}
+
 pub fn read_credentials() -> Result<CredentialsFile, ConfigError> {
     let path = credentials_path()?;
 
     if !path.exists() {
-        return Ok(CredentialsFile {
-            active_profile: DEFAULT_PROFILE_NAME.to_string(),
-            profiles: std::collections::HashMap::new(),
-            aliases: std::collections::HashMap::new(),
-        });
+        return Ok(default_credentials());
+    }
+
+    with_credentials_lock(false, read_credentials_unlocked)
+}
+
+fn default_credentials() -> CredentialsFile {
+    CredentialsFile {
+        active_profile: DEFAULT_PROFILE_NAME.to_string(),
+        profiles: std::collections::HashMap::new(),
+        aliases: std::collections::HashMap::new(),
+    }
+}
+
+fn read_credentials_unlocked() -> Result<CredentialsFile, ConfigError> {
+    let path = credentials_path()?;
+
+    if !path.exists() {
+        return Ok(default_credentials());
     }
 
     let content = std::fs::read_to_string(&path)
@@ -51,6 +93,10 @@ pub fn read_credentials() -> Result<CredentialsFile, ConfigError> {
 }
 
 pub fn write_credentials(creds: &CredentialsFile) -> Result<(), ConfigError> {
+    with_credentials_lock(true, || write_credentials_unlocked(creds))
+}
+
+fn write_credentials_unlocked(creds: &CredentialsFile) -> Result<(), ConfigError> {
     let folder = gitfleet_folder()?;
     std::fs::create_dir_all(&folder)
         .map_err(|e| ConfigError::new(format!("Failed to create config directory: {e}")))?;
@@ -257,6 +303,10 @@ pub fn get_gitlab_token_optional() -> Option<String> {
 pub fn get_resolved_profile() -> Result<String, ConfigError> {
     let creds = read_credentials()?;
 
+    resolve_profile_from(&creds)
+}
+
+fn resolve_profile_from(creds: &CredentialsFile) -> Result<String, ConfigError> {
     if let Ok(env_profile) = std::env::var(GITFLEET_PROFILE_ENV) {
         if creds.profiles.contains_key(&env_profile) {
             return Ok(env_profile);
@@ -289,6 +339,19 @@ pub fn get_resolved_profile() -> Result<String, ConfigError> {
     }
 
     Ok(DEFAULT_PROFILE_NAME.to_string())
+}
+
+fn update_credentials<F>(update: F) -> Result<(), ConfigError>
+where
+    F: FnOnce(&mut CredentialsFile) -> Result<(), ConfigError>,
+{
+    with_credentials_lock(true, || {
+        let mut creds = read_credentials_unlocked()?;
+
+        update(&mut creds)?;
+
+        write_credentials_unlocked(&creds)
+    })
 }
 
 pub fn get_profile(name: &str) -> Result<Option<Profile>, ConfigError> {
@@ -336,27 +399,27 @@ pub fn list_profiles() -> Result<Vec<ProfileEntry>, ConfigError> {
 }
 
 pub fn add_profile(name: &str, profile: Profile) -> Result<(), ConfigError> {
-    let mut creds = read_credentials()?;
+    update_credentials(|creds| {
+        let is_first = creds.profiles.is_empty();
+        creds.profiles.insert(name.to_string(), profile);
 
-    let is_first = creds.profiles.is_empty();
-    creds.profiles.insert(name.to_string(), profile);
+        if is_first {
+            creds.active_profile = name.to_string();
+        }
 
-    if is_first {
-        creds.active_profile = name.to_string();
-    }
-
-    write_credentials(&creds)
+        Ok(())
+    })
 }
 
 pub fn set_active_profile(name: &str) -> Result<(), ConfigError> {
-    let mut creds = read_credentials()?;
+    update_credentials(|creds| {
+        if !creds.profiles.contains_key(name) {
+            return Err(ConfigError::new(crate::constants::ERROR_PROFILE_NOT_FOUND));
+        }
 
-    if !creds.profiles.contains_key(name) {
-        return Err(ConfigError::new(crate::constants::ERROR_PROFILE_NOT_FOUND));
-    }
-
-    creds.active_profile = name.to_string();
-    write_credentials(&creds)
+        creds.active_profile = name.to_string();
+        Ok(())
+    })
 }
 
 pub fn read(key: &str) -> Option<String> {
@@ -373,53 +436,50 @@ pub fn read(key: &str) -> Option<String> {
 }
 
 pub fn write(key: &str, value: &str) -> Result<(), ConfigError> {
-    let mut creds = read_credentials()?;
-
-    let profile_name = get_resolved_profile()?;
-    let profile = creds
-        .profiles
-        .entry(profile_name.clone())
-        .or_insert(Profile {
+    update_credentials(|creds| {
+        let profile_name = resolve_profile_from(creds)?;
+        let profile = creds.profiles.entry(profile_name).or_insert(Profile {
             token: None,
             host: None,
             provider: None,
             extra: std::collections::HashMap::new(),
         });
 
-    match key {
-        "token" => profile.token = Some(value.to_string()),
-        "host" => profile.host = Some(value.to_string()),
-        _ => {
-            profile.extra.insert(key.to_string(), value.to_string());
+        match key {
+            "token" => profile.token = Some(value.to_string()),
+            "host" => profile.host = Some(value.to_string()),
+            _ => {
+                profile.extra.insert(key.to_string(), value.to_string());
+            }
         }
-    }
 
-    write_credentials(&creds)
+        Ok(())
+    })
 }
 
 pub fn unset(key: &str) -> Result<(), ConfigError> {
-    let mut creds = read_credentials()?;
+    update_credentials(|creds| {
+        let profile_name = resolve_profile_from(creds)?;
+        let profile = creds
+            .profiles
+            .get_mut(&profile_name)
+            .ok_or_else(|| ConfigError::new(format!("Profile \"{profile_name}\" not found.")))?;
 
-    let profile_name = get_resolved_profile()?;
-    let profile = creds
-        .profiles
-        .get_mut(&profile_name)
-        .ok_or_else(|| ConfigError::new(format!("Profile \"{profile_name}\" not found.")))?;
-
-    match key {
-        "token" => {
-            profile.token = None;
-            delete_profile_token(&profile_name)?;
-        }
-        "host" => profile.host = None,
-        _ => {
-            if profile.extra.remove(key).is_none() {
-                return Err(ConfigError::new(crate::constants::ERROR_UNSUPPORTED_KEY));
+        match key {
+            "token" => {
+                profile.token = None;
+                delete_profile_token(&profile_name)?;
+            }
+            "host" => profile.host = None,
+            _ => {
+                if profile.extra.remove(key).is_none() {
+                    return Err(ConfigError::new(crate::constants::ERROR_UNSUPPORTED_KEY));
+                }
             }
         }
-    }
 
-    write_credentials(&creds)
+        Ok(())
+    })
 }
 
 fn get_repo_local_profile() -> Option<String> {
@@ -444,32 +504,33 @@ pub fn get_host() -> String {
 }
 
 pub fn remove_profile(name: &str) -> Result<(), ConfigError> {
-    let mut creds = read_credentials()?;
+    update_credentials(|creds| {
+        if creds.profiles.remove(name).is_none() {
+            return Err(ConfigError::new(format!("Profile \"{name}\" not found.")));
+        }
 
-    if creds.profiles.remove(name).is_none() {
-        return Err(ConfigError::new(format!("Profile \"{name}\" not found.")));
-    }
+        delete_profile_token(name)?;
 
-    delete_profile_token(name)?;
-
-    write_credentials(&creds)
+        Ok(())
+    })
 }
 
 pub fn clear_credentials() -> Result<(), ConfigError> {
-    let path = credentials_path()?;
+    with_credentials_lock(true, || {
+        let path = credentials_path()?;
+        let creds = read_credentials_unlocked()?;
 
-    let creds = read_credentials()?;
+        for name in creds.profiles.keys() {
+            delete_profile_token(name)?;
+        }
 
-    for name in creds.profiles.keys() {
-        delete_profile_token(name)?;
-    }
+        if path.exists() {
+            std::fs::remove_file(&path)
+                .map_err(|e| ConfigError::new(format!("Failed to remove credentials: {e}")))?;
+        }
 
-    if path.exists() {
-        std::fs::remove_file(&path)
-            .map_err(|e| ConfigError::new(format!("Failed to remove credentials: {e}")))?;
-    }
-
-    Ok(())
+        Ok(())
+    })
 }
 
 pub fn normalize_host(value: &str) -> Result<String, ConfigError> {
@@ -519,21 +580,33 @@ fn uses_file_credential_store() -> bool {
 fn replace_file(temporary_path: &Path, destination: &Path) -> std::io::Result<()> {
     #[cfg(windows)]
     {
-        match std::fs::rename(temporary_path, destination) {
-            Ok(()) => Ok(()),
-            Err(error)
-                if matches!(
-                    error.kind(),
-                    std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::PermissionDenied
-                ) =>
-            {
-                if destination.exists() {
-                    std::fs::remove_file(destination)?;
-                }
+        use std::iter::once;
+        use std::os::windows::ffi::OsStrExt;
 
-                std::fs::rename(temporary_path, destination)
-            }
-            Err(error) => Err(error),
+        let source: Vec<u16> = temporary_path
+            .as_os_str()
+            .encode_wide()
+            .chain(once(0))
+            .collect();
+        let target: Vec<u16> = destination
+            .as_os_str()
+            .encode_wide()
+            .chain(once(0))
+            .collect();
+
+        let result = unsafe {
+            windows_sys::Win32::Storage::FileSystem::MoveFileExW(
+                source.as_ptr(),
+                target.as_ptr(),
+                windows_sys::Win32::Storage::FileSystem::MOVEFILE_REPLACE_EXISTING
+                    | windows_sys::Win32::Storage::FileSystem::MOVEFILE_WRITE_THROUGH,
+            )
+        };
+
+        if result == 0 {
+            Err(std::io::Error::last_os_error())
+        } else {
+            Ok(())
         }
     }
 
@@ -598,18 +671,19 @@ fn default_host(provider: ProviderId) -> &'static str {
 }
 
 pub fn set_alias(name: &str, expansion: &str, force: bool) -> Result<(), ConfigError> {
-    let mut creds = read_credentials()?;
+    update_credentials(|creds| {
+        if !force && creds.aliases.contains_key(name) {
+            return Err(ConfigError::new(format!(
+                "Alias '{name}' already exists. Use --force to overwrite."
+            )));
+        }
 
-    if !force && creds.aliases.contains_key(name) {
-        return Err(ConfigError::new(format!(
-            "Alias '{name}' already exists. Use --force to overwrite."
-        )));
-    }
+        creds
+            .aliases
+            .insert(name.to_string(), expansion.to_string());
 
-    creds
-        .aliases
-        .insert(name.to_string(), expansion.to_string());
-    write_credentials(&creds)
+        Ok(())
+    })
 }
 
 pub fn get_alias(name: &str) -> Option<String> {
@@ -635,13 +709,13 @@ pub fn list_aliases() -> Result<Vec<crate::types::AliasEntry>, ConfigError> {
 }
 
 pub fn delete_alias(name: &str) -> Result<(), ConfigError> {
-    let mut creds = read_credentials()?;
+    update_credentials(|creds| {
+        if creds.aliases.remove(name).is_none() {
+            return Err(ConfigError::new(format!("Alias '{name}' not found.")));
+        }
 
-    if creds.aliases.remove(name).is_none() {
-        return Err(ConfigError::new(format!("Alias '{name}' not found.")));
-    }
-
-    write_credentials(&creds)
+        Ok(())
+    })
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

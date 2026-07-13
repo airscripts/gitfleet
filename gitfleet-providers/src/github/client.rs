@@ -80,6 +80,17 @@ impl ProviderClient {
         matches!(url.host_str(), Some("api.github.com" | "github.com"))
     }
 
+    fn effective_optional_token(&self, token: Option<&str>) -> Option<String> {
+        token
+            .map(|token| token.to_string())
+            .or_else(|| self.configured_token.clone())
+            .or_else(|| {
+                gitfleet_core::config::get_provider_token_optional(
+                    gitfleet_core::provider::ProviderId::GitHub,
+                )
+            })
+    }
+
     fn build_headers(
         &self,
         token: Option<&str>,
@@ -223,6 +234,28 @@ impl ProviderClient {
         }
     }
 
+    pub(crate) async fn request_url_optional_token(
+        &self,
+        method: reqwest::Method,
+        url: &str,
+        body: Option<serde_json::Value>,
+        token: Option<&str>,
+        accept: Option<&str>,
+        content_type: Option<&str>,
+    ) -> Result<reqwest::Response, GitfleetError> {
+        let effective_token = self.effective_optional_token(token);
+
+        self.request_url(
+            method,
+            url,
+            body,
+            effective_token.as_deref(),
+            accept,
+            content_type,
+        )
+        .await
+    }
+
     pub async fn request_token_required(
         &self,
         method: reqwest::Method,
@@ -231,15 +264,7 @@ impl ProviderClient {
         token: Option<&str>,
         host: Option<&str>,
     ) -> Result<reqwest::Response, GitfleetError> {
-        let effective_token = token
-            .map(|token| token.to_string())
-            .or_else(|| self.configured_token.clone());
-
-        let effective_token = effective_token.or_else(|| {
-            gitfleet_core::config::get_provider_token_optional(
-                gitfleet_core::provider::ProviderId::GitHub,
-            )
-        });
+        let effective_token = self.effective_optional_token(token);
 
         if effective_token.is_none() {
             return Err(GitfleetError::from(TokenRequiredError::new(
@@ -260,15 +285,7 @@ impl ProviderClient {
         token: Option<&str>,
         host: Option<&str>,
     ) -> Result<reqwest::Response, GitfleetError> {
-        let effective_token = token
-            .map(|token| token.to_string())
-            .or_else(|| self.configured_token.clone());
-
-        let effective_token = effective_token.or_else(|| {
-            gitfleet_core::config::get_provider_token_optional(
-                gitfleet_core::provider::ProviderId::GitHub,
-            )
-        });
+        let effective_token = self.effective_optional_token(token);
 
         self.request(method, endpoint, body, effective_token.as_deref(), host)
             .await
@@ -280,14 +297,7 @@ impl ProviderClient {
         token: Option<&str>,
         host: Option<&str>,
     ) -> Result<Vec<T>, GitfleetError> {
-        let effective_token = token
-            .map(|token| token.to_string())
-            .or_else(|| self.configured_token.clone())
-            .or_else(|| {
-                gitfleet_core::config::get_provider_token_optional(
-                    gitfleet_core::provider::ProviderId::GitHub,
-                )
-            });
+        let effective_token = self.effective_optional_token(token);
 
         let base = self.api_base_url(host);
         let endpoint = with_default_per_page(endpoint);
@@ -1999,6 +2009,20 @@ mod tests {
         let headers = client.build_headers(None, None, None).unwrap();
 
         assert!(headers.get("authorization").is_none());
+    }
+
+    #[test]
+    fn test_effective_optional_token_prefers_explicit_and_configured_tokens() {
+        let client = ProviderClient::with_context("github.com", Some("configured".to_string()));
+
+        assert_eq!(
+            client.effective_optional_token(None).as_deref(),
+            Some("configured")
+        );
+        assert_eq!(
+            client.effective_optional_token(Some("explicit")).as_deref(),
+            Some("explicit")
+        );
     }
 
     #[test]

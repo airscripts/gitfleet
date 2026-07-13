@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use dirs::home_dir;
 
 use crate::errors::GitfleetError;
+use crate::file_lock::FileLock;
 use crate::provider::ProviderId;
 use crate::repository::RepositoryRef;
 
@@ -54,6 +55,16 @@ fn load_all() -> Result<Vec<Workspace>, GitfleetError> {
         return Ok(Vec::new());
     }
 
+    with_workspace_lock(false, load_all_unlocked)
+}
+
+fn load_all_unlocked() -> Result<Vec<Workspace>, GitfleetError> {
+    let path = workspaces_path()?;
+
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+
     let content = std::fs::read_to_string(&path)
         .map_err(|e| GitfleetError::new(format!("Failed to read workspaces: {e}")))?;
 
@@ -63,7 +74,7 @@ fn load_all() -> Result<Vec<Workspace>, GitfleetError> {
     Ok(file.workspaces)
 }
 
-fn save_all(workspaces: &[Workspace]) -> Result<(), GitfleetError> {
+fn save_all_unlocked(workspaces: &[Workspace]) -> Result<(), GitfleetError> {
     ensure_dir()?;
 
     let file = WorkspacesFile {
@@ -114,24 +125,67 @@ fn save_all(workspaces: &[Workspace]) -> Result<(), GitfleetError> {
     write_result
 }
 
+fn with_workspace_lock<T, F>(exclusive: bool, operation: F) -> Result<T, GitfleetError>
+where
+    F: FnOnce() -> Result<T, GitfleetError>,
+{
+    ensure_dir()?;
+
+    let path = workspaces_path()?;
+    let lock_path = path.with_extension("toml.lock");
+    let _lock = if exclusive {
+        FileLock::exclusive(&lock_path)
+    } else {
+        FileLock::shared(&lock_path)
+    }
+    .map_err(|e| GitfleetError::new(format!("Failed to lock workspaces: {e}")))?;
+
+    operation()
+}
+
+fn update_all<F>(update: F) -> Result<(), GitfleetError>
+where
+    F: FnOnce(&mut Vec<Workspace>) -> Result<(), GitfleetError>,
+{
+    with_workspace_lock(true, || {
+        let mut workspaces = load_all_unlocked()?;
+
+        update(&mut workspaces)?;
+
+        save_all_unlocked(&workspaces)
+    })
+}
+
 fn replace_file(temporary_path: &Path, destination: &Path) -> std::io::Result<()> {
     #[cfg(windows)]
     {
-        match std::fs::rename(temporary_path, destination) {
-            Ok(()) => Ok(()),
-            Err(error)
-                if matches!(
-                    error.kind(),
-                    std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::PermissionDenied
-                ) =>
-            {
-                if destination.exists() {
-                    std::fs::remove_file(destination)?;
-                }
+        use std::iter::once;
+        use std::os::windows::ffi::OsStrExt;
 
-                std::fs::rename(temporary_path, destination)
-            }
-            Err(error) => Err(error),
+        let source: Vec<u16> = temporary_path
+            .as_os_str()
+            .encode_wide()
+            .chain(once(0))
+            .collect();
+        let target: Vec<u16> = destination
+            .as_os_str()
+            .encode_wide()
+            .chain(once(0))
+            .collect();
+
+        let result = unsafe {
+            windows_sys::Win32::Storage::FileSystem::MoveFileExW(
+                source.as_ptr(),
+                target.as_ptr(),
+                windows_sys::Win32::Storage::FileSystem::MOVEFILE_REPLACE_EXISTING
+                    | windows_sys::Win32::Storage::FileSystem::MOVEFILE_WRITE_THROUGH,
+            )
+        };
+
+        if result == 0 {
+            Err(std::io::Error::last_os_error())
+        } else {
+            Ok(())
         }
     }
 
@@ -233,8 +287,6 @@ pub fn define_with_defaults(
     default_provider: ProviderId,
     default_host: &str,
 ) -> Result<Workspace, GitfleetError> {
-    let mut workspaces = load_all()?;
-
     let repositories: Result<Vec<RepositoryRef>, GitfleetError> = repos
         .iter()
         .map(|r| parse_repository_with_defaults(r, default_provider, default_host))
@@ -245,13 +297,15 @@ pub fn define_with_defaults(
         repositories: repositories?,
     };
 
-    if let Some(idx) = workspaces.iter().position(|w| w.name == name) {
-        workspaces[idx] = workspace.clone();
-    } else {
-        workspaces.push(workspace.clone());
-    }
+    update_all(|workspaces| {
+        if let Some(idx) = workspaces.iter().position(|w| w.name == name) {
+            workspaces[idx] = workspace.clone();
+        } else {
+            workspaces.push(workspace.clone());
+        }
 
-    save_all(&workspaces)?;
+        Ok(())
+    })?;
 
     Ok(workspace)
 }
@@ -269,18 +323,18 @@ pub fn list() -> Result<Vec<Workspace>, GitfleetError> {
 }
 
 pub fn remove(name: &str) -> Result<(), GitfleetError> {
-    let mut workspaces = load_all()?;
+    update_all(|workspaces| {
+        let original_len = workspaces.len();
+        workspaces.retain(|w| w.name != name);
 
-    let original_len = workspaces.len();
-    workspaces.retain(|w| w.name != name);
+        if workspaces.len() == original_len {
+            return Err(GitfleetError::new(format!(
+                "Workspace \"{name}\" not found."
+            )));
+        }
 
-    if workspaces.len() == original_len {
-        return Err(GitfleetError::new(format!(
-            "Workspace \"{name}\" not found."
-        )));
-    }
-
-    save_all(&workspaces)
+        Ok(())
+    })
 }
 
 #[cfg(test)]

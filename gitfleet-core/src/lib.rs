@@ -4,6 +4,7 @@ pub mod command;
 pub mod config;
 pub mod constants;
 pub mod errors;
+pub(crate) mod file_lock;
 pub mod git;
 pub mod icons;
 pub mod logger;
