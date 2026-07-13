@@ -335,7 +335,7 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
         AuthCommand::SetupGit { host } => {
             let host_str = host.unwrap_or_else(|| app.provider_host().to_string());
 
-            let token = gitfleet_core::config::get_token_optional();
+            let token = gitfleet_core::config::get_token_for_host(&host_str);
 
             if token.is_none() {
                 return Err(GitfleetError::from(TokenRequiredError::new(

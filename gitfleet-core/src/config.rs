@@ -153,9 +153,9 @@ pub fn get_token_for_host(host: &str) -> Option<String> {
         ProviderId::GitLab => std::env::var("GITFLEET_GITLAB_TOKEN").ok(),
     };
 
-    environment_token
-        .filter(|token| !token.is_empty())
-        .or(profile.token)
+    profile
+        .token
+        .or_else(|| environment_token.filter(|token| !token.is_empty()))
 }
 
 pub fn get_github_token_optional() -> Option<String> {
@@ -641,6 +641,15 @@ mod tests {
             get_token_for_host("gitlab.example.com").as_deref(),
             Some("gitlab-token")
         );
+
+        std::env::set_var("GITFLEET_GITLAB_TOKEN", "environment-token");
+
+        assert_eq!(
+            get_token_for_host("gitlab.example.com").as_deref(),
+            Some("gitlab-token")
+        );
+
+        std::env::remove_var("GITFLEET_GITLAB_TOKEN");
         assert_eq!(get_token_for_host("unknown.example.com"), None);
 
         if let Some(home) = original_home {

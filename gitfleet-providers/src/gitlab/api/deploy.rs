@@ -21,7 +21,7 @@ impl DeployApi {
         let mut endpoint = format!("/projects/{encoded}/deployments?per_page={limit}");
 
         if let Some(env) = environment {
-            endpoint.push_str(&format!("&environment={env}"));
+            endpoint.push_str(&format!("&environment={}", urlencoding::encode(env)));
         }
 
         let response = client

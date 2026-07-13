@@ -555,6 +555,7 @@ async fn test_gitlab_list_issues() {
         .and(path("/projects/testgroup%2Fmy-project/issues"))
         .and(query_param("state", "opened"))
         .and(query_param("per_page", "30"))
+        .and(query_param("labels", "bug&urgent"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
         .respond_with(ResponseTemplate::new(200).set_body_json(gitlab_issue_json()))
         .mount(&server)
@@ -566,7 +567,13 @@ async fn test_gitlab_list_issues() {
     let ops = provider.issue_ops().expect("issue ops");
 
     let result = ops
-        .list_issues("testgroup/my-project", "opened", 30, &[], &[])
+        .list_issues(
+            "testgroup/my-project",
+            "opened",
+            30,
+            &["bug&urgent".to_string()],
+            &[],
+        )
         .await
         .expect("list issues");
     teardown_token();
@@ -2637,6 +2644,7 @@ async fn test_gitlab_list_deployments() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
+        .and(query_param("environment", "production&blue"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
             {
@@ -2657,7 +2665,9 @@ async fn test_gitlab_list_deployments() {
     let provider = GitLabProvider::with_base_url(&server.uri());
     let ops = provider.deploy_ops().expect("deploy ops");
 
-    let result = ops.list_deployments("testgroup/my-project", None, 30).await;
+    let result = ops
+        .list_deployments("testgroup/my-project", Some("production&blue"), 30)
+        .await;
 
     teardown_token();
 

@@ -89,7 +89,10 @@ impl IssuesApi {
         );
 
         if !labels.is_empty() {
-            endpoint.push_str(&format!("&labels={}", labels.join(",")));
+            endpoint.push_str(&format!(
+                "&labels={}",
+                urlencoding::encode(&labels.join(","))
+            ));
         }
 
         let response = client
