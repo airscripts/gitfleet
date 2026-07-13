@@ -1,5 +1,6 @@
 use gitfleet_core::errors::GitfleetError;
 
+use crate::github::api::path::encode_segment;
 use crate::github::client::ProviderClient;
 
 pub struct OrgsApi;
@@ -9,7 +10,7 @@ impl OrgsApi {
         client: &ProviderClient,
         org: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let endpoint = format!("/orgs/{org}/members?per_page=100");
+        let endpoint = format!("/orgs/{}/members?per_page=100", encode_segment(org));
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
@@ -29,7 +30,11 @@ impl OrgsApi {
         username: &str,
         role: &str,
     ) -> Result<(), GitfleetError> {
-        let endpoint = format!("/orgs/{org}/memberships/{username}");
+        let endpoint = format!(
+            "/orgs/{}/memberships/{}",
+            encode_segment(org),
+            encode_segment(username)
+        );
 
         let payload = serde_json::json!({ "role": role });
 
@@ -45,7 +50,11 @@ impl OrgsApi {
         org: &str,
         username: &str,
     ) -> Result<(), GitfleetError> {
-        let endpoint = format!("/orgs/{org}/memberships/{username}");
+        let endpoint = format!(
+            "/orgs/{}/memberships/{}",
+            encode_segment(org),
+            encode_segment(username)
+        );
 
         client
             .request_token_required(reqwest::Method::DELETE, &endpoint, None, None, None)

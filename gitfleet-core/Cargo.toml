@@ -29,6 +29,7 @@ base64 = "0.22"
 async-trait = "0.1"
 
 dryoc = "0.9"
+keyring = "4.1"
 
 [dev-dependencies]
 serial_test = "3"

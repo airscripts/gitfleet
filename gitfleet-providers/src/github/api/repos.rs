@@ -1,6 +1,7 @@
 use gitfleet_core::errors::GitfleetError;
 use gitfleet_core::types::RepoSummary;
 
+use crate::github::api::path::{encode_repo, encode_segment, repo_path};
 use crate::github::client::ProviderClient;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -64,7 +65,7 @@ impl ReposApi {
         client: &ProviderClient,
         org: &str,
     ) -> Result<Vec<RepoSummary>, GitfleetError> {
-        let endpoint = format!("/orgs/{org}/repos?per_page=100&type=all");
+        let endpoint = format!("/orgs/{}/repos?per_page=100&type=all", encode_segment(org));
 
         let data: Vec<GitHubRepoResponse> = client.get_paginated(&endpoint, None, None).await?;
         Ok(data.iter().map(normalize_repo).collect())
@@ -84,7 +85,10 @@ impl ReposApi {
         client: &ProviderClient,
         username: &str,
     ) -> Result<Vec<RepoSummary>, GitfleetError> {
-        let endpoint = format!("/users/{username}/repos?per_page=100&type=all");
+        let endpoint = format!(
+            "/users/{}/repos?per_page=100&type=all",
+            encode_segment(username)
+        );
 
         let data: Vec<GitHubRepoResponse> = client.get_paginated(&endpoint, None, None).await?;
         Ok(data.iter().map(normalize_repo).collect())
@@ -94,7 +98,7 @@ impl ReposApi {
         client: &ProviderClient,
         repo: &str,
     ) -> Result<GitHubRepoResponse, GitfleetError> {
-        let endpoint = format!("/repos/{repo}");
+        let endpoint = repo_path(repo, &[]);
 
         let response = client
             .request_optional_token(reqwest::Method::GET, &endpoint, None, None, None)
@@ -123,7 +127,7 @@ impl ReposApi {
         });
 
         let endpoint = match owner_type {
-            Some("org") => format!("/orgs/{}/repos", owner.unwrap_or("")),
+            Some("org") => format!("/orgs/{}/repos", encode_segment(owner.unwrap_or(""))),
             _ => "/user/repos".to_string(),
         };
 
@@ -144,7 +148,7 @@ impl ReposApi {
         repo: &str,
         options: serde_json::Value,
     ) -> Result<GitHubRepoResponse, GitfleetError> {
-        let endpoint = format!("/repos/{repo}");
+        let endpoint = repo_path(repo, &[]);
 
         let response = client
             .request_token_required(reqwest::Method::PATCH, &endpoint, Some(options), None, None)
@@ -159,7 +163,7 @@ impl ReposApi {
     }
 
     pub async fn delete(client: &ProviderClient, repo: &str) -> Result<(), GitfleetError> {
-        let endpoint = format!("/repos/{repo}");
+        let endpoint = repo_path(repo, &[]);
 
         client
             .request_token_required(reqwest::Method::DELETE, &endpoint, None, None, None)
@@ -169,7 +173,7 @@ impl ReposApi {
     }
 
     pub async fn star(client: &ProviderClient, repo: &str) -> Result<(), GitfleetError> {
-        let endpoint = format!("/user/starred/{repo}");
+        let endpoint = format!("/user/starred/{}", encode_repo(repo));
 
         client
             .request_token_required(
@@ -185,7 +189,7 @@ impl ReposApi {
     }
 
     pub async fn unstar(client: &ProviderClient, repo: &str) -> Result<(), GitfleetError> {
-        let endpoint = format!("/user/starred/{repo}");
+        let endpoint = format!("/user/starred/{}", encode_repo(repo));
 
         client
             .request_token_required(reqwest::Method::DELETE, &endpoint, None, None, None)
@@ -198,7 +202,7 @@ impl ReposApi {
         client: &ProviderClient,
         repo: &str,
     ) -> Result<GitHubRepoResponse, GitfleetError> {
-        let endpoint = format!("/repos/{repo}/forks");
+        let endpoint = repo_path(repo, &["forks"]);
 
         let response = client
             .request_token_required(
@@ -219,7 +223,7 @@ impl ReposApi {
     }
 
     pub async fn archive(client: &ProviderClient, repo: &str) -> Result<(), GitfleetError> {
-        let endpoint = format!("/repos/{repo}");
+        let endpoint = repo_path(repo, &[]);
 
         let body = serde_json::json!({ "archived": true });
 
@@ -231,7 +235,7 @@ impl ReposApi {
     }
 
     pub async fn unarchive(client: &ProviderClient, repo: &str) -> Result<(), GitfleetError> {
-        let endpoint = format!("/repos/{repo}");
+        let endpoint = repo_path(repo, &[]);
 
         let body = serde_json::json!({ "archived": false });
 

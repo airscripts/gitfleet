@@ -54,7 +54,11 @@ pub enum RepoCommand {
     },
 
     #[command(about = "Archive a repository.")]
-    Archive { repository: String },
+    Archive {
+        repository: String,
+        #[arg(long)]
+        yes: bool,
+    },
 
     #[command(about = "Unarchive a repository.")]
     Unarchive { repository: String },
@@ -196,7 +200,28 @@ pub async fn run(cmd: RepoCommand, app: &App) -> Result<(), GitfleetError> {
             service::repos::delete(p, app.renderer(), &repository).await
         }
 
-        RepoCommand::Archive { repository } => {
+        RepoCommand::Archive { repository, yes } => {
+            if app.dry_run() {
+                if app.renderer().is_json() {
+                    app.renderer().write_result(&serde_json::json!({
+                        "dry_run": true,
+                        "action": "archive",
+                        "target": repository,
+                    }));
+                } else {
+                    app.renderer()
+                        .render_box(&format!("Would archive {repository}"), "warning");
+                }
+
+                return Ok(());
+            }
+
+            gitfleet_core::prompt::confirm_destructive(
+                &format!("Archive {repository}?"),
+                app.renderer().mode(),
+                app.renderer().yes() || yes,
+            )?;
+
             let ops = p.repo_ops().ok_or_else(|| {
                 GitfleetError::from(UnsupportedCapabilityError::new(
                     p.id(),
@@ -461,6 +486,7 @@ mod tests {
         run(
             RepoCommand::Archive {
                 repository: "org/repo".into(),
+                yes: true,
             },
             &app,
         )
@@ -581,6 +607,7 @@ mod tests {
         let result = run(
             RepoCommand::Archive {
                 repository: "org/repo".into(),
+                yes: true,
             },
             &app,
         )

@@ -1,5 +1,6 @@
 use gitfleet_core::errors::GitfleetError;
 
+use crate::github::api::path::repo_path;
 use crate::github::client::ProviderClient;
 
 pub struct IssuesApi;
@@ -10,7 +11,7 @@ impl IssuesApi {
         issue_number: u64,
         repo: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let endpoint = format!("/repos/{repo}/issues/{issue_number}");
+        let endpoint = repo_path(repo, &["issues", &issue_number.to_string()]);
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
@@ -32,7 +33,7 @@ impl IssuesApi {
         labels: &[String],
         assignees: &[String],
     ) -> Result<serde_json::Value, GitfleetError> {
-        let endpoint = format!("/repos/{repo}/issues");
+        let endpoint = repo_path(repo, &["issues"]);
 
         let mut json = serde_json::json!({ "title": title });
 
@@ -117,7 +118,7 @@ impl IssuesApi {
         repo: &str,
         options: serde_json::Value,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let endpoint = format!("/repos/{repo}/issues/{issue_number}");
+        let endpoint = repo_path(repo, &["issues", &issue_number.to_string()]);
 
         let response = client
             .request_token_required(reqwest::Method::PATCH, &endpoint, Some(options), None, None)
@@ -137,7 +138,7 @@ impl IssuesApi {
         repo: &str,
         body: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let endpoint = format!("/repos/{repo}/issues/{issue_number}/comments");
+        let endpoint = repo_path(repo, &["issues", &issue_number.to_string(), "comments"]);
 
         let json = serde_json::json!({ "body": body });
         let response = client

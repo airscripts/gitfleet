@@ -6,10 +6,12 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn setup_token() {
     std::env::set_var("GITFLEET_GITLAB_TOKEN", "testtoken");
+    std::env::set_var("GITFLEET_PROFILE", "__gitfleet_integration_test__");
 }
 
 fn teardown_token() {
     std::env::remove_var("GITFLEET_GITLAB_TOKEN");
+    std::env::remove_var("GITFLEET_PROFILE");
 }
 
 fn project_json() -> serde_json::Value {

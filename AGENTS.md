@@ -11,8 +11,8 @@ gitfleet-cli ->	gitfleet-core
              -> gitfleet-providers -> gitfleet-core
 ```
 
-`PLAN.md` is the implementation contract and `ROADMAP.md` contains deferred
-milestones.
+`PLAN.md` and `ROADMAP.md` are reserved for implementation planning and
+deferred milestones.
 
 ## Crates
 
@@ -102,7 +102,7 @@ at or above 80 percent.
 - `gitfleet-core/tests/` — integration tests + fixtures
 - `gitfleet-providers/tests/` — provider integration tests + fixtures
 - `gitfleet-cli/tests/` — CLI integration tests (assert_cmd)
-- `gitfleet-playbooks/` — live API playbooks (bash, not cargo)
+- `gitfleet-playbooks/` — live API playbooks (Bash, not Cargo)
 
 Do not make real HTTP requests in automated tests. Mock provider clients with
 wiremock and use insta for normalization snapshots. Every retained command
@@ -113,9 +113,9 @@ Required gates:
 ```bash
 cargo fmt --check
 CARGO_BUILD_JOBS=4 cargo clippy -- -D warnings
-CARGO_BUILD_JOBS=4 cargo check
+CARGO_BUILD_JOBS=4 cargo check --workspace
 CARGO_BUILD_JOBS=4 cargo test --workspace
-CARGO_BUILD_JOBS=4 cargo llvm-cov --fail-under-lines 80
+CARGO_BUILD_JOBS=4 cargo llvm-cov --fail-under-lines 80 --workspace
 CARGO_BUILD_JOBS=4 cargo build --release
 ```
 

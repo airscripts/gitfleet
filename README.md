@@ -2,7 +2,7 @@
 
 [![Main](https://github.com/airscripts/gitfleet/actions/workflows/main.yml/badge.svg)](https://github.com/airscripts/gitfleet/actions/workflows/main.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Coverage](https://img.shields.io/badge/coverage-88%25-brightgreen)](./coverage)
+[![Coverage](https://img.shields.io/badge/coverage-87%25-brightgreen)](https://github.com/airscripts/gitfleet/actions/workflows/test.yml)
 
 Command every repository as one fleet.
 
@@ -12,9 +12,9 @@ Command every repository as one fleet.
 
 - [Overview](#overview)
 - [Providers](#providers)
-- [Architecture](#architecture)
 - [Features](#features)
 - [Installation](#installation)
+- [Quick Start](#quick-start)
 - [Authentication](#authentication)
 - [Configuration](#configuration)
 - [Profiles](#profiles)
@@ -22,12 +22,13 @@ Command every repository as one fleet.
 - [Common Workflows](#common-workflows)
 - [Output Formats](#output-formats)
 - [Safety](#safety)
-- [Playbooks](#playbooks)
 - [Development](#development)
+- [Testing](#testing)
+- [Architecture](#architecture)
 - [Repository Structure](#repository-structure)
-- [Contributing](#contributing)
 - [Security](#security)
 - [Support](#support)
+- [Contributing](#contributing)
 - [Sponsorship](#sponsorship)
 - [License](#license)
 
@@ -45,9 +46,8 @@ surface, and named profiles for working across their repositories. It preserves
 real provider differences: a command only runs when the selected provider
 supports the required capability.
 
-The `gitfleet` and `gf` binaries are equivalent. Human-readable output is the
-default, and every automation workflow can opt into structured output with
-`--json`.
+Human-readable output is the default, and every automation workflow can opt
+into structured output with `--json`.
 
 ## Providers
 
@@ -63,33 +63,24 @@ Configure a profile per provider or account, then switch profiles or let
 This makes mixed GitHub and GitLab fleets manageable without changing tools or
 learning provider-specific root command families.
 
-## Architecture
-
-| Crate                | Responsibility                                                      |
-| -------------------- | ------------------------------------------------------------------- |
-| `gitfleet-core`      | Provider-neutral entities, capabilities, operations, infrastructure |
-| `gitfleet-providers` | GitHub and GitLab provider clients, wire types, normalization       |
-| `gitfleet-cli`       | Thin CLI surface over shared operations                             |
-
-Only `gitfleet-providers` performs HTTP requests. Unsupported operations return
-a capability error instead of pretending another provider supports them.
-
 ## Features
 
-- Repository lifecycle, cloning, forks, synchronization, stale branches, and
-  multi-repository workspaces.
-- Proposed changes, stacked changes, merge queues, reviews, suggestions,
-  issues, discussions, notifications, and mentions.
-- Pipeline definitions, runs, logs, artifacts, caches, releases, deployments,
-  environments, registries, and runners.
-- Planning boards, milestones, labels, templates, wikis, static sites, and
-  license discovery.
-- Dependency review, advisories, attestations, secret scanning, CodeQL,
-  compliance, audit logs, secrets, and variables.
-- Repository governance, policies, access management, account keys, analytics,
-  code navigation, snippets, browser integration, and raw provider API access.
-- Named profiles, explicit JSON output, terminal themes, aliases, completion,
-  reversible live playbooks.
+- Repository lifecycle through `repo`: create, list, view, clone, delete,
+  archive, unarchive, rename, edit, star, unstar, and fork repositories.
+- Bounded multi-repository execution through `workspace`, including named
+  workspace definition, listing, removal, and archive operations.
+- Collaboration through `change`, `review`, `issue`, `discussion`, and `inbox`,
+  with nested comment and reaction operations on changes.
+- Repository metadata and documentation through `label`, `template`, and
+  `wiki` commands.
+- Delivery and infrastructure through `pipeline`, `release`, `deploy`,
+  `environment`, `registry`, `runner`, `dev`, `site`, and `webhook` commands.
+- Planning, governance, access, and automation configuration through `planning`,
+  `govern`, `policy`, `access`, `identity`, `secret`, and `variable` commands.
+- Discovery and security through `search`, `code`, `browse`, `license`, `deps`,
+  `advisory`, `attestation`, `security`, and `analytics` commands.
+- Provider escape hatches and local tooling through `api`, `snippet`, `auth`,
+  `config`, `alias`, `completion`, `version`, JSON output, and terminal themes.
 
 ## Installation
 
@@ -99,10 +90,9 @@ Gitfleet is a Rust CLI. Install the CLI package from this checkout with Cargo:
 cargo install --path gitfleet-cli
 
 gitfleet version
-gf version
 ```
 
-This builds optimized release binaries and installs both commands into Cargo's
+This builds an optimized release binary and installs `gitfleet` into Cargo's
 binary directory.
 
 Cargo installs binaries into `~/.cargo/bin`; make sure that directory is on
@@ -115,12 +105,31 @@ commands:
 cargo install --path gitfleet-cli --force
 ```
 
+## Quick Start
+
+Authenticate, inspect the active account, and run a read operation:
+
+```bash
+gitfleet auth login
+gitfleet auth status
+gitfleet repo list
+gitfleet issue list --repo owner/repository
+```
+
+Use `gitfleet help` for the complete command surface or ask for nested help:
+
+```bash
+gitfleet help
+gitfleet help change
+gitfleet help pipeline list-runs
+```
+
 ## Authentication
 
 Authenticate with a provider token and inspect the resulting profile:
 
 ```bash
-gitfleet auth login --token <token>
+gitfleet auth login
 gitfleet auth status
 gitfleet auth token
 ```
@@ -130,8 +139,7 @@ GitHub Enterprise is supported through an explicit host:
 ```bash
 gitfleet auth login \
   --host github.example.com \
-  --profile work \
-  --token <token>
+  --profile work
 ```
 
 For GitLab, select the provider explicitly. This is required for a
@@ -141,11 +149,11 @@ self-managed GitLab host whose name does not include `gitlab`:
 gitfleet auth login \
   --provider gitlab \
   --host git.example.com \
-  --profile work-gitlab \
-  --token <token>
+  --profile work-gitlab
 ```
 
-For CI, set `GITFLEET_GITHUB_TOKEN` or `GITFLEET_GITLAB_TOKEN`. Destructive
+For headless systems and CI, set `GITFLEET_GITHUB_TOKEN` or
+`GITFLEET_GITLAB_TOKEN`; this avoids requiring a desktop keyring. Destructive
 operations in JSON or non-interactive mode require `--yes`.
 
 ### GitHub Token Scopes
@@ -184,18 +192,39 @@ and
 
 ## Configuration
 
-Credentials are stored at `~/.config/gitfleet/credentials.toml` with mode
-`0600`. Repository-local profile selection uses `.gitfleetrc`.
+Profile metadata is stored at `~/.config/gitfleet/credentials.toml` with mode
+`0600`; provider tokens are stored in the operating system credential store.
+The keyring is the secure default. If no native credential store is available,
+Gitfleet reports an error rather than writing a plaintext token. Users who
+explicitly accept that risk can opt in to Git-style plaintext storage:
 
-Resolution follows explicit flags, environment configuration, the
-repository-local profile, the active profile, and then defaults. Repository
-targets come from `--repo` or the current Git remote.
+```bash
+export GITFLEET_CREDENTIAL_STORE=file
+gitfleet auth login
+```
+
+This stores tokens in `~/.config/gitfleet/credentials.toml`. The file is
+permission-protected but is not encrypted; use this only on a trusted machine.
+Repository-local profile selection is disabled by default; explicitly trust it
+with `GITFLEET_TRUST_REPO_CONFIG=true`.
+
+When set, `GITFLEET_PROFILE` selects the named profile; an unknown name is an
+error. Otherwise, resolution checks a trusted repository-local profile when
+`GITFLEET_TRUST_REPO_CONFIG=true`, then the active profile, then the first
+configured profile in sorted order, and finally the default profile.
+Within the selected profile, a stored profile token takes precedence over the
+provider environment token. Environment tokens are used for the default
+provider host when the profile has no stored token. Repository targets come
+from `--repo` or the current Git remote.
 
 Environment variables:
 
 - `GITFLEET_GITHUB_TOKEN` supplies the GitHub token in automation.
 - `GITFLEET_GITLAB_TOKEN` supplies the GitLab token in automation.
+- `GITFLEET_CREDENTIAL_STORE=file` opts into plaintext file credential storage;
+  unset or any other value keeps the keyring-backed default.
 - `GITFLEET_PROFILE` selects a named profile.
+- `GITFLEET_TRUST_REPO_CONFIG=true` enables `.gitfleetrc` profile selection.
 - `CI=true` enables non-interactive behavior.
 
 ## Profiles
@@ -203,8 +232,8 @@ Environment variables:
 Named profiles support separate provider accounts and hosts:
 
 ```bash
-gitfleet auth login --profile personal --token <token>
-gitfleet auth login --profile work --token <token>
+gitfleet auth login --profile personal
+gitfleet auth login --profile work
 gitfleet auth list
 gitfleet auth switch work
 gitfleet auth detect
@@ -220,65 +249,64 @@ Use `gitfleet help` for the complete surface or target nested help directly:
 ```bash
 gitfleet help
 gitfleet help change
-gitfleet help pipeline run
+gitfleet help pipeline list-runs
 ```
 
 | Family                                         | Purpose                                                    |
 | ---------------------------------------------- | ---------------------------------------------------------- |
 | `auth`                                         | Provider accounts and profiles                             |
-| `repo`                                         | Repository lifecycle, forks, synchronization, and branches |
-| `change`                                       | Proposed changes, stacks, checks, and merge automation     |
-| `review`                                       | Threads, comments, suggestions, reactions, and resolution  |
+| `repo`                                         | Repository lifecycle, forks, synchronization, and metadata |
+| `change`                                       | Pull request creation, listing, and inspection              |
+| `review`                                       | Comments and reactions on changes                           |
 | `issue`, `discussion`, `inbox`                 | Collaboration and notification workflows                   |
-| `pipeline`                                     | Definitions, runs, logs, artifacts, and caches             |
+| `pipeline`                                     | Workflow definitions, runs, triggers, cancellations, and reruns |
 | `release`, `deploy`, `environment`             | Delivery lifecycle                                         |
 | `workspace`                                    | Named fleets and bounded multi-repository execution        |
 | `govern`, `policy`                             | Fleet governance and repository protection                 |
-| `planning`                                     | Boards, work items, milestones, and iterations             |
+| `planning`                                     | Milestones and projects                                    |
 | `wiki`, `site`                                 | Repository documentation and publishing                    |
 | `search`, `code`, `browse`, `api`              | Discovery, navigation, and provider escape hatches         |
 | `label`, `template`, `license`                 | Repository metadata                                        |
-| `deps`, `advisory`, `attestation`, `security`  | Dependency and security operations                         |
+| `deps`, `advisory`, `attestation`, `security`  | Dependency, advisory, attestation, and alert operations     |
 | `registry`, `dev`, `runner`, `webhook`         | Build and delivery infrastructure                          |
 | `secret`, `variable`                           | Automation configuration                                   |
 | `access`, `identity`                           | Organization access and account keys                       |
-| `analytics`, `snippet`                         | Reporting and hosted snippets                              |
+| `analytics`, `snippet`                         | Traffic reporting and hosted snippets                      |
 | `alias`, `completion`, `config`, `help`        | Gitfleet utilities                                         |
 | `version`                                      | Version information                                        |
 
 ### Selected Nested Commands
 
-- `pipeline definition` manages pipeline definitions.
-- `pipeline run` inspects, watches, reruns, and debugs runs.
-- `pipeline cache` manages pipeline caches.
-- `security audit`, `security leaks`, `security dependabot`,
-  `security compliance`, and `security codeql` expose security capabilities.
-- `analytics repo` and `analytics pipeline` provide repository and pipeline
-  reporting.
-- `access org` and `access team` manage organizations, groups, and teams.
-- `identity ssh` and `identity gpg` manage provider account keys.
-- `change queue`, `planning milestone`, `policy branch`, and `repo fork`
-  expose provider capabilities without adding provider-specific root names.
+- `pipeline list-def`, `pipeline view-def`, `pipeline list-runs`, and
+  `pipeline view-run` inspect workflow definitions and runs; `trigger`,
+  `cancel`, and `rerun` apply run operations.
+- `security advisories`, `security secret-scans`, and `security codeql` expose
+  provider security alerts.
+- `analytics views` and `analytics clones` provide repository traffic reports.
+- `access org` and `access team` manage organization and team access.
+- `identity ssh-key` and `identity gpg-key` manage provider account keys.
+- `planning milestone`, `planning project`, `policy branch-protection`,
+  `policy tag-protection`, and `repo fork` expose their respective operations.
 
 ## Common Workflows
 
 ### Change Review
 
 ```bash
-gitfleet change create --title "Add feature"
+gitfleet change create "Add feature" --head feature --base main
 gitfleet change list --state open
-gitfleet change stack create --base main
-gitfleet review threads 42
-gitfleet review suggest 42 --file src/index.ts --line 12 --body "Use this"
+gitfleet review comment list 42
+gitfleet review comment create 42 "Please add a regression test."
+gitfleet review reaction create 42 eyes
 ```
 
 ### Pipeline Delivery
 
 ```bash
-gitfleet pipeline definition list
-gitfleet pipeline run list
-gitfleet pipeline run watch <run-id>
-gitfleet pipeline cache inspect
+gitfleet pipeline list-def
+gitfleet pipeline list-runs
+gitfleet pipeline view-run <run-id>
+gitfleet pipeline trigger <workflow-id> --ref main
 gitfleet release list
 gitfleet deploy list
 ```
@@ -286,10 +314,11 @@ gitfleet deploy list
 ### Security Governance
 
 ```bash
-gitfleet security compliance check --repos owner/repository
-gitfleet security leaks scan --repo owner/repository
-gitfleet policy list --repo owner/repository
-gitfleet govern report --org example
+gitfleet security advisories --repo owner/repository
+gitfleet security secret-scans --repo owner/repository
+gitfleet security codeql --repo owner/repository
+gitfleet policy branch-protection get main --repo owner/repository
+gitfleet govern list-rulesets --repo owner/repository
 ```
 
 ### Workspaces
@@ -300,7 +329,7 @@ gitfleet workspace define \
   --repos owner/api \
   --repos owner/web
 gitfleet workspace list
-gitfleet workspace run --name platform --command "issue list --state open"
+gitfleet workspace archive platform --dry-run
 ```
 
 Workspace targets may be provider-qualified:
@@ -337,22 +366,9 @@ Destructive human-mode operations request confirmation. JSON and
 non-interactive operations require `--yes`; bulk mutations provide `--dry-run`
 when a useful preview is possible.
 
-## Playbooks
-
-Live playbooks under `gitfleet-playbooks/` validate command families against
-the GitHub API. They require explicit credentials and revert mutations during
-teardown.
-
-```bash
-REPO=owner/test-repository ORG=example bash gitfleet-playbooks/all.sh
-SKIP="pipeline-run.sh,planning.sh" bash gitfleet-playbooks/all.sh
-PARALLEL=1 bash gitfleet-playbooks/all.sh
-```
-
-Use a dedicated test repository and review each playbook before running it.
-Automated tests never make real HTTP requests.
-
 ## Development
+
+This section is for contributors and maintainers.
 
 Install Lefthook once after cloning or when recreating the local Git metadata:
 
@@ -380,17 +396,65 @@ artifacts or perform the final release check:
 ```bash
 CARGO_BUILD_JOBS=4 cargo build --release
 ./target/release/gitfleet version
-./target/release/gf version
 ```
 
-The workspace currently lists 2,239 Rust test entries as reported by Cargo:
+## Testing
+
+Run the required workspace gates from the repository root:
 
 ```bash
-CARGO_BUILD_JOBS=4 cargo test --workspace -- --list | grep -c ': test$'
+cargo fmt --check
+CARGO_BUILD_JOBS=4 cargo clippy -- -D warnings
+CARGO_BUILD_JOBS=4 cargo check --workspace
+CARGO_BUILD_JOBS=4 cargo test --workspace
+CARGO_BUILD_JOBS=4 cargo llvm-cov --fail-under-lines 80 --workspace
+CARGO_BUILD_JOBS=4 cargo build --release
 ```
 
 Coverage must remain at or above 80 percent. See [AGENTS.md](./AGENTS.md) for
 architecture, testing, style, playbook, and release requirements.
+
+### Automated Tests
+
+Unit tests live inside source files in `#[cfg(test)] mod tests {}` blocks.
+Integration tests live in each crate's `tests/` directory. Provider tests use
+`wiremock` for HTTP mocking and `insta` for normalization snapshots. Automated
+tests must never make real HTTP requests.
+
+### Live API Playbooks
+
+Playbooks under `gitfleet-playbooks/` are Bash scripts for validating command
+families against a real GitHub test account and repository. They are developer
+and release-validation tools, not part of the normal end-user workflow. They
+require explicit credentials and clean up mutations during teardown.
+
+Run them only against a dedicated test repository:
+
+```bash
+REPO=owner/test-repository ORG=example bash gitfleet-playbooks/all.sh
+SKIP="pipeline,milestone,project" bash gitfleet-playbooks/all.sh
+PARALLEL=1 bash gitfleet-playbooks/all.sh
+```
+
+See `gitfleet-playbooks/env.sh` for configuration. Automated tests use mocks
+and make no network requests; live playbooks intentionally exercise the
+provider API.
+
+## Architecture
+
+| Crate                | Responsibility                                                      |
+| -------------------- | ------------------------------------------------------------------- |
+| `gitfleet-core`      | Provider-neutral entities, capabilities, operations, infrastructure |
+| `gitfleet-providers` | GitHub and GitLab provider clients, wire types, normalization       |
+| `gitfleet-cli`       | Thin CLI surface over shared operations                             |
+
+Only `gitfleet-providers` performs HTTP requests. Provider wire types are
+normalized before crossing the crate boundary, and unsupported operations
+return a capability error instead of pretending another provider supports
+them.
+
+Read [AGENTS.md](./AGENTS.md) for the full architecture contract, crate
+boundaries, code style, testing strategy, and release requirements.
 
 ## Repository Structure
 
@@ -399,26 +463,29 @@ gitfleet-core/        provider-neutral entities, capabilities, errors, operation
                       infrastructure (config, git, output, prompts, secrets, workspace)
 gitfleet-providers/   GitHub and GitLab provider clients, wire types, normalization
 gitfleet-cli/         thin CLI surface over shared operations
-gitfleet-playbooks/   live API test scripts (bash)
+gitfleet-playbooks/   live API test scripts (Bash)
 ```
 
-`PLAN.md` is the Gitfleet refactor contract. `ROADMAP.md` tracks the Rust
-rewrite and GitLab provider.
-
-## Contributing
-
-Read [CONTRIBUTING.md](./CONTRIBUTING.md) before proposing a change.
+`PLAN.md` and `ROADMAP.md` are reserved for implementation planning and
+deferred milestones.
 
 ## Security
 
-Report vulnerabilities through the private process in
-[SECURITY.md](./SECURITY.md), not a public issue.
+Report vulnerabilities using the private process in [SECURITY.md](./SECURITY.md)
+and do not open a public issue. Never include tokens or other credentials in
+reports; use redacted `--debug` output for ordinary bug reports.
 
 ## Support
 
 For usage help, run `gitfleet help [command...]`. For reproducible bugs, open an
 issue with the Gitfleet version, operating system, command, expected behavior,
 actual behavior, and redacted `--debug` output.
+
+## Contributing
+
+Read [CONTRIBUTING.md](./CONTRIBUTING.md) before proposing a change. The
+development, testing, architecture, and repository sections above describe the
+contributor workflow.
 
 ## Sponsorship
 

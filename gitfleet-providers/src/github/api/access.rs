@@ -1,6 +1,6 @@
 use gitfleet_core::errors::GitfleetError;
 
-use crate::github::api::path::repo_path;
+use crate::github::api::path::{encode_segment, repo_path};
 use crate::github::client::ProviderClient;
 
 pub struct AccessApi;
@@ -30,7 +30,7 @@ impl AccessApi {
         client: &ProviderClient,
         org: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let endpoint = format!("/orgs/{org}/teams?per_page=100");
+        let endpoint = format!("/orgs/{}/teams?per_page=100", encode_segment(org));
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
@@ -52,7 +52,13 @@ impl AccessApi {
         repo: &str,
         permission: &str,
     ) -> Result<(), GitfleetError> {
-        let endpoint = format!("/orgs/{org}/teams/{team_slug}/repos/{owner}/{repo}");
+        let endpoint = format!(
+            "/orgs/{}/teams/{}/repos/{}/{}",
+            encode_segment(org),
+            encode_segment(team_slug),
+            encode_segment(owner),
+            encode_segment(repo)
+        );
 
         let body = serde_json::json!({ "permission": permission });
 
@@ -67,7 +73,7 @@ impl AccessApi {
         client: &ProviderClient,
         org: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let endpoint = format!("/orgs/{org}/members?per_page=100");
+        let endpoint = format!("/orgs/{}/members?per_page=100", encode_segment(org));
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)

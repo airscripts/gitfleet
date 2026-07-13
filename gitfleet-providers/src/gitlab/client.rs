@@ -1,5 +1,6 @@
 use gitfleet_core::constants::{
-    GITLAB_API_BASE_URL, STATUS_FORBIDDEN, STATUS_NOT_FOUND, STATUS_OK_MAX, STATUS_OK_MIN,
+    GITLAB_API_BASE_URL, HTTP_TIMEOUT_SECONDS, MAX_HTTP_RESPONSE_BYTES, MAX_PAGINATION_ITEMS,
+    MAX_PAGINATION_PAGES, STATUS_FORBIDDEN, STATUS_NOT_FOUND, STATUS_OK_MAX, STATUS_OK_MIN,
     STATUS_RATE_LIMITED, STATUS_UNAUTHORIZED, STATUS_UNPROCESSABLE,
 };
 use gitfleet_core::errors::{
@@ -27,6 +28,8 @@ impl ProviderClient {
     pub fn new() -> Self {
         let http = Client::builder()
             .user_agent(USER_AGENT)
+            .connect_timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECONDS))
+            .timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECONDS))
             .build()
             .unwrap_or_default();
         Self {
@@ -39,6 +42,8 @@ impl ProviderClient {
     pub fn with_base_url(base_url: &str) -> Self {
         let http = Client::builder()
             .user_agent(USER_AGENT)
+            .connect_timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECONDS))
+            .timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECONDS))
             .build()
             .unwrap_or_default();
         Self {
@@ -154,6 +159,8 @@ impl ProviderClient {
             let status = response.status().as_u16();
 
             if is_successful_response(&method, url, status) {
+                validate_response_size(&response)?;
+
                 return Ok(response);
             }
 
@@ -257,8 +264,16 @@ impl ProviderClient {
         let mut url = format!("{base}{endpoint}");
 
         let mut all_items: Vec<T> = Vec::new();
+        let mut pages = 0;
 
         loop {
+            pages += 1;
+            if pages > MAX_PAGINATION_PAGES {
+                return Err(GitfleetError::new(
+                    "Pagination exceeded the configured page limit.",
+                ));
+            }
+
             let response = self
                 .request_url(reqwest::Method::GET, &url, None, effective_token.as_deref())
                 .await?;
@@ -281,6 +296,12 @@ impl ProviderClient {
             let items: Vec<T> = response.json().await.map_err(|e| {
                 GitfleetError::new(format!("Failed to parse paginated response: {e}"))
             })?;
+
+            if all_items.len().saturating_add(items.len()) > MAX_PAGINATION_ITEMS {
+                return Err(GitfleetError::new(
+                    "Pagination exceeded the configured item limit.",
+                ));
+            }
 
             all_items.extend(items);
 
@@ -319,6 +340,19 @@ fn with_default_per_page(endpoint: &str) -> String {
     } else {
         format!("{endpoint}?per_page=100")
     }
+}
+
+fn validate_response_size(response: &reqwest::Response) -> Result<(), GitfleetError> {
+    if response
+        .content_length()
+        .is_some_and(|length| length > MAX_HTTP_RESPONSE_BYTES as u64)
+    {
+        return Err(GitfleetError::new(
+            "Provider response exceeded the configured size limit.",
+        ));
+    }
+
+    Ok(())
 }
 
 fn is_successful_response(method: &reqwest::Method, url: &str, status: u16) -> bool {

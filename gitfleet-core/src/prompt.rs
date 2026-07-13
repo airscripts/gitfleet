@@ -53,6 +53,13 @@ pub fn prompt_text(message: &str) -> Result<String, GitfleetError> {
         .map_err(|e| GitfleetError::new(format!("Prompt failed: {e}")))
 }
 
+pub fn prompt_password(message: &str) -> Result<String, GitfleetError> {
+    inquire::Password::new(message)
+        .without_confirmation()
+        .prompt()
+        .map_err(|e| GitfleetError::new(format!("Prompt failed: {e}")))
+}
+
 pub fn prompt_text_with_placeholder(
     message: &str,
     placeholder: &str,

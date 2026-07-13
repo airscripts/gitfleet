@@ -1,26 +1,29 @@
+use std::io::Write;
 use std::path::PathBuf;
 
 use dirs::home_dir;
 
 use crate::constants::{
-    CREDENTIALS_FILE, DEFAULT_PROFILE_NAME, GITFLEET_FOLDER, GITFLEET_PROFILE_ENV,
+    CREDENTIALS_FILE, DEFAULT_PROFILE_NAME, GITFLEET_CREDENTIAL_STORE_ENV, GITFLEET_FOLDER,
+    GITFLEET_PROFILE_ENV, GITFLEET_TEST_CREDENTIAL_STORE_ENV, GITFLEET_TRUST_REPO_CONFIG_ENV,
+    KEYRING_SERVICE,
 };
 use crate::errors::ConfigError;
 use crate::provider::{ProviderCapability, ProviderContext, ProviderId, TokenSource};
 use crate::types::{CredentialsFile, Profile, ProfileRcFile};
 
-fn gitfleet_folder() -> PathBuf {
+fn gitfleet_folder() -> Result<PathBuf, ConfigError> {
     home_dir()
-        .unwrap_or_else(|| PathBuf::from("/tmp"))
-        .join(GITFLEET_FOLDER)
+        .map(|home| home.join(GITFLEET_FOLDER))
+        .ok_or_else(|| ConfigError::new("Unable to determine the home directory."))
 }
 
-fn credentials_path() -> PathBuf {
-    gitfleet_folder().join(CREDENTIALS_FILE)
+fn credentials_path() -> Result<PathBuf, ConfigError> {
+    Ok(gitfleet_folder()?.join(CREDENTIALS_FILE))
 }
 
 pub fn read_credentials() -> Result<CredentialsFile, ConfigError> {
-    let path = credentials_path();
+    let path = credentials_path()?;
 
     if !path.exists() {
         return Ok(CredentialsFile {
@@ -33,23 +36,97 @@ pub fn read_credentials() -> Result<CredentialsFile, ConfigError> {
     let content = std::fs::read_to_string(&path)
         .map_err(|e| ConfigError::new(format!("Invalid credentials file: {e}")))?;
 
-    let creds: CredentialsFile = toml::from_str(&content)
+    let mut creds: CredentialsFile = toml::from_str(&content)
         .map_err(|e| ConfigError::new(format!("Invalid credentials file: {e}")))?;
+
+    if !uses_file_credential_store() {
+        for (name, profile) in &mut creds.profiles {
+            if profile.token.is_none() {
+                profile.token = load_token(name);
+            }
+        }
+    }
 
     Ok(creds)
 }
 
 pub fn write_credentials(creds: &CredentialsFile) -> Result<(), ConfigError> {
-    let folder = gitfleet_folder();
+    let folder = gitfleet_folder()?;
     std::fs::create_dir_all(&folder)
         .map_err(|e| ConfigError::new(format!("Failed to create config directory: {e}")))?;
 
-    let content = toml::to_string_pretty(creds)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        std::fs::set_permissions(&folder, std::fs::Permissions::from_mode(0o700))
+            .map_err(|e| ConfigError::new(format!("Failed to secure config directory: {e}")))?;
+    }
+
+    if !uses_file_credential_store() {
+        for (name, profile) in &creds.profiles {
+            if let Some(token) = profile.token.as_deref() {
+                store_token(name, token)?;
+            }
+        }
+    }
+
+    let serializable_creds = if uses_file_credential_store() {
+        creds.clone()
+    } else {
+        let mut metadata = creds.clone();
+        for profile in metadata.profiles.values_mut() {
+            profile.token = None;
+        }
+        metadata
+    };
+
+    let content = toml::to_string_pretty(&serializable_creds)
         .map_err(|e| ConfigError::new(format!("Failed to serialize credentials: {e}")))?;
 
-    let path = credentials_path();
-    std::fs::write(&path, &content)
-        .map_err(|e| ConfigError::new(format!("Failed to write credentials: {e}")))?;
+    let path = credentials_path()?;
+    let temporary_path = folder.join(format!(
+        ".{CREDENTIALS_FILE}.{}.{}.tmp",
+        std::process::id(),
+        format_args!("{:?}", std::thread::current().id())
+    ));
+
+    let write_result = (|| -> Result<(), ConfigError> {
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+
+        let mut file = options.open(&temporary_path).map_err(|e| {
+            ConfigError::new(format!("Failed to create temporary credentials file: {e}"))
+        })?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            file.set_permissions(std::fs::Permissions::from_mode(0o600))
+                .map_err(|e| {
+                    ConfigError::new(format!("Failed to secure temporary credentials file: {e}"))
+                })?;
+        }
+
+        file.write_all(content.as_bytes())
+            .map_err(|e| ConfigError::new(format!("Failed to write credentials: {e}")))?;
+        file.sync_all()
+            .map_err(|e| ConfigError::new(format!("Failed to flush credentials: {e}")))?;
+        drop(file);
+
+        std::fs::rename(&temporary_path, &path)
+            .map_err(|e| ConfigError::new(format!("Failed to replace credentials: {e}")))?;
+
+        Ok(())
+    })();
+
+    if write_result.is_err() {
+        let _ = std::fs::remove_file(&temporary_path);
+    }
+
+    write_result?;
+
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -83,27 +160,31 @@ pub fn resolve_provider_context() -> Result<ProviderContext, ConfigError> {
     });
 
     let provider = match profile.provider.as_deref() {
+        Some("github") | None => ProviderId::GitHub,
         Some("gitlab") => ProviderId::GitLab,
-        _ => ProviderId::GitHub,
+        Some(provider) => {
+            return Err(ConfigError::new(format!(
+                "Unsupported provider '{provider}' in profile '{profile_name}'."
+            )))
+        }
     };
 
-    let host = profile.host.unwrap_or_else(|| match provider {
-        ProviderId::GitHub => "github.com".to_string(),
-        ProviderId::GitLab => "gitlab.com".to_string(),
-    });
+    let host = normalize_host(profile.host.as_deref().unwrap_or(match provider {
+        ProviderId::GitHub => "github.com",
+        ProviderId::GitLab => "gitlab.com",
+    }))?;
 
     let environment_token = match provider {
         ProviderId::GitHub => std::env::var("GITFLEET_GITHUB_TOKEN").ok(),
         ProviderId::GitLab => std::env::var("GITFLEET_GITLAB_TOKEN").ok(),
     }
-    .filter(|token| !token.is_empty());
+    .filter(|token| !token.is_empty())
+    .filter(|_| host.eq_ignore_ascii_case(default_host(provider)));
 
-    let (token, token_source) = match environment_token {
-        Some(token) => (Some(token), TokenSource::Environment),
-        None => match profile.token {
-            Some(token) => (Some(token), TokenSource::Profile),
-            None => (None, TokenSource::None),
-        },
+    let (token, token_source) = match (profile.token, environment_token) {
+        (Some(token), _) => (Some(token), TokenSource::Profile),
+        (None, Some(token)) => (Some(token), TokenSource::Environment),
+        (None, None) => (None, TokenSource::None),
     };
 
     Ok(ProviderContext {
@@ -117,35 +198,35 @@ pub fn resolve_provider_context() -> Result<ProviderContext, ConfigError> {
 }
 
 pub fn get_provider_token_optional(provider: ProviderId) -> Option<String> {
-    let environment_token = match provider {
-        ProviderId::GitHub => std::env::var("GITFLEET_GITHUB_TOKEN").ok(),
-        ProviderId::GitLab => std::env::var("GITFLEET_GITLAB_TOKEN").ok(),
-    };
-
-    environment_token
-        .filter(|token| !token.is_empty())
-        .or_else(|| {
-            resolve_provider_context()
-                .ok()
-                .filter(|context| context.provider == provider)
-                .and_then(|context| context.token)
-        })
-}
-
-pub fn get_token_for_host(host: &str) -> Option<String> {
-    let normalized_host = host.trim_end_matches('/');
-
     if let Ok(context) = resolve_provider_context() {
-        if context.host.eq_ignore_ascii_case(normalized_host) {
+        if context.provider == provider {
             return context.token;
         }
     }
 
-    let profile_name = find_profile_by_host(normalized_host).ok().flatten()?;
+    let environment_token = match provider {
+        ProviderId::GitHub => std::env::var("GITFLEET_GITHUB_TOKEN").ok(),
+        ProviderId::GitLab => std::env::var("GITFLEET_GITLAB_TOKEN").ok(),
+    };
+
+    environment_token.filter(|token| !token.is_empty())
+}
+
+pub fn get_token_for_host(host: &str) -> Option<String> {
+    let normalized_host = normalize_host(host).ok()?;
+
+    if let Ok(context) = resolve_provider_context() {
+        if context.host.eq_ignore_ascii_case(&normalized_host) {
+            return context.token;
+        }
+    }
+
+    let profile_name = find_profile_by_host(&normalized_host).ok().flatten()?;
     let profile = get_profile(&profile_name).ok().flatten()?;
     let provider = match profile.provider.as_deref() {
+        Some("github") | None => ProviderId::GitHub,
         Some("gitlab") => ProviderId::GitLab,
-        _ => ProviderId::GitHub,
+        Some(_) => return None,
     };
 
     let environment_token = match provider {
@@ -153,9 +234,16 @@ pub fn get_token_for_host(host: &str) -> Option<String> {
         ProviderId::GitLab => std::env::var("GITFLEET_GITLAB_TOKEN").ok(),
     };
 
-    profile
-        .token
-        .or_else(|| environment_token.filter(|token| !token.is_empty()))
+    profile.token.or_else(|| {
+        let default_host = match provider {
+            ProviderId::GitHub => "github.com",
+            ProviderId::GitLab => "gitlab.com",
+        };
+
+        (normalized_host.eq_ignore_ascii_case(default_host))
+            .then(|| environment_token.filter(|token| !token.is_empty()))
+            .flatten()
+    })
 }
 
 pub fn get_github_token_optional() -> Option<String> {
@@ -177,9 +265,15 @@ pub fn get_resolved_profile() -> Result<String, ConfigError> {
         return Err(ConfigError::new(crate::constants::ERROR_PROFILE_NOT_FOUND));
     }
 
-    if let Some(repo_profile) = get_repo_local_profile() {
-        if creds.profiles.contains_key(&repo_profile) {
-            return Ok(repo_profile);
+    let trust_repo_config = std::env::var(GITFLEET_TRUST_REPO_CONFIG_ENV)
+        .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+
+    if trust_repo_config {
+        if let Some(repo_profile) = get_repo_local_profile() {
+            if creds.profiles.contains_key(&repo_profile) {
+                return Ok(repo_profile);
+            }
         }
     }
 
@@ -313,7 +407,12 @@ pub fn unset(key: &str) -> Result<(), ConfigError> {
         .ok_or_else(|| ConfigError::new(format!("Profile \"{profile_name}\" not found.")))?;
 
     match key {
-        "token" => profile.token = None,
+        "token" => {
+            profile.token = None;
+            if !uses_file_credential_store() {
+                delete_token(&profile_name)?;
+            }
+        }
         "host" => profile.host = None,
         _ => {
             if profile.extra.remove(key).is_none() {
@@ -353,11 +452,23 @@ pub fn remove_profile(name: &str) -> Result<(), ConfigError> {
         return Err(ConfigError::new(format!("Profile \"{name}\" not found.")));
     }
 
+    if !uses_file_credential_store() {
+        delete_token(name)?;
+    }
+
     write_credentials(&creds)
 }
 
 pub fn clear_credentials() -> Result<(), ConfigError> {
-    let path = credentials_path();
+    let path = credentials_path()?;
+
+    if !uses_file_credential_store() {
+        let creds = read_credentials()?;
+
+        for name in creds.profiles.keys() {
+            delete_token(name)?;
+        }
+    }
 
     if path.exists() {
         std::fs::remove_file(&path)
@@ -365,6 +476,93 @@ pub fn clear_credentials() -> Result<(), ConfigError> {
     }
 
     Ok(())
+}
+
+pub fn normalize_host(value: &str) -> Result<String, ConfigError> {
+    let value = value.trim();
+
+    if value.is_empty() || value.chars().any(char::is_control) || value.contains("://") {
+        return Err(ConfigError::new(
+            "Host must be a hostname or host:port authority.",
+        ));
+    }
+
+    let parsed = url::Url::parse(&format!("https://{value}"))
+        .map_err(|e| ConfigError::new(format!("Invalid host '{value}': {e}")))?;
+
+    if parsed.username() != ""
+        || parsed.password().is_some()
+        || parsed.path() != "/"
+        || parsed.query().is_some()
+        || parsed.fragment().is_some()
+    {
+        return Err(ConfigError::new(
+            "Host must not contain credentials, paths, queries, or fragments.",
+        ));
+    }
+
+    let host = parsed
+        .host_str()
+        .ok_or_else(|| ConfigError::new("Host must contain a valid hostname."))?;
+    let authority = match parsed.port() {
+        Some(port) if host.contains(':') => format!("[{host}]:{port}"),
+        Some(port) => format!("{host}:{port}"),
+        None if host.contains(':') => format!("[{host}]"),
+        None => host.to_string(),
+    };
+
+    Ok(authority.to_ascii_lowercase())
+}
+
+fn uses_file_credential_store() -> bool {
+    cfg!(test)
+        || std::env::var_os(GITFLEET_TEST_CREDENTIAL_STORE_ENV).is_some()
+        || std::env::var(GITFLEET_CREDENTIAL_STORE_ENV)
+            .map(|value| value.eq_ignore_ascii_case("file"))
+            .unwrap_or(false)
+}
+
+fn keyring_entry(profile: &str) -> Result<keyring::Entry, ConfigError> {
+    keyring::Entry::new(KEYRING_SERVICE, profile)
+        .map_err(|e| ConfigError::new(format!("Failed to access the system credential store: {e}")))
+}
+
+fn load_token(profile: &str) -> Option<String> {
+    keyring_entry(profile).ok()?.get_password().ok()
+}
+
+fn store_token(profile: &str, token: &str) -> Result<(), ConfigError> {
+    keyring_entry(profile)?
+        .set_password(token)
+        .map_err(|e| ConfigError::new(format!("Failed to store profile token securely: {e}")))
+}
+
+fn delete_token(profile: &str) -> Result<(), ConfigError> {
+    let entry = keyring_entry(profile)?;
+
+    match entry.delete_credential() {
+        Ok(()) => Ok(()),
+        Err(error) => {
+            let message = error.to_string().to_ascii_lowercase();
+            if message.contains("no credential")
+                || message.contains("no entry")
+                || message.contains("not found")
+            {
+                Ok(())
+            } else {
+                Err(ConfigError::new(format!(
+                    "Failed to remove profile token securely: {error}"
+                )))
+            }
+        }
+    }
+}
+
+fn default_host(provider: ProviderId) -> &'static str {
+    match provider {
+        ProviderId::GitHub => "github.com",
+        ProviderId::GitLab => "gitlab.com",
+    }
 }
 
 pub fn set_alias(name: &str, expansion: &str, force: bool) -> Result<(), ConfigError> {
@@ -661,7 +859,7 @@ mod tests {
 
     #[test]
     #[serial_test::serial]
-    fn test_resolve_provider_context_prefers_provider_environment_token() {
+    fn test_resolve_provider_context_scopes_environment_token_to_public_host() {
         let tmp_dir = std::env::temp_dir().join("gitfleet_test_provider_context");
         let _ = std::fs::remove_dir_all(&tmp_dir);
         std::fs::create_dir_all(&tmp_dir).unwrap();
@@ -696,11 +894,8 @@ mod tests {
 
         let environment_context = resolve_provider_context().unwrap();
 
-        assert_eq!(
-            environment_context.token,
-            Some("environment-token".to_string())
-        );
-        assert_eq!(environment_context.token_source, TokenSource::Environment);
+        assert_eq!(environment_context.token, Some("profile-token".to_string()));
+        assert_eq!(environment_context.token_source, TokenSource::Profile);
 
         std::env::remove_var("GITFLEET_GITLAB_TOKEN");
         let _ = std::fs::remove_dir_all(&tmp_dir);
@@ -958,6 +1153,21 @@ mod tests {
         let host = get_host();
 
         assert_eq!(host, "github.com");
+    }
+
+    #[test]
+    fn test_normalize_host_rejects_url_components() {
+        assert!(normalize_host("https://github.com").is_err());
+        assert!(normalize_host("github.com/path").is_err());
+        assert!(normalize_host("user:pass@github.com").is_err());
+    }
+
+    #[test]
+    fn test_normalize_host_preserves_port_and_lowercases_authority() {
+        assert_eq!(
+            normalize_host("Git.Example.COM:8443").unwrap(),
+            "git.example.com:8443"
+        );
     }
 
     #[test]

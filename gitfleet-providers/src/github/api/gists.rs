@@ -1,6 +1,7 @@
 use gitfleet_core::errors::GitfleetError;
 use gitfleet_core::types::GistSummary;
 
+use crate::github::api::path::encode_segment;
 use crate::github::client::ProviderClient;
 
 pub struct GistsApi;
@@ -33,7 +34,7 @@ impl GistsApi {
         client: &ProviderClient,
         owner: &str,
     ) -> Result<Vec<GistSummary>, GitfleetError> {
-        let endpoint = format!("/users/{owner}/gists?per_page=100");
+        let endpoint = format!("/users/{}/gists?per_page=100", encode_segment(owner));
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)

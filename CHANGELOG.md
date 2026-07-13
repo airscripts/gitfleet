@@ -5,6 +5,11 @@ Semantic Versioning.
 
 ## [Unreleased]
 
+- Default to operating-system credential storage for provider tokens, with an
+  explicit `GITFLEET_CREDENTIAL_STORE=file` compatibility option for plaintext
+  storage.
+- Harden credential, configuration, provider-client, and workspace handling.
+
 ## [0.1.0] - 2026-07-01
 
 ### Added
@@ -16,7 +21,7 @@ Semantic Versioning.
   operation catalog.
 - Workspace execution that runs in-process with bounded concurrency and
   produces stable, per-repository results.
-- `gitfleet` and `gf` executable names.
+- The `gitfleet` executable.
 - Manage pull requests, reviews, issues, discussions, and notifications with
   the `change`, `review`, `issue`, `discussion`, and `inbox` commands.
 - Set up repositories, governance, policies, project planning, wikis, sites,
@@ -36,11 +41,12 @@ Semantic Versioning.
   configure Gitfleet, and show help or version information
   with the `auth`, `workspace`, `alias`, `completion`, `config`,
   `help`, and `version` commands.
-- GitLab provider with 35 capabilities including reviews, milestones,
-  snippets, protected branches and tags, Pages, and package registry.
+- GitLab provider capabilities including reviews, milestones, snippets,
+  protected branches and tags, Pages, and package registry operations.
 - Insta snapshot tests for CLI help text and provider wire payload
   normalization.
-- Lefthook git hooks for pre-commit (fmt + clippy) and pre-push (test).
+- Lefthook pre-commit checks for formatting, clippy, workspace compilation, and
+  the coverage gate.
 
 ### Changed
 

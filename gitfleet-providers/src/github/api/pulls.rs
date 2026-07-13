@@ -1,6 +1,7 @@
 use gitfleet_core::errors::GitfleetError;
 use gitfleet_core::types::PullRequest;
 
+use crate::github::api::path::repo_path;
 use crate::github::client::ProviderClient;
 
 pub struct PullsApi;
@@ -11,7 +12,7 @@ impl PullsApi {
         number: u64,
         repo: &str,
     ) -> Result<PullRequest, GitfleetError> {
-        let endpoint = format!("/repos/{repo}/pulls/{number}");
+        let endpoint = repo_path(repo, &["pulls", &number.to_string()]);
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
@@ -34,7 +35,7 @@ impl PullsApi {
         body: Option<&str>,
         draft: bool,
     ) -> Result<PullRequest, GitfleetError> {
-        let endpoint = format!("/repos/{repo}/pulls");
+        let endpoint = repo_path(repo, &["pulls"]);
 
         let mut json = serde_json::json!({
             "title": title,
@@ -69,7 +70,10 @@ impl PullsApi {
     ) -> Result<Vec<PullRequest>, GitfleetError> {
         let enc_state = urlencoding::encode(state);
 
-        let mut endpoint = format!("/repos/{repo}/pulls?state={enc_state}&per_page={limit}");
+        let mut endpoint = format!(
+            "{}?state={enc_state}&per_page={limit}",
+            repo_path(repo, &["pulls"])
+        );
 
         if let Some(b) = base {
             let enc = urlencoding::encode(b);
@@ -99,7 +103,7 @@ impl PullsApi {
         number: u64,
         options: serde_json::Value,
     ) -> Result<PullRequest, GitfleetError> {
-        let endpoint = format!("/repos/{repo}/pulls/{number}");
+        let endpoint = repo_path(repo, &["pulls", &number.to_string()]);
 
         let response = client
             .request_token_required(reqwest::Method::PATCH, &endpoint, Some(options), None, None)
@@ -119,7 +123,7 @@ impl PullsApi {
         number: u64,
         method: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let endpoint = format!("/repos/{repo}/pulls/{number}/merge");
+        let endpoint = repo_path(repo, &["pulls", &number.to_string(), "merge"]);
 
         let merge_method = match method {
             "squash" => "squash",
@@ -147,7 +151,7 @@ impl PullsApi {
         number: u64,
         body: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let endpoint = format!("/repos/{repo}/issues/{number}/comments");
+        let endpoint = repo_path(repo, &["issues", &number.to_string(), "comments"]);
 
         let json = serde_json::json!({ "body": body });
         let response = client
@@ -167,7 +171,7 @@ impl PullsApi {
         repo: &str,
         number: u64,
     ) -> Result<(), GitfleetError> {
-        let endpoint = format!("/repos/{repo}/issues/{number}/lock");
+        let endpoint = repo_path(repo, &["issues", &number.to_string(), "lock"]);
 
         client
             .request_token_required(
@@ -187,7 +191,7 @@ impl PullsApi {
         repo: &str,
         number: u64,
     ) -> Result<(), GitfleetError> {
-        let endpoint = format!("/repos/{repo}/issues/{number}/lock");
+        let endpoint = repo_path(repo, &["issues", &number.to_string(), "lock"]);
 
         client
             .request_token_required(reqwest::Method::DELETE, &endpoint, None, None, None)

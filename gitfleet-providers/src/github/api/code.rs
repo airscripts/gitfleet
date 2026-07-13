@@ -1,7 +1,7 @@
 use gitfleet_core::errors::GitfleetError;
 use gitfleet_core::types::CodeSearchResult;
 
-use crate::github::api::path::repo_path;
+use crate::github::api::path::{encode_path, repo_path};
 use crate::github::client::ProviderClient;
 
 pub struct CodeApi;
@@ -13,7 +13,9 @@ impl CodeApi {
         path: &str,
         r#ref: Option<&str>,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let mut endpoint = repo_path(repo, &["contents", path]);
+        let mut endpoint = repo_path(repo, &["contents"]);
+        endpoint.push('/');
+        endpoint.push_str(&encode_path(path));
 
         if let Some(r) = r#ref {
             endpoint.push_str(&format!("?ref={}", urlencoding::encode(r)));

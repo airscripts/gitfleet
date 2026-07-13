@@ -56,6 +56,11 @@ fn is_sensitive_key(key: &str) -> bool {
     let key = key.to_ascii_lowercase();
 
     key == "token"
+        || key.contains("api_key")
+        || key.contains("access_key")
+        || key.contains("private_key")
+        || key.contains("bearer")
+        || key.contains("auth")
         || key.contains("password")
         || key.contains("secret")
         || key.contains("credential")
@@ -77,6 +82,8 @@ mod tests {
         std::env::set_var("HOME", dir.path().to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var("GITFLEET_PROFILE");
+        std::env::remove_var("GITFLEET_CREDENTIAL_STORE");
+        std::env::set_var("GITFLEET_TEST_CREDENTIAL_STORE", "1");
         (dir, original_home)
     }
 
@@ -84,6 +91,8 @@ mod tests {
         if let Some(home) = original_home {
             std::env::set_var("HOME", home);
         }
+        std::env::remove_var("GITFLEET_CREDENTIAL_STORE");
+        std::env::remove_var("GITFLEET_TEST_CREDENTIAL_STORE");
     }
 
     #[tokio::test]

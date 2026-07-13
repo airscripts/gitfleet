@@ -1,7 +1,7 @@
 use gitfleet_core::errors::GitfleetError;
 use gitfleet_core::types::PackageSummary;
 
-use crate::github::api::path::repo_path;
+use crate::github::api::path::{encode_segment, repo_path};
 use crate::github::client::ProviderClient;
 
 pub struct PackagesApi;
@@ -11,11 +11,12 @@ impl PackagesApi {
         client: &ProviderClient,
         org: &str,
         package_type: Option<&str>,
+        limit: u32,
     ) -> Result<Vec<PackageSummary>, GitfleetError> {
-        let mut endpoint = format!("/orgs/{org}/packages?per_page=100");
+        let mut endpoint = format!("/orgs/{}/packages?per_page={limit}", encode_segment(org));
 
         if let Some(pt) = package_type {
-            endpoint.push_str(&format!("&package_type={pt}"));
+            endpoint.push_str(&format!("&package_type={}", encode_segment(pt)));
         }
 
         let response = client
@@ -39,7 +40,7 @@ impl PackagesApi {
         endpoint.push_str("?per_page=100");
 
         if let Some(pt) = package_type {
-            endpoint.push_str(&format!("&package_type={pt}"));
+            endpoint.push_str(&format!("&package_type={}", encode_segment(pt)));
         }
 
         let response = client
@@ -79,10 +80,10 @@ impl PackagesApi {
         owner: &str,
         package_type: Option<&str>,
     ) -> Result<Vec<PackageSummary>, GitfleetError> {
-        let mut endpoint = format!("/users/{owner}/packages?per_page=100");
+        let mut endpoint = format!("/users/{}/packages?per_page=100", encode_segment(owner));
 
         if let Some(pt) = package_type {
-            endpoint.push_str(&format!("&package_type={pt}"));
+            endpoint.push_str(&format!("&package_type={}", encode_segment(pt)));
         }
 
         let response = client
@@ -103,7 +104,12 @@ impl PackagesApi {
         package_type: &str,
         package_name: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let endpoint = format!("/orgs/{owner}/packages/{package_type}/{package_name}");
+        let endpoint = format!(
+            "/orgs/{}/packages/{}/{}",
+            encode_segment(owner),
+            encode_segment(package_type),
+            encode_segment(package_name)
+        );
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)

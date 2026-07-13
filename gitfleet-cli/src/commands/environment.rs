@@ -80,8 +80,9 @@ pub async fn run(cmd: EnvironmentCommand, app: &App) -> Result<(), GitfleetError
                 app.renderer().yes() || yes,
             )?;
 
-            app.renderer()
-                .write_value(&format!("Environment '{name}' deleted."));
+            let (owner, repo_name) = crate::repo_util::split_repo(&repo_str)?;
+
+            service::environments::delete(p, app.renderer(), owner, repo_name, &name).await?;
 
             Ok(())
         }

@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::path::PathBuf;
 
 use dirs::home_dir;
@@ -17,24 +18,37 @@ struct WorkspacesFile {
     workspaces: Vec<Workspace>,
 }
 
-fn workspaces_path() -> PathBuf {
+fn workspaces_path() -> Result<PathBuf, GitfleetError> {
     home_dir()
-        .unwrap_or_else(|| PathBuf::from("/tmp"))
-        .join(".config")
-        .join("gitfleet")
-        .join("workspaces.toml")
+        .map(|home| {
+            home.join(".config")
+                .join("gitfleet")
+                .join("workspaces.toml")
+        })
+        .ok_or_else(|| GitfleetError::new("Unable to determine the home directory."))
 }
 
-fn ensure_dir() -> std::io::Result<()> {
-    let dir = workspaces_path()
+fn ensure_dir() -> Result<(), GitfleetError> {
+    let path = workspaces_path()?;
+    let dir = path
         .parent()
-        .unwrap_or(&PathBuf::from("/tmp"))
-        .to_path_buf();
+        .ok_or_else(|| GitfleetError::new("Workspace directory has no parent."))?;
     std::fs::create_dir_all(dir)
+        .map_err(|e| GitfleetError::new(format!("Failed to create directory: {e}")))?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))
+            .map_err(|e| GitfleetError::new(format!("Failed to secure directory: {e}")))?;
+    }
+
+    Ok(())
 }
 
 fn load_all() -> Result<Vec<Workspace>, GitfleetError> {
-    let path = workspaces_path();
+    let path = workspaces_path()?;
 
     if !path.exists() {
         return Ok(Vec::new());
@@ -50,7 +64,7 @@ fn load_all() -> Result<Vec<Workspace>, GitfleetError> {
 }
 
 fn save_all(workspaces: &[Workspace]) -> Result<(), GitfleetError> {
-    ensure_dir().map_err(|e| GitfleetError::new(format!("Failed to create directory: {e}")))?;
+    ensure_dir()?;
 
     let file = WorkspacesFile {
         workspaces: workspaces.to_vec(),
@@ -58,8 +72,46 @@ fn save_all(workspaces: &[Workspace]) -> Result<(), GitfleetError> {
 
     let content = toml::to_string_pretty(&file)
         .map_err(|e| GitfleetError::new(format!("Failed to serialize workspaces: {e}")))?;
-    std::fs::write(workspaces_path(), content)
-        .map_err(|e| GitfleetError::new(format!("Failed to write workspaces: {e}")))
+    let path = workspaces_path()?;
+    let temporary_path = path.with_extension(format!(
+        "toml.{}.{}.tmp",
+        std::process::id(),
+        format_args!("{:?}", std::thread::current().id())
+    ));
+    let write_result = (|| -> Result<(), GitfleetError> {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary_path)
+            .map_err(|e| GitfleetError::new(format!("Failed to create workspaces: {e}")))?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            file.set_permissions(std::fs::Permissions::from_mode(0o600))
+                .map_err(|e| {
+                    GitfleetError::new(format!("Failed to secure temporary workspaces file: {e}"))
+                })?;
+        }
+
+        file.write_all(content.as_bytes())
+            .map_err(|e| GitfleetError::new(format!("Failed to write workspaces: {e}")))?;
+        file.sync_all()
+            .map_err(|e| GitfleetError::new(format!("Failed to flush workspaces: {e}")))?;
+        drop(file);
+
+        std::fs::rename(&temporary_path, &path)
+            .map_err(|e| GitfleetError::new(format!("Failed to replace workspaces: {e}")))?;
+
+        Ok(())
+    })();
+
+    if write_result.is_err() {
+        let _ = std::fs::remove_file(&temporary_path);
+    }
+
+    write_result
 }
 
 #[cfg(test)]

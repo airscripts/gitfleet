@@ -8,4 +8,7 @@
 
 ## Reporting Vulnerability
 
-To report a vulnerability, open an [issue](https://github.com/airscripts/gitfleet/issues/new/choose).
+To report a vulnerability, email [francesco@airscript.it](mailto:francesco@airscript.it)
+with the affected version, operating system, reproduction steps, impact, and
+any suggested mitigation. Do not open a public issue or include tokens and
+other credentials in the report.

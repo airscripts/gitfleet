@@ -55,6 +55,8 @@ pub enum PipelineCommand {
         run_id: u64,
         #[arg(long)]
         repo: Option<String>,
+        #[arg(long)]
+        yes: bool,
     },
 
     #[command(about = "Re-run a workflow.")]
@@ -115,8 +117,31 @@ pub async fn run(cmd: PipelineCommand, app: &App) -> Result<(), GitfleetError> {
             .await
         }
 
-        PipelineCommand::Cancel { run_id, repo } => {
+        PipelineCommand::Cancel { run_id, repo, yes } => {
             let repo_str = crate::repo_util::resolve_repo(&repo)?;
+
+            if app.dry_run() {
+                let preview = serde_json::json!({
+                    "dry_run": true,
+                    "action": "cancel",
+                    "target": format!("{repo_str} run {run_id}"),
+                });
+
+                if app.renderer().is_json() {
+                    app.renderer().write_result(&preview);
+                } else {
+                    app.renderer()
+                        .render_box(&format!("Would cancel workflow run {run_id}"), "warning");
+                }
+
+                return Ok(());
+            }
+
+            gitfleet_core::prompt::confirm_destructive(
+                &format!("Cancel workflow run {run_id}?"),
+                app.renderer().mode(),
+                app.renderer().yes() || yes,
+            )?;
 
             service::pipelines::cancel_run(p, app.renderer(), &repo_str, run_id).await
         }
@@ -294,6 +319,7 @@ mod tests {
             PipelineCommand::Cancel {
                 run_id: 1,
                 repo: Some("org/repo".into()),
+                yes: true,
             },
             &app,
         )

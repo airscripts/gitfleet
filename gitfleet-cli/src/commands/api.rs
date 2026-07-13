@@ -18,12 +18,16 @@ pub enum ApiCommand {
         endpoint: String,
         #[arg(long)]
         body: String,
+        #[arg(long)]
+        yes: bool,
     },
 
     #[command(about = "Send a raw DELETE request to the provider API.")]
     Delete {
         #[arg(long)]
         endpoint: String,
+        #[arg(long)]
+        yes: bool,
     },
 }
 
@@ -39,6 +43,8 @@ pub async fn run(cmd: ApiCommand, app: &App) -> Result<(), GitfleetError> {
 
     match cmd {
         ApiCommand::Get { endpoint } => {
+            validate_endpoint(&endpoint)?;
+
             let data = ops.raw_get(&endpoint).await?;
 
             if app.renderer().is_json() {
@@ -51,10 +57,40 @@ pub async fn run(cmd: ApiCommand, app: &App) -> Result<(), GitfleetError> {
             Ok(())
         }
 
-        ApiCommand::Post { endpoint, body } => {
+        ApiCommand::Post {
+            endpoint,
+            body,
+            yes,
+        } => {
+            validate_endpoint(&endpoint)?;
+
             let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
                 GitfleetError::from(UnprocessableError::new(format!("Invalid JSON body: {e}")))
             })?;
+
+            if app.dry_run() {
+                let preview = serde_json::json!({
+                    "dry_run": true,
+                    "action": "post",
+                    "endpoint": endpoint,
+                    "body": parsed,
+                });
+
+                if app.renderer().is_json() {
+                    app.renderer().write_result(&preview);
+                } else {
+                    app.renderer()
+                        .render_box(&format!("Would send {preview}"), "warning");
+                }
+
+                return Ok(());
+            }
+
+            gitfleet_core::prompt::confirm_destructive(
+                &format!("Send raw POST request to {endpoint}?"),
+                app.renderer().mode(),
+                app.renderer().yes() || yes,
+            )?;
 
             let data = ops.raw_post(&endpoint, parsed).await?;
 
@@ -68,7 +104,32 @@ pub async fn run(cmd: ApiCommand, app: &App) -> Result<(), GitfleetError> {
             Ok(())
         }
 
-        ApiCommand::Delete { endpoint } => {
+        ApiCommand::Delete { endpoint, yes } => {
+            validate_endpoint(&endpoint)?;
+
+            if app.dry_run() {
+                let preview = serde_json::json!({
+                    "dry_run": true,
+                    "action": "delete",
+                    "endpoint": endpoint,
+                });
+
+                if app.renderer().is_json() {
+                    app.renderer().write_result(&preview);
+                } else {
+                    app.renderer()
+                        .render_box(&format!("Would send {preview}"), "warning");
+                }
+
+                return Ok(());
+            }
+
+            gitfleet_core::prompt::confirm_destructive(
+                &format!("Send raw DELETE request to {endpoint}?"),
+                app.renderer().mode(),
+                app.renderer().yes() || yes,
+            )?;
+
             let data = ops.raw_delete(&endpoint).await?;
 
             if app.renderer().is_json() {
@@ -81,6 +142,20 @@ pub async fn run(cmd: ApiCommand, app: &App) -> Result<(), GitfleetError> {
             Ok(())
         }
     }
+}
+
+fn validate_endpoint(endpoint: &str) -> Result<(), GitfleetError> {
+    if !endpoint.starts_with('/')
+        || endpoint.starts_with("//")
+        || endpoint.contains("://")
+        || endpoint.chars().any(char::is_control)
+    {
+        return Err(GitfleetError::from(UnprocessableError::new(
+            "API endpoint must be a relative provider path beginning with '/'.",
+        )));
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -153,6 +228,7 @@ mod tests {
             ApiCommand::Post {
                 endpoint: "/repos/org/repo".into(),
                 body: r#"{"key":"value"}"#.into(),
+                yes: true,
             },
             &app,
         )
@@ -168,6 +244,7 @@ mod tests {
             ApiCommand::Post {
                 endpoint: "/repos/org/repo".into(),
                 body: r#"{"key":"value"}"#.into(),
+                yes: true,
             },
             &app,
         )
@@ -183,6 +260,7 @@ mod tests {
             ApiCommand::Post {
                 endpoint: "/repos/org/repo".into(),
                 body: r#"{"key":"value"}"#.into(),
+                yes: true,
             },
             &app,
         )
@@ -198,6 +276,7 @@ mod tests {
             ApiCommand::Post {
                 endpoint: "/repos/org/repo".into(),
                 body: r#"{"key":"value"}"#.into(),
+                yes: true,
             },
             &app,
         )
@@ -214,6 +293,7 @@ mod tests {
             ApiCommand::Post {
                 endpoint: "/repos/org/repo".into(),
                 body: "not json".into(),
+                yes: true,
             },
             &app,
         )
@@ -229,6 +309,7 @@ mod tests {
         run(
             ApiCommand::Delete {
                 endpoint: "/repos/org/repo".into(),
+                yes: true,
             },
             &app,
         )
@@ -243,6 +324,7 @@ mod tests {
         run(
             ApiCommand::Delete {
                 endpoint: "/repos/org/repo".into(),
+                yes: true,
             },
             &app,
         )
@@ -257,6 +339,7 @@ mod tests {
         run(
             ApiCommand::Delete {
                 endpoint: "/repos/org/repo".into(),
+                yes: true,
             },
             &app,
         )
@@ -271,6 +354,38 @@ mod tests {
         let result = run(
             ApiCommand::Delete {
                 endpoint: "/repos/org/repo".into(),
+                yes: true,
+            },
+            &app,
+        )
+        .await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_api_delete_requires_confirmation() {
+        let app = test_helpers::make_app();
+
+        let result = run(
+            ApiCommand::Delete {
+                endpoint: "/repos/org/repo".into(),
+                yes: false,
+            },
+            &app,
+        )
+        .await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_api_rejects_absolute_endpoint() {
+        let app = test_helpers::make_app();
+
+        let result = run(
+            ApiCommand::Get {
+                endpoint: "https://example.com".into(),
             },
             &app,
         )

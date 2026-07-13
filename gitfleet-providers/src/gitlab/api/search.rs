@@ -19,11 +19,11 @@ impl SearchApi {
         );
 
         if let Some(s) = sort {
-            endpoint.push_str(&format!("&order_by={s}"));
+            endpoint.push_str(&format!("&order_by={}", urlencoding::encode(s)));
         }
 
         if let Some(o) = order {
-            endpoint.push_str(&format!("&sort={o}"));
+            endpoint.push_str(&format!("&sort={}", urlencoding::encode(o)));
         }
 
         let response = client
@@ -55,11 +55,11 @@ impl SearchApi {
         );
 
         if let Some(s) = sort {
-            endpoint.push_str(&format!("&order_by={s}"));
+            endpoint.push_str(&format!("&order_by={}", urlencoding::encode(s)));
         }
 
         if let Some(o) = order {
-            endpoint.push_str(&format!("&sort={o}"));
+            endpoint.push_str(&format!("&sort={}", urlencoding::encode(o)));
         }
 
         let response = client

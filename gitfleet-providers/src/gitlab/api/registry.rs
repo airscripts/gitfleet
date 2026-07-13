@@ -14,11 +14,11 @@ impl RegistryApi {
         client: &ProviderClient,
         owner: &str,
         package_type: Option<&str>,
-        _limit: u32,
+        limit: u32,
     ) -> Result<Vec<PackageSummary>, GitfleetError> {
         let encoded = encode_path(owner);
 
-        let mut endpoint = format!("/projects/{encoded}/packages?per_page=100");
+        let mut endpoint = format!("/projects/{encoded}/packages?per_page={limit}");
 
         if let Some(pt) = package_type {
             endpoint.push_str(&format!("&package_type={}", urlencoding::encode(pt)));

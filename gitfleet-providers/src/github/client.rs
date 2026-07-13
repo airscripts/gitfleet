@@ -1,6 +1,8 @@
 use gitfleet_core::constants::{
-    GITHUB_API_ACCEPT, GITHUB_API_BASE_URL, GITHUB_API_VERSION, STATUS_FORBIDDEN, STATUS_NOT_FOUND,
-    STATUS_OK_MAX, STATUS_OK_MIN, STATUS_RATE_LIMITED, STATUS_UNAUTHORIZED, STATUS_UNPROCESSABLE,
+    GITHUB_API_ACCEPT, GITHUB_API_BASE_URL, GITHUB_API_VERSION, HTTP_TIMEOUT_SECONDS,
+    MAX_HTTP_RESPONSE_BYTES, MAX_PAGINATION_ITEMS, MAX_PAGINATION_PAGES, STATUS_FORBIDDEN,
+    STATUS_NOT_FOUND, STATUS_OK_MAX, STATUS_OK_MIN, STATUS_RATE_LIMITED, STATUS_UNAUTHORIZED,
+    STATUS_UNPROCESSABLE,
 };
 use gitfleet_core::errors::{
     AuthError, GitfleetError, NotFoundError, RateLimitError, TokenRequiredError, UnprocessableError,
@@ -25,6 +27,8 @@ impl ProviderClient {
     pub fn new() -> Self {
         let http = Client::builder()
             .user_agent(USER_AGENT)
+            .connect_timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECONDS))
+            .timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECONDS))
             .build()
             .unwrap_or_default();
         Self {
@@ -37,6 +41,8 @@ impl ProviderClient {
     pub fn with_base_url(base_url: &str) -> Self {
         let http = Client::builder()
             .user_agent(USER_AGENT)
+            .connect_timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECONDS))
+            .timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECONDS))
             .build()
             .unwrap_or_default();
         Self {
@@ -169,6 +175,8 @@ impl ProviderClient {
             let status = response.status().as_u16();
 
             if (STATUS_OK_MIN..=STATUS_OK_MAX).contains(&status) {
+                validate_response_size(&response)?;
+
                 return Ok(response);
             }
 
@@ -272,8 +280,16 @@ impl ProviderClient {
         let mut url = format!("{base}{endpoint}");
 
         let mut all_items: Vec<T> = Vec::new();
+        let mut pages = 0;
 
         loop {
+            pages += 1;
+            if pages > MAX_PAGINATION_PAGES {
+                return Err(GitfleetError::new(
+                    "Pagination exceeded the configured page limit.",
+                ));
+            }
+
             let response = self
                 .request_url(
                     reqwest::Method::GET,
@@ -295,11 +311,17 @@ impl ProviderClient {
                 GitfleetError::new(format!("Failed to parse paginated response: {e}"))
             })?;
 
+            if all_items.len().saturating_add(items.len()) > MAX_PAGINATION_ITEMS {
+                return Err(GitfleetError::new(
+                    "Pagination exceeded the configured item limit.",
+                ));
+            }
+
             all_items.extend(items);
 
             match link_header {
                 Some(link_header) => match parse_next_link(&link_header)? {
-                    Some(next) => url = next,
+                    Some(next) => url = validate_next_url(&base, &next)?,
                     None => break,
                 },
 
@@ -865,9 +887,9 @@ impl gitfleet_core::provider::PlanningOps for ProviderClient {
         &self,
         repo: &str,
         state: Option<&str>,
-        _limit: u32,
+        limit: u32,
     ) -> Result<Vec<gitfleet_core::types::Milestone>, gitfleet_core::errors::GitfleetError> {
-        crate::github::api::MilestonesApi::list(self, repo, state.unwrap_or("open")).await
+        crate::github::api::MilestonesApi::list(self, repo, state.unwrap_or("open"), limit).await
     }
 
     async fn create_milestone(
@@ -1664,10 +1686,10 @@ impl gitfleet_core::provider::RegistryOps for ProviderClient {
         &self,
         owner: &str,
         package_type: Option<&str>,
-        _limit: u32,
+        limit: u32,
     ) -> Result<Vec<gitfleet_core::types::PackageSummary>, gitfleet_core::errors::GitfleetError>
     {
-        crate::github::api::PackagesApi::list_for_org(self, owner, package_type).await
+        crate::github::api::PackagesApi::list_for_org(self, owner, package_type, limit).await
     }
 
     async fn get_package(
@@ -1765,6 +1787,38 @@ fn parse_next_link(link_header: &str) -> Result<Option<String>, GitfleetError> {
     Ok(None)
 }
 
+fn validate_next_url(base: &str, next: &str) -> Result<String, GitfleetError> {
+    let base_url = url::Url::parse(base)
+        .map_err(|e| GitfleetError::new(format!("Invalid API base URL: {e}")))?;
+    let next_url = base_url
+        .join(next)
+        .map_err(|e| GitfleetError::new(format!("Invalid pagination URL: {e}")))?;
+
+    if next_url.scheme() != base_url.scheme()
+        || next_url.host_str() != base_url.host_str()
+        || next_url.port_or_known_default() != base_url.port_or_known_default()
+    {
+        return Err(GitfleetError::new(
+            "Provider pagination URL crossed the configured API origin.",
+        ));
+    }
+
+    Ok(next_url.to_string())
+}
+
+fn validate_response_size(response: &reqwest::Response) -> Result<(), GitfleetError> {
+    if response
+        .content_length()
+        .is_some_and(|length| length > MAX_HTTP_RESPONSE_BYTES as u64)
+    {
+        return Err(GitfleetError::new(
+            "Provider response exceeded the configured size limit.",
+        ));
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use gitfleet_core::constants::{
@@ -1825,6 +1879,27 @@ mod tests {
     #[test]
     fn test_parse_next_link_malformed_next() {
         let result = parse_next_link(r#"rel="next""#);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_next_url_accepts_same_origin() {
+        let result = validate_next_url(
+            "https://api.github.com/repos",
+            "https://api.github.com/repos?page=2",
+        )
+        .unwrap();
+
+        assert_eq!(result, "https://api.github.com/repos?page=2");
+    }
+
+    #[test]
+    fn test_validate_next_url_rejects_different_origin() {
+        let result = validate_next_url(
+            "https://api.github.com/repos",
+            "https://attacker.example/repos?page=2",
+        );
 
         assert!(result.is_err());
     }

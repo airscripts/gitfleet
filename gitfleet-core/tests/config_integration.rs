@@ -11,12 +11,45 @@ fn setup_tmp_home() -> tempfile::TempDir {
     std::env::set_var("HOME", dir.path().to_string_lossy().to_string());
     std::env::remove_var("GITFLEET_GITHUB_TOKEN");
     std::env::remove_var("GITFLEET_PROFILE");
+    std::env::remove_var("GITFLEET_CREDENTIAL_STORE");
+    std::env::set_var("GITFLEET_TEST_CREDENTIAL_STORE", "1");
     dir
 }
 
 fn teardown_tmp_home(_dir: tempfile::TempDir) {
     std::env::remove_var("GITFLEET_GITHUB_TOKEN");
     std::env::remove_var("GITFLEET_PROFILE");
+    std::env::remove_var("GITFLEET_CREDENTIAL_STORE");
+    std::env::remove_var("GITFLEET_TEST_CREDENTIAL_STORE");
+}
+
+#[test]
+#[serial_test::serial]
+fn test_explicit_file_credential_store_persists_token() {
+    let dir = setup_tmp_home();
+
+    std::env::remove_var("GITFLEET_TEST_CREDENTIAL_STORE");
+    std::env::set_var("GITFLEET_CREDENTIAL_STORE", "file");
+
+    let profile = Profile {
+        token: Some("ghp_file_store_test".into()),
+        host: Some("github.com".into()),
+        provider: Some("github".into()),
+        extra: Default::default(),
+    };
+
+    gitfleet_core::config::add_profile("file-store", profile).unwrap();
+
+    let path = dir
+        .path()
+        .join(".config")
+        .join("gitfleet")
+        .join("credentials.toml");
+    let content = std::fs::read_to_string(path).unwrap();
+
+    assert!(content.contains("ghp_file_store_test"));
+
+    teardown_tmp_home(dir);
 }
 
 #[test]

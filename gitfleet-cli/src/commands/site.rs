@@ -26,6 +26,8 @@ pub enum SiteCommand {
     Delete {
         #[arg(long)]
         repo: Option<String>,
+        #[arg(long)]
+        yes: bool,
     },
 }
 
@@ -76,8 +78,31 @@ pub async fn run(cmd: SiteCommand, app: &App) -> Result<(), GitfleetError> {
             Ok(())
         }
 
-        SiteCommand::Delete { repo } => {
+        SiteCommand::Delete { repo, yes } => {
             let repo_str = crate::repo_util::resolve_repo(&repo)?;
+
+            if app.dry_run() {
+                if app.renderer().is_json() {
+                    app.renderer().write_result(&serde_json::json!({
+                        "dry_run": true,
+                        "action": "delete",
+                        "target": format!("{repo_str} Pages site"),
+                    }));
+                } else {
+                    app.renderer().render_box(
+                        &format!("Would delete Pages site for {repo_str}"),
+                        "warning",
+                    );
+                }
+
+                return Ok(());
+            }
+
+            gitfleet_core::prompt::confirm_destructive(
+                &format!("Delete Pages site for {repo_str}?"),
+                app.renderer().mode(),
+                app.renderer().yes() || yes,
+            )?;
 
             ops.remove_pages(&repo_str).await?;
 
@@ -228,6 +253,7 @@ mod tests {
         run(
             SiteCommand::Delete {
                 repo: Some("org/repo".into()),
+                yes: true,
             },
             &app,
         )
@@ -242,6 +268,7 @@ mod tests {
         run(
             SiteCommand::Delete {
                 repo: Some("org/repo".into()),
+                yes: true,
             },
             &app,
         )
@@ -256,6 +283,7 @@ mod tests {
         run(
             SiteCommand::Delete {
                 repo: Some("org/repo".into()),
+                yes: true,
             },
             &app,
         )
@@ -270,6 +298,7 @@ mod tests {
         let result = run(
             SiteCommand::Delete {
                 repo: Some("org/repo".into()),
+                yes: true,
             },
             &app,
         )

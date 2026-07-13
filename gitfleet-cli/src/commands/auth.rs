@@ -27,9 +27,6 @@ pub enum AuthCommand {
     #[command(about = "Authenticate with a provider token.")]
     Login {
         #[arg(long)]
-        token: Option<String>,
-
-        #[arg(long)]
         host: Option<String>,
 
         #[arg(long, value_enum)]
@@ -79,15 +76,11 @@ pub enum AuthCommand {
 pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
     match cmd {
         AuthCommand::Login {
-            token,
             host,
             provider,
             profile,
         } => {
-            let token = match token {
-                Some(t) => t,
-                None => gitfleet_core::prompt::prompt_text("Enter provider token:")?,
-            };
+            let token = gitfleet_core::prompt::prompt_password("Enter provider token:")?;
 
             if token.trim().is_empty() {
                 return Err(GitfleetError::from(TokenRequiredError::new(
@@ -108,6 +101,7 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
                 ProviderId::GitHub => "github.com".to_string(),
                 ProviderId::GitLab => "gitlab.com".to_string(),
             });
+            let host = gitfleet_core::config::normalize_host(&host)?;
 
             let provider_name = match provider {
                 ProviderId::GitHub => "github",

@@ -11,8 +11,12 @@ impl MilestonesApi {
         client: &ProviderClient,
         repo: &str,
         state: &str,
+        limit: u32,
     ) -> Result<Vec<Milestone>, GitfleetError> {
-        let endpoint = format!("{}?state={state}", repo_path(repo, &["milestones"]));
+        let endpoint = format!(
+            "{}?state={state}&per_page={limit}",
+            repo_path(repo, &["milestones"])
+        );
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)

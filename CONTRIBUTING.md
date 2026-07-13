@@ -10,13 +10,13 @@ repository, ensuring you follow the
 Gitfleet is a Rust workspace. Build and test with Cargo:
 
 ```bash
-cargo build                     # Compile the workspace.
-cargo fmt --check               # Verify formatting.
-cargo clippy -- -D warnings     # Run lints with warnings as errors.
-cargo check                     # Type-check without codegen.
-cargo test --workspace          # Run all unit and integration tests.
-cargo llvm-cov --fail-under-lines 80  # Generate coverage report (80% gate).
-cargo build --release           # Optimized release build.
+CARGO_BUILD_JOBS=4 cargo build --workspace
+cargo fmt --check
+CARGO_BUILD_JOBS=4 cargo clippy -- -D warnings
+CARGO_BUILD_JOBS=4 cargo check --workspace
+CARGO_BUILD_JOBS=4 cargo test --workspace
+CARGO_BUILD_JOBS=4 cargo llvm-cov --fail-under-lines 80 --workspace
+CARGO_BUILD_JOBS=4 cargo build --release
 ```
 
 Git hooks are managed by [Lefthook](https://github.com/evilmartians/lefthook).
@@ -26,8 +26,8 @@ Install hooks once after cloning:
 lefthook install
 ```
 
-Pre-commit runs `cargo fmt --check` and `cargo clippy -- -D warnings`.
-Pre-push runs `cargo test --workspace`.
+The configured pre-commit hook runs formatting, clippy, a workspace build, and
+the workspace coverage gate. There is no configured pre-push hook.
 
 ## Architecture
 
@@ -49,8 +49,9 @@ Integration tests live in each crate's `tests/` directory. Provider tests use
 tests must never make real HTTP requests.
 
 Live playbooks under `gitfleet-playbooks/` validate command families against
-the real GitHub API. They require explicit credentials and clean up mutations
-during teardown.
+the real GitHub API. They require an explicit GitHub token and test repository,
+and clean up mutations during teardown. Run them only against a dedicated test
+repository.
 
 ## Commit Convention
 

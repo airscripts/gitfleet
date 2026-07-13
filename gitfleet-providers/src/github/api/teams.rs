@@ -1,5 +1,6 @@
 use gitfleet_core::errors::GitfleetError;
 
+use crate::github::api::path::encode_segment;
 use crate::github::client::ProviderClient;
 
 pub struct TeamsApi;
@@ -9,7 +10,7 @@ impl TeamsApi {
         client: &ProviderClient,
         org: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let endpoint = format!("/orgs/{org}/teams?per_page=100");
+        let endpoint = format!("/orgs/{}/teams?per_page=100", encode_segment(org));
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
@@ -30,7 +31,7 @@ impl TeamsApi {
         description: &str,
         privacy: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let endpoint = format!("/orgs/{org}/teams");
+        let endpoint = format!("/orgs/{}/teams", encode_segment(org));
 
         let payload = serde_json::json!({
             "name": name,
@@ -55,7 +56,11 @@ impl TeamsApi {
         org: &str,
         team_slug: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let endpoint = format!("/orgs/{org}/teams/{team_slug}/members?per_page=100");
+        let endpoint = format!(
+            "/orgs/{}/teams/{}/members?per_page=100",
+            encode_segment(org),
+            encode_segment(team_slug)
+        );
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
