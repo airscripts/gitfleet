@@ -22,8 +22,7 @@ impl MilestonesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let raw: Vec<serde_json::Value> = response
-            .json()
+        let raw: Vec<serde_json::Value> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list milestones: {e}")))?;
 
@@ -48,8 +47,7 @@ impl MilestonesApi {
             .request_token_required(reqwest::Method::POST, &endpoint, Some(payload), None, None)
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create milestone: {e}")))?;
 
@@ -67,8 +65,7 @@ impl MilestonesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get milestone: {e}")))?;
 
@@ -87,8 +84,7 @@ impl MilestonesApi {
             .request_token_required(reqwest::Method::PATCH, &endpoint, Some(options), None, None)
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to update milestone: {e}")))?;
 

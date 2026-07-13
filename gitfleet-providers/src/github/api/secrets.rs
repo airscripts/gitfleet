@@ -20,8 +20,7 @@ impl SecretsApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: SecretListResponse<RepoSecret> = response
-            .json()
+        let data: SecretListResponse<RepoSecret> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list repo secrets: {e}")))?;
 
@@ -41,8 +40,7 @@ impl SecretsApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: PublicKeyResponse = response
-            .json()
+        let data: PublicKeyResponse = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get public key: {e}")))?;
 

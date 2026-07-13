@@ -104,8 +104,7 @@ impl ReposApi {
             .request_optional_token(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: GitHubRepoResponse = response
-            .json()
+        let data: GitHubRepoResponse = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to parse repository: {e}")))?;
 
@@ -135,8 +134,7 @@ impl ReposApi {
             .request_token_required(reqwest::Method::POST, &endpoint, Some(body), None, None)
             .await?;
 
-        let data: GitHubRepoResponse = response
-            .json()
+        let data: GitHubRepoResponse = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create repository: {e}")))?;
 
@@ -154,8 +152,7 @@ impl ReposApi {
             .request_token_required(reqwest::Method::PATCH, &endpoint, Some(options), None, None)
             .await?;
 
-        let data: GitHubRepoResponse = response
-            .json()
+        let data: GitHubRepoResponse = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to update repository: {e}")))?;
 
@@ -214,8 +211,7 @@ impl ReposApi {
             )
             .await?;
 
-        let data: GitHubRepoResponse = response
-            .json()
+        let data: GitHubRepoResponse = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to fork repository: {e}")))?;
 

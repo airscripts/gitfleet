@@ -90,8 +90,7 @@ impl DiscussionsApi {
             .request_token_required(reqwest::Method::POST, "/graphql", Some(payload), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list discussions: {e}")))?;
 
@@ -131,8 +130,7 @@ impl DiscussionsApi {
             .request_token_required(reqwest::Method::POST, "/graphql", Some(payload), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get discussion: {e}")))?;
 
@@ -173,8 +171,7 @@ impl DiscussionsApi {
             )
             .await?;
 
-        let id_data: serde_json::Value = id_response
-            .json()
+        let id_data: serde_json::Value = crate::parse_json(id_response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to fetch repository id: {e}")))?;
 
@@ -217,8 +214,7 @@ impl DiscussionsApi {
             .request_token_required(reqwest::Method::POST, "/graphql", Some(payload), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create discussion: {e}")))?;
 

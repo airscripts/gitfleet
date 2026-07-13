@@ -21,8 +21,7 @@ impl ChecksApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list check suites: {e}")))?;
 
@@ -43,8 +42,7 @@ impl ChecksApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list check runs: {e}")))?;
 
@@ -62,8 +60,7 @@ impl ChecksApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get check run: {e}")))?;
 
@@ -84,7 +81,7 @@ impl ChecksApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response.json().await.map_err(|e| {
+        let data: serde_json::Value = crate::parse_json(response).await.map_err(|e| {
             GitfleetError::new(format!("Failed to list check run annotations: {e}"))
         })?;
 

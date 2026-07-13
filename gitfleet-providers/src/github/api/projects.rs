@@ -35,8 +35,7 @@ impl ProjectsApi {
             .request_token_required(reqwest::Method::POST, "/graphql", Some(payload), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list projects: {e}")))?;
 
@@ -105,8 +104,7 @@ impl ProjectsApi {
             .request_token_required(reqwest::Method::POST, "/graphql", Some(payload), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get project: {e}")))?;
 
@@ -132,8 +130,7 @@ impl ProjectsApi {
             .request_token_required(reqwest::Method::POST, "/graphql", Some(payload), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create project: {e}")))?;
 
@@ -168,8 +165,7 @@ impl ProjectsApi {
             .request_token_required(reqwest::Method::POST, "/graphql", Some(payload), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get project: {e}")))?;
 

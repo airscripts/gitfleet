@@ -18,8 +18,7 @@ impl CommentsApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let raw: Vec<serde_json::Value> = response
-            .json()
+        let raw: Vec<serde_json::Value> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to parse issue comments: {e}")))?;
 
@@ -64,8 +63,7 @@ impl CommentsApi {
             .request_token_required(reqwest::Method::POST, &endpoint, Some(payload), None, None)
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to parse created comment: {e}")))?;
 
@@ -105,8 +103,7 @@ impl CommentsApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let raw: Vec<serde_json::Value> = response
-            .json()
+        let raw: Vec<serde_json::Value> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to parse PR comments: {e}")))?;
 

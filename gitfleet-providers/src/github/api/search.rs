@@ -30,8 +30,7 @@ impl SearchApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to search issues: {e}")))?;
 
@@ -73,8 +72,7 @@ impl SearchApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to search repos: {e}")))?;
 
@@ -106,8 +104,7 @@ impl SearchApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to search code: {e}")))?;
 

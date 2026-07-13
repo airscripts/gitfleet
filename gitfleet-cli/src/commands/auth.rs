@@ -1,8 +1,29 @@
+use std::path::Path;
+
 use clap::{Subcommand, ValueEnum};
 use gitfleet_core::errors::{ConfigError, GitfleetError, TokenRequiredError};
 use gitfleet_core::provider::ProviderId;
 
 use crate::app::App;
+
+fn mask_token(token: &str) -> String {
+    let characters: Vec<char> = token.chars().collect();
+
+    if characters.len() <= 12 {
+        return token.to_string();
+    }
+
+    let prefix: String = characters.iter().take(8).collect();
+    let suffix: String = characters.iter().rev().take(4).rev().collect();
+
+    format!("{prefix}...{suffix}")
+}
+
+fn shell_quote(value: &Path) -> String {
+    let value = value.to_string_lossy();
+
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
 
 #[derive(Clone, Debug, ValueEnum)]
 pub enum ProviderArg {
@@ -205,11 +226,7 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
                                     .and_then(|profile| profile.token)
                                     .unwrap_or_default();
 
-                                if t.len() > 12 {
-                                    format!("{}...{}", &t[..8], &t[t.len().saturating_sub(4)..])
-                                } else {
-                                    t
-                                }
+                                mask_token(&t)
                             } else {
                                 "-".to_string()
                             };
@@ -252,16 +269,8 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
 
             if raw {
                 app.renderer().write_value(&token);
-            } else if token.len() > 12 {
-                let masked = format!(
-                    "{}...{}",
-                    &token[..8],
-                    &token[token.len().saturating_sub(4)..]
-                );
-
-                app.renderer().write_value(&masked);
             } else {
-                app.renderer().write_value(&token);
+                app.renderer().write_value(&mask_token(&token));
             }
 
             Ok(())
@@ -342,7 +351,7 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
                 GitfleetError::new(format!("Failed to determine gitfleet executable path: {e}"))
             })?;
 
-            let helper = format!("!{} git-credential", exe.display());
+            let helper = format!("!{} git-credential", shell_quote(&exe));
 
             let scope = format!("credential.https://{host_str}.helper");
 
@@ -364,5 +373,31 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
 
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{mask_token, shell_quote};
+
+    #[test]
+    fn mask_token_preserves_ascii_prefix_and_suffix() {
+        assert_eq!(mask_token("abcdefghijklmnop"), "abcdefgh...mnop");
+    }
+
+    #[test]
+    fn mask_token_handles_multibyte_characters() {
+        let masked = mask_token("токен-с-юникодом");
+
+        assert!(masked.starts_with("токен-с-") || masked.starts_with("токен-с"));
+        assert!(masked.ends_with("одом"));
+        assert!(masked.contains("..."));
+    }
+
+    #[test]
+    fn shell_quote_protects_paths_for_git_helpers() {
+        let quoted = shell_quote(std::path::Path::new("/tmp/git fleet/it's"));
+
+        assert_eq!(quoted, "'/tmp/git fleet/it'\\''s'");
     }
 }

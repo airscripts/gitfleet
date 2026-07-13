@@ -53,8 +53,7 @@ impl WikiApi {
             .request_url(reqwest::Method::GET, &url, None, None, None, None)
             .await?;
 
-        let content = response
-            .text()
+        let content = crate::read_response_text(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to read wiki page: {e}")))?;
 

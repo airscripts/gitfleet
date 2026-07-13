@@ -146,8 +146,7 @@ impl MergeRequestsApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get merge request: {e}")))?;
 
@@ -184,8 +183,7 @@ impl MergeRequestsApi {
             .request_token_required(reqwest::Method::POST, &endpoint, Some(json), None, None)
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create merge request: {e}")))?;
 
@@ -206,8 +204,7 @@ impl MergeRequestsApi {
             .request_token_required(reqwest::Method::PUT, &endpoint, Some(options), None, None)
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to update merge request: {e}")))?;
 
@@ -240,8 +237,7 @@ impl MergeRequestsApi {
             .request_token_required(reqwest::Method::PUT, &endpoint, Some(body), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to merge: {e}")))?;
 
@@ -263,8 +259,7 @@ impl MergeRequestsApi {
             .request_token_required(reqwest::Method::POST, &endpoint, Some(json), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to comment: {e}")))?;
 
@@ -320,8 +315,7 @@ impl MergeRequestsApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list MR comments: {e}")))?;
 

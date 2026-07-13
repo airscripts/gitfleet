@@ -24,8 +24,7 @@ impl ReactionsApi {
             )
             .await?;
 
-        let raw: Vec<serde_json::Value> = response
-            .json()
+        let raw: Vec<serde_json::Value> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list reactions: {e}")))?;
 
@@ -51,8 +50,7 @@ impl ReactionsApi {
             )
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create reaction: {e}")))?;
 
@@ -108,8 +106,7 @@ impl ReactionsApi {
             )
             .await?;
 
-        let raw: Vec<serde_json::Value> = response
-            .json()
+        let raw: Vec<serde_json::Value> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list comment reactions: {e}")))?;
 
@@ -139,8 +136,7 @@ impl ReactionsApi {
             )
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create reaction: {e}")))?;
 

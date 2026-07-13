@@ -22,8 +22,7 @@ impl ReleasesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list releases: {e}")))?;
 
@@ -44,8 +43,7 @@ impl ReleasesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to fetch release by tag: {e}")))?;
 
@@ -65,8 +63,7 @@ impl ReleasesApi {
             .request_token_required(reqwest::Method::POST, &endpoint, Some(body), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create release: {e}")))?;
 
@@ -87,8 +84,7 @@ impl ReleasesApi {
             .request_token_required(reqwest::Method::PUT, &endpoint, Some(body), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to update release: {e}")))?;
 

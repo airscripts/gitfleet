@@ -15,8 +15,7 @@ impl IdentityApi {
             .request_token_required(reqwest::Method::GET, endpoint, None, None, None)
             .await?;
 
-        let data: Vec<serde_json::Value> = response
-            .json()
+        let data: Vec<serde_json::Value> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list SSH keys: {e}")))?;
 
@@ -56,8 +55,7 @@ impl IdentityApi {
             .request_token_required(reqwest::Method::POST, endpoint, Some(body), None, None)
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to add SSH key: {e}")))?;
 
@@ -100,8 +98,7 @@ impl IdentityApi {
             .request_token_required(reqwest::Method::GET, endpoint, None, None, None)
             .await?;
 
-        let data: Vec<serde_json::Value> = response
-            .json()
+        let data: Vec<serde_json::Value> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list GPG keys: {e}")))?;
 
@@ -140,8 +137,7 @@ impl IdentityApi {
             .request_token_required(reqwest::Method::POST, endpoint, Some(body), None, None)
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to add GPG key: {e}")))?;
 

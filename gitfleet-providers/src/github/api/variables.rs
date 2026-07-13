@@ -20,8 +20,7 @@ impl VariablesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: VariableListResponse<RepoVariable> = response
-            .json()
+        let data: VariableListResponse<RepoVariable> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list repo variables: {e}")))?;
 

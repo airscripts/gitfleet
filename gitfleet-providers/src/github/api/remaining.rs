@@ -39,8 +39,7 @@ impl LicensesApi {
             .request_token_required(reqwest::Method::GET, endpoint, None, None, None)
             .await?;
 
-        let data: Vec<LicenseSummary> = response
-            .json()
+        let data: Vec<LicenseSummary> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list licenses: {e}")))?;
 
@@ -54,8 +53,7 @@ impl LicensesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: LicenseDetail = response
-            .json()
+        let data: LicenseDetail = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get license: {e}")))?;
 
@@ -72,8 +70,7 @@ impl LicensesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get repo license: {e}")))?;
 
@@ -94,8 +91,7 @@ impl DependenciesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get SBOM: {e}")))?;
 
@@ -113,8 +109,7 @@ impl DependenciesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to compare dependencies: {e}")))?;
 
@@ -135,8 +130,7 @@ impl DependenciesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to review dependencies: {e}")))?;
 
@@ -201,8 +195,7 @@ impl AdvisoriesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list advisories: {e}")))?;
 
@@ -228,8 +221,7 @@ impl AdvisoriesApi {
             .request_token_required(reqwest::Method::PATCH, &endpoint, Some(body), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to dismiss alert: {e}")))?;
 
@@ -251,8 +243,7 @@ impl AdvisoriesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list CodeQL alerts: {e}")))?;
 
@@ -274,7 +265,7 @@ impl AdvisoriesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response.json().await.map_err(|e| {
+        let data: serde_json::Value = crate::parse_json(response).await.map_err(|e| {
             GitfleetError::new(format!("Failed to list secret scanning alerts: {e}"))
         })?;
 
@@ -292,8 +283,7 @@ impl AdvisoriesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get dependabot alert: {e}")))?;
 
@@ -315,8 +305,7 @@ impl AttestationsApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list attestations: {e}")))?;
 
@@ -334,8 +323,7 @@ impl AttestationsApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get attestation: {e}")))?;
 
@@ -360,8 +348,7 @@ impl BrowseApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list contents: {e}")))?;
 
@@ -386,8 +373,7 @@ impl BrowseApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get file contents: {e}")))?;
 

@@ -21,7 +21,8 @@ Semantic Versioning.
   operation catalog.
 - Workspace execution that runs in-process with bounded concurrency and
   produces stable, per-repository results.
-- The `gitfleet` executable.
+- The `gitfleet` and `gf` executable names, which expose the same command
+  surface.
 - Manage pull requests, reviews, issues, discussions, and notifications with
   the `change`, `review`, `issue`, `discussion`, and `inbox` commands.
 - Set up repositories, governance, policies, project planning, wikis, sites,

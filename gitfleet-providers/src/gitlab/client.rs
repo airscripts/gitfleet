@@ -293,7 +293,7 @@ impl ProviderClient {
                 })
                 .transpose()?;
 
-            let items: Vec<T> = response.json().await.map_err(|e| {
+            let items: Vec<T> = crate::parse_json(response).await.map_err(|e| {
                 GitfleetError::new(format!("Failed to parse paginated response: {e}"))
             })?;
 

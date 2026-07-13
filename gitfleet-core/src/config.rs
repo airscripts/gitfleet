@@ -1,5 +1,5 @@
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use dirs::home_dir;
 
@@ -115,7 +115,7 @@ pub fn write_credentials(creds: &CredentialsFile) -> Result<(), ConfigError> {
             .map_err(|e| ConfigError::new(format!("Failed to flush credentials: {e}")))?;
         drop(file);
 
-        std::fs::rename(&temporary_path, &path)
+        replace_file(&temporary_path, &path)
             .map_err(|e| ConfigError::new(format!("Failed to replace credentials: {e}")))?;
 
         Ok(())
@@ -409,9 +409,7 @@ pub fn unset(key: &str) -> Result<(), ConfigError> {
     match key {
         "token" => {
             profile.token = None;
-            if !uses_file_credential_store() {
-                delete_token(&profile_name)?;
-            }
+            delete_profile_token(&profile_name)?;
         }
         "host" => profile.host = None,
         _ => {
@@ -452,9 +450,7 @@ pub fn remove_profile(name: &str) -> Result<(), ConfigError> {
         return Err(ConfigError::new(format!("Profile \"{name}\" not found.")));
     }
 
-    if !uses_file_credential_store() {
-        delete_token(name)?;
-    }
+    delete_profile_token(name)?;
 
     write_credentials(&creds)
 }
@@ -462,12 +458,10 @@ pub fn remove_profile(name: &str) -> Result<(), ConfigError> {
 pub fn clear_credentials() -> Result<(), ConfigError> {
     let path = credentials_path()?;
 
-    if !uses_file_credential_store() {
-        let creds = read_credentials()?;
+    let creds = read_credentials()?;
 
-        for name in creds.profiles.keys() {
-            delete_token(name)?;
-        }
+    for name in creds.profiles.keys() {
+        delete_profile_token(name)?;
     }
 
     if path.exists() {
@@ -520,6 +514,44 @@ fn uses_file_credential_store() -> bool {
         || std::env::var(GITFLEET_CREDENTIAL_STORE_ENV)
             .map(|value| value.eq_ignore_ascii_case("file"))
             .unwrap_or(false)
+}
+
+fn replace_file(temporary_path: &Path, destination: &Path) -> std::io::Result<()> {
+    #[cfg(windows)]
+    {
+        match std::fs::rename(temporary_path, destination) {
+            Ok(()) => Ok(()),
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::PermissionDenied
+                ) =>
+            {
+                if destination.exists() {
+                    std::fs::remove_file(destination)?;
+                }
+
+                std::fs::rename(temporary_path, destination)
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        std::fs::rename(temporary_path, destination)
+    }
+}
+
+fn delete_profile_token(profile: &str) -> Result<(), ConfigError> {
+    match delete_token(profile) {
+        Ok(()) => Ok(()),
+        Err(error) if uses_file_credential_store() => {
+            tracing::debug!(profile, %error, "Unable to remove stale keyring credential");
+            Ok(())
+        }
+        Err(error) => Err(error),
+    }
 }
 
 fn keyring_entry(profile: &str) -> Result<keyring::Entry, ConfigError> {

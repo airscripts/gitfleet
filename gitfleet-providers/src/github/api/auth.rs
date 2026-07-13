@@ -31,8 +31,7 @@ impl AuthApi {
                 .collect()
         };
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to parse authenticated user: {e}")))?;
 

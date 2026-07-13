@@ -1,5 +1,5 @@
 ---
-source: gitfleet-providers/tests/github_extended.rs
+source: gitfleet-providers/tests/github.rs
 expression: milestone
 ---
 {

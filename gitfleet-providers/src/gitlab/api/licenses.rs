@@ -13,8 +13,7 @@ impl LicensesApi {
             .request_token_required(reqwest::Method::GET, endpoint, None, None, None)
             .await?;
 
-        let data: Vec<serde_json::Value> = response
-            .json()
+        let data: Vec<serde_json::Value> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list licenses: {e}")))?;
 
@@ -52,8 +51,7 @@ impl LicensesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get license: {e}")))?;
 
@@ -111,8 +109,7 @@ impl LicensesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get repo license: {e}")))?;
 

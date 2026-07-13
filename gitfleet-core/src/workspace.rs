@@ -1,5 +1,5 @@
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use dirs::home_dir;
 
@@ -101,7 +101,7 @@ fn save_all(workspaces: &[Workspace]) -> Result<(), GitfleetError> {
             .map_err(|e| GitfleetError::new(format!("Failed to flush workspaces: {e}")))?;
         drop(file);
 
-        std::fs::rename(&temporary_path, &path)
+        replace_file(&temporary_path, &path)
             .map_err(|e| GitfleetError::new(format!("Failed to replace workspaces: {e}")))?;
 
         Ok(())
@@ -112,6 +112,33 @@ fn save_all(workspaces: &[Workspace]) -> Result<(), GitfleetError> {
     }
 
     write_result
+}
+
+fn replace_file(temporary_path: &Path, destination: &Path) -> std::io::Result<()> {
+    #[cfg(windows)]
+    {
+        match std::fs::rename(temporary_path, destination) {
+            Ok(()) => Ok(()),
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::PermissionDenied
+                ) =>
+            {
+                if destination.exists() {
+                    std::fs::remove_file(destination)?;
+                }
+
+                std::fs::rename(temporary_path, destination)
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        std::fs::rename(temporary_path, destination)
+    }
 }
 
 #[cfg(test)]

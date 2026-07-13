@@ -17,8 +17,7 @@ impl IssuesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to fetch issue: {e}")))?;
 
@@ -63,8 +62,7 @@ impl IssuesApi {
             .request_token_required(reqwest::Method::POST, &endpoint, Some(json), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create issue: {e}")))?;
 
@@ -104,8 +102,7 @@ impl IssuesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list issues: {e}")))?;
 
@@ -124,8 +121,7 @@ impl IssuesApi {
             .request_token_required(reqwest::Method::PATCH, &endpoint, Some(options), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to update issue: {e}")))?;
 
@@ -145,8 +141,7 @@ impl IssuesApi {
             .request_token_required(reqwest::Method::POST, &endpoint, Some(json), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to comment on issue: {e}")))?;
 

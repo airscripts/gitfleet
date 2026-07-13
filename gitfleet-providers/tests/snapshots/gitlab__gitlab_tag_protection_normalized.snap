@@ -1,5 +1,5 @@
 ---
-source: gitfleet-providers/tests/gitlab_extended.rs
+source: gitfleet-providers/tests/gitlab.rs
 expression: tags
 ---
 [

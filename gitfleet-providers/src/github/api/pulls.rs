@@ -18,8 +18,7 @@ impl PullsApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let pr: PullRequest = response
-            .json()
+        let pr: PullRequest = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to fetch pull request: {e}")))?;
 
@@ -52,8 +51,7 @@ impl PullsApi {
             .request_token_required(reqwest::Method::POST, &endpoint, Some(json), None, None)
             .await?;
 
-        let pr: PullRequest = response
-            .json()
+        let pr: PullRequest = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create pull request: {e}")))?;
 
@@ -89,8 +87,7 @@ impl PullsApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let prs: Vec<PullRequest> = response
-            .json()
+        let prs: Vec<PullRequest> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list pull requests: {e}")))?;
 
@@ -109,8 +106,7 @@ impl PullsApi {
             .request_token_required(reqwest::Method::PATCH, &endpoint, Some(options), None, None)
             .await?;
 
-        let pr: PullRequest = response
-            .json()
+        let pr: PullRequest = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to update pull request: {e}")))?;
 
@@ -137,8 +133,7 @@ impl PullsApi {
             .request_token_required(reqwest::Method::PUT, &endpoint, Some(body), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to merge pull request: {e}")))?;
 
@@ -158,8 +153,7 @@ impl PullsApi {
             .request_token_required(reqwest::Method::POST, &endpoint, Some(json), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to comment: {e}")))?;
 

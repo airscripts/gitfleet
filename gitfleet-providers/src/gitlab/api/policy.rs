@@ -24,8 +24,7 @@ impl PolicyApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get branch protection: {e}")))?;
 
@@ -56,8 +55,7 @@ impl PolicyApi {
             .request_token_required(reqwest::Method::POST, &endpoint, Some(body), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to protect branch: {e}")))?;
 
@@ -93,8 +91,7 @@ impl PolicyApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: Vec<serde_json::Value> = response
-            .json()
+        let data: Vec<serde_json::Value> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list tag protection: {e}")))?;
 
@@ -116,8 +113,7 @@ impl PolicyApi {
             .request_token_required(reqwest::Method::POST, &endpoint, Some(body), None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create tag protection: {e}")))?;
 

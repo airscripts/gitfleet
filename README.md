@@ -49,6 +49,9 @@ supports the required capability.
 Human-readable output is the default, and every automation workflow can opt
 into structured output with `--json`.
 
+The `gitfleet` and `gf` binaries are equivalent and expose the same command
+surface.
+
 ## Providers
 
 Gitfleet currently includes these providers:
@@ -90,10 +93,11 @@ Gitfleet is a Rust CLI. Install the CLI package from this checkout with Cargo:
 cargo install --path gitfleet-cli
 
 gitfleet version
+gf version
 ```
 
-This builds an optimized release binary and installs `gitfleet` into Cargo's
-binary directory.
+This builds optimized release binaries and installs `gitfleet` and `gf` into
+Cargo's binary directory.
 
 Cargo installs binaries into `~/.cargo/bin`; make sure that directory is on
 your `PATH` if the commands are not found.
@@ -396,6 +400,7 @@ artifacts or perform the final release check:
 ```bash
 CARGO_BUILD_JOBS=4 cargo build --release
 ./target/release/gitfleet version
+./target/release/gf version
 ```
 
 ## Testing

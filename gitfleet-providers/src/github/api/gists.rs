@@ -22,8 +22,7 @@ impl GistsApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let raw: Vec<serde_json::Value> = response
-            .json()
+        let raw: Vec<serde_json::Value> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list gists: {e}")))?;
 
@@ -40,8 +39,7 @@ impl GistsApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let raw: Vec<serde_json::Value> = response
-            .json()
+        let raw: Vec<serde_json::Value> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list gists: {e}")))?;
 
@@ -55,8 +53,7 @@ impl GistsApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get gist: {e}")))?;
 
@@ -73,8 +70,7 @@ impl GistsApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = response
-            .json()
+        let data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get gist: {e}")))?;
 
@@ -100,8 +96,7 @@ impl GistsApi {
             .request_token_required(reqwest::Method::POST, "/gists", Some(payload), None, None)
             .await?;
 
-        let raw: serde_json::Value = response
-            .json()
+        let raw: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create gist: {e}")))?;
 
