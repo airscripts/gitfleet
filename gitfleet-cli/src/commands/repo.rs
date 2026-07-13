@@ -157,9 +157,7 @@ pub async fn run(cmd: RepoCommand, app: &App) -> Result<(), GitfleetError> {
         }
 
         RepoCommand::Clone { repository, depth } => {
-            let host = p.default_host();
-
-            let url = format!("https://{host}/{repository}");
+            let url = format!("https://{}/{repository}", app.provider_host());
             let depth_display = match depth {
                 Some(d) => format!("depth: {d}"),
                 None => "full depth".to_string(),

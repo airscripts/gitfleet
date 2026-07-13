@@ -1,10 +1,9 @@
 use gitfleet_core::provider::{
-    AccessOps, AdvisoryOps, AnalyticsOps, AttestationOps, BrowseOps, ChangeOps, CodeOps,
-    DependencyOps, DeployOps, DiscussionOps, EnvironmentOps, GitProvider, GovernanceOps,
-    IdentityOps, IssueOps, LabelOps, LicenseOps, NotificationOps, PipelineOps, PlanningOps,
-    PolicyOps, ProviderCapability, ProviderId, RawApiOps, RegistryOps, ReleaseOps, RepoOps,
-    ReviewOps, RunnerOps, SearchOps, SecretOps, SiteOps, SnippetOps, TemplateOps, VariableOps,
-    WebhookOps, WikiOps,
+    AccessOps, AnalyticsOps, BrowseOps, ChangeOps, CodeOps, DeployOps, EnvironmentOps, GitProvider,
+    GovernanceOps, IdentityOps, IssueOps, LabelOps, LicenseOps, NotificationOps, PipelineOps,
+    PlanningOps, PolicyOps, ProviderCapability, ProviderId, RawApiOps, RegistryOps, ReleaseOps,
+    RepoOps, ReviewOps, RunnerOps, SearchOps, SecretOps, SiteOps, SnippetOps, TemplateOps,
+    VariableOps, WebhookOps, WikiOps,
 };
 
 static CAPABILITIES: &[ProviderCapability] = &[
@@ -17,7 +16,6 @@ static CAPABILITIES: &[ProviderCapability] = &[
     ProviderCapability::Planning,
     ProviderCapability::Wiki,
     ProviderCapability::Site,
-    ProviderCapability::Discussions,
     ProviderCapability::Webhooks,
     ProviderCapability::Access,
     ProviderCapability::Identity,
@@ -36,9 +34,6 @@ static CAPABILITIES: &[ProviderCapability] = &[
     ProviderCapability::Governance,
     ProviderCapability::Secrets,
     ProviderCapability::Licenses,
-    ProviderCapability::Dependencies,
-    ProviderCapability::Advisories,
-    ProviderCapability::Attestations,
     ProviderCapability::Snippets,
     ProviderCapability::RepositoryPolicies,
     ProviderCapability::Registry,
@@ -132,10 +127,6 @@ impl GitProvider for GitLabProvider {
         Some(&self.client)
     }
 
-    fn discussion_ops(&self) -> Option<&dyn DiscussionOps> {
-        Some(&self.client)
-    }
-
     fn webhook_ops(&self) -> Option<&dyn WebhookOps> {
         Some(&self.client)
     }
@@ -208,18 +199,6 @@ impl GitProvider for GitLabProvider {
         Some(&self.client)
     }
 
-    fn dependency_ops(&self) -> Option<&dyn DependencyOps> {
-        Some(&self.client)
-    }
-
-    fn advisory_ops(&self) -> Option<&dyn AdvisoryOps> {
-        Some(&self.client)
-    }
-
-    fn attestation_ops(&self) -> Option<&dyn AttestationOps> {
-        Some(&self.client)
-    }
-
     fn snippet_ops(&self) -> Option<&dyn SnippetOps> {
         Some(&self.client)
     }
@@ -283,9 +262,9 @@ mod tests {
         assert!(caps.contains(&ProviderCapability::Secrets));
 
         assert!(caps.contains(&ProviderCapability::Licenses));
-        assert!(caps.contains(&ProviderCapability::Dependencies));
-
-        assert!(caps.contains(&ProviderCapability::Advisories));
-        assert!(caps.contains(&ProviderCapability::Attestations));
+        assert!(!caps.contains(&ProviderCapability::Dependencies));
+        assert!(!caps.contains(&ProviderCapability::Advisories));
+        assert!(!caps.contains(&ProviderCapability::Attestations));
+        assert!(!caps.contains(&ProviderCapability::Discussions));
     }
 }

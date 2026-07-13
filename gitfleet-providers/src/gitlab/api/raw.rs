@@ -40,6 +40,10 @@ impl RawApi {
             .request_token_required(reqwest::Method::DELETE, endpoint, None, None, None)
             .await?;
 
+        if resp.status() == reqwest::StatusCode::NO_CONTENT {
+            return Ok(serde_json::json!({ "status": "deleted" }));
+        }
+
         resp.json::<serde_json::Value>()
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to parse response: {e}")))

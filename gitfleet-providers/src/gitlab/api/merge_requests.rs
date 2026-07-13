@@ -115,15 +115,17 @@ impl MergeRequestsApi {
     ) -> Result<Vec<PullRequest>, GitfleetError> {
         let encoded = encode_path(project);
 
-        let mut endpoint =
-            format!("/projects/{encoded}/merge_requests?state={state}&per_page={limit}");
+        let mut endpoint = format!(
+            "/projects/{encoded}/merge_requests?state={}&per_page={limit}",
+            urlencoding::encode(state)
+        );
 
         if let Some(b) = base {
-            endpoint.push_str(&format!("&target_branch={b}"));
+            endpoint.push_str(&format!("&target_branch={}", urlencoding::encode(b)));
         }
 
         if let Some(h) = head {
-            endpoint.push_str(&format!("&source_branch={h}"));
+            endpoint.push_str(&format!("&source_branch={}", urlencoding::encode(h)));
         }
 
         let data: Vec<serde_json::Value> = client.get_paginated(&endpoint, None, None).await?;

@@ -22,7 +22,14 @@ pub async fn run(cmd: BrowseCommand, app: &App) -> Result<(), GitfleetError> {
         BrowseCommand::Open { repo, path } => {
             let repo_str = crate::repo_util::resolve_repo(&repo)?;
 
-            service::browse::open(p, app.renderer(), &repo_str, path.as_deref()).await
+            service::browse::open(
+                p,
+                app.renderer(),
+                app.provider_host(),
+                &repo_str,
+                path.as_deref(),
+            )
+            .await
         }
     }
 }

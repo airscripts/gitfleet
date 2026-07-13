@@ -83,7 +83,10 @@ impl IssuesApi {
     ) -> Result<serde_json::Value, GitfleetError> {
         let encoded = encode_path(project);
 
-        let mut endpoint = format!("/projects/{encoded}/issues?state={state}&per_page={limit}");
+        let mut endpoint = format!(
+            "/projects/{encoded}/issues?state={}&per_page={limit}",
+            urlencoding::encode(state)
+        );
 
         if !labels.is_empty() {
             endpoint.push_str(&format!("&labels={}", labels.join(",")));

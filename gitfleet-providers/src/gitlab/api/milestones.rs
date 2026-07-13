@@ -21,7 +21,7 @@ impl MilestonesApi {
         let mut endpoint = format!("/projects/{encoded}/milestones?per_page={limit}");
 
         if let Some(s) = state {
-            endpoint.push_str(&format!("&state={s}"));
+            endpoint.push_str(&format!("&state={}", urlencoding::encode(s)));
         }
 
         let response = client

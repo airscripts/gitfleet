@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use gitfleet_core::errors::{GitfleetError, UnsupportedCapabilityError};
+use gitfleet_core::errors::{GitfleetError, UnprocessableError, UnsupportedCapabilityError};
 use gitfleet_core::provider::ProviderCapability;
 
 use crate::app::App;
@@ -46,7 +46,11 @@ pub async fn run(cmd: ProjectCmdCommand, app: &App) -> Result<(), GitfleetError>
 
     match cmd {
         ProjectCmdCommand::List { owner, limit } => {
-            let owner_str = owner.as_deref().unwrap_or(p.default_host());
+            let owner_str = owner.as_deref().ok_or_else(|| {
+                GitfleetError::from(UnprocessableError::new(
+                    "Project owner is required. Use --owner OWNER.",
+                ))
+            })?;
 
             let data = ops.list_projects(owner_str, limit).await?;
 
@@ -94,7 +98,11 @@ pub async fn run(cmd: ProjectCmdCommand, app: &App) -> Result<(), GitfleetError>
         }
 
         ProjectCmdCommand::Create { owner, title, body } => {
-            let owner_str = owner.as_deref().unwrap_or(p.default_host());
+            let owner_str = owner.as_deref().ok_or_else(|| {
+                GitfleetError::from(UnprocessableError::new(
+                    "Project owner is required. Use --owner OWNER.",
+                ))
+            })?;
 
             let result = ops
                 .create_project(owner_str, &title, body.as_deref())
@@ -168,15 +176,16 @@ mod tests {
     async fn test_project_list_default_owner() {
         let app = test_helpers::make_app();
 
-        run(
+        let result = run(
             ProjectCmdCommand::List {
                 owner: None,
                 limit: 5,
             },
             &app,
         )
-        .await
-        .unwrap();
+        .await;
+
+        assert!(result.is_err());
     }
 
     #[tokio::test]
@@ -246,7 +255,7 @@ mod tests {
 
         run(
             ProjectCmdCommand::Create {
-                owner: None,
+                owner: Some("org".into()),
                 title: "New Project".into(),
                 body: None,
             },

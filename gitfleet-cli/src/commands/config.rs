@@ -20,13 +20,21 @@ pub async fn run(cmd: ConfigCommand, app: &App) -> Result<(), GitfleetError> {
         ConfigCommand::Set { key, value } => {
             gitfleet_core::config::write(&key, &value)?;
 
-            app.renderer().write_value(&format!("Set {key} = {value}"));
+            let display_value = if is_sensitive_key(&key) {
+                "[redacted]"
+            } else {
+                &value
+            };
+
+            app.renderer()
+                .write_value(&format!("Set {key} = {display_value}"));
 
             Ok(())
         }
 
         ConfigCommand::Get { key } => {
             match gitfleet_core::config::read(&key) {
+                Some(_value) if is_sensitive_key(&key) => app.renderer().write_value("[redacted]"),
                 Some(value) => app.renderer().write_value(&value),
                 None => app.renderer().write_value(&format!("{key} is not set")),
             }
@@ -42,6 +50,15 @@ pub async fn run(cmd: ConfigCommand, app: &App) -> Result<(), GitfleetError> {
             Ok(())
         }
     }
+}
+
+fn is_sensitive_key(key: &str) -> bool {
+    let key = key.to_ascii_lowercase();
+
+    key == "token"
+        || key.contains("password")
+        || key.contains("secret")
+        || key.contains("credential")
 }
 
 #[cfg(test)]

@@ -117,45 +117,53 @@ pub fn resolve_provider_context() -> Result<ProviderContext, ConfigError> {
 }
 
 pub fn get_provider_token_optional(provider: ProviderId) -> Option<String> {
-    match provider {
-        ProviderId::GitHub => {
-            if let Ok(token) = std::env::var("GITFLEET_GITHUB_TOKEN") {
-                if !token.is_empty() {
-                    return Some(token);
-                }
-            }
-        }
+    let environment_token = match provider {
+        ProviderId::GitHub => std::env::var("GITFLEET_GITHUB_TOKEN").ok(),
+        ProviderId::GitLab => std::env::var("GITFLEET_GITLAB_TOKEN").ok(),
+    };
 
-        ProviderId::GitLab => {
-            if let Ok(token) = std::env::var("GITFLEET_GITLAB_TOKEN") {
-                if !token.is_empty() {
-                    return Some(token);
-                }
-            }
+    environment_token
+        .filter(|token| !token.is_empty())
+        .or_else(|| {
+            resolve_provider_context()
+                .ok()
+                .filter(|context| context.provider == provider)
+                .and_then(|context| context.token)
+        })
+}
+
+pub fn get_token_for_host(host: &str) -> Option<String> {
+    let normalized_host = host.trim_end_matches('/');
+
+    if let Ok(context) = resolve_provider_context() {
+        if context.host.eq_ignore_ascii_case(normalized_host) {
+            return context.token;
         }
     }
 
-    read("token")
+    let profile_name = find_profile_by_host(normalized_host).ok().flatten()?;
+    let profile = get_profile(&profile_name).ok().flatten()?;
+    let provider = match profile.provider.as_deref() {
+        Some("gitlab") => ProviderId::GitLab,
+        _ => ProviderId::GitHub,
+    };
+
+    let environment_token = match provider {
+        ProviderId::GitHub => std::env::var("GITFLEET_GITHUB_TOKEN").ok(),
+        ProviderId::GitLab => std::env::var("GITFLEET_GITLAB_TOKEN").ok(),
+    };
+
+    environment_token
+        .filter(|token| !token.is_empty())
+        .or(profile.token)
 }
 
 pub fn get_github_token_optional() -> Option<String> {
-    if let Ok(token) = std::env::var("GITFLEET_GITHUB_TOKEN") {
-        if !token.is_empty() {
-            return Some(token);
-        }
-    }
-
-    read("token")
+    get_provider_token_optional(ProviderId::GitHub)
 }
 
 pub fn get_gitlab_token_optional() -> Option<String> {
-    if let Ok(token) = std::env::var("GITFLEET_GITLAB_TOKEN") {
-        if !token.is_empty() {
-            return Some(token);
-        }
-    }
-
-    read("token")
+    get_provider_token_optional(ProviderId::GitLab)
 }
 
 pub fn get_resolved_profile() -> Result<String, ConfigError> {
@@ -333,7 +341,9 @@ fn get_repo_local_profile() -> Option<String> {
 }
 
 pub fn get_host() -> String {
-    read("host").unwrap_or_else(|| "github.com".to_string())
+    resolve_provider_context()
+        .map(|context| context.host)
+        .unwrap_or_else(|_| "github.com".to_string())
 }
 
 pub fn remove_profile(name: &str) -> Result<(), ConfigError> {
@@ -594,6 +604,50 @@ mod tests {
         assert_eq!(token, Some("gl-token-123".into()));
 
         std::env::remove_var("GITFLEET_GITLAB_TOKEN");
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_get_token_for_host_uses_matching_profile() {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let original_home = std::env::var("HOME").ok();
+
+        std::env::set_var("HOME", tmp_dir.path().to_string_lossy().to_string());
+        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
+        std::env::remove_var("GITFLEET_GITLAB_TOKEN");
+
+        add_profile(
+            "github-work",
+            Profile {
+                token: Some("github-token".to_string()),
+                host: Some("github.example.com".to_string()),
+                provider: Some("github".to_string()),
+                extra: Default::default(),
+            },
+        )
+        .unwrap();
+        add_profile(
+            "gitlab-work",
+            Profile {
+                token: Some("gitlab-token".to_string()),
+                host: Some("gitlab.example.com".to_string()),
+                provider: Some("gitlab".to_string()),
+                extra: Default::default(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            get_token_for_host("gitlab.example.com").as_deref(),
+            Some("gitlab-token")
+        );
+        assert_eq!(get_token_for_host("unknown.example.com"), None);
+
+        if let Some(home) = original_home {
+            std::env::set_var("HOME", home);
+        } else {
+            std::env::remove_var("HOME");
+        }
     }
 
     #[test]

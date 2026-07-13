@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use gitfleet_core::errors::{GitfleetError, UnsupportedCapabilityError};
+use gitfleet_core::errors::{GitfleetError, UnprocessableError, UnsupportedCapabilityError};
 use gitfleet_core::provider::ProviderCapability;
 
 use crate::app::App;
@@ -43,7 +43,11 @@ pub async fn run(cmd: PackageCommand, app: &App) -> Result<(), GitfleetError> {
             package_type,
             limit,
         } => {
-            let owner_str = owner.as_deref().unwrap_or(p.default_host());
+            let owner_str = owner.as_deref().ok_or_else(|| {
+                GitfleetError::from(UnprocessableError::new(
+                    "Package owner is required. Use --owner OWNER.",
+                ))
+            })?;
 
             let data = ops
                 .list_packages(owner_str, package_type.as_deref(), limit)
@@ -84,7 +88,11 @@ pub async fn run(cmd: PackageCommand, app: &App) -> Result<(), GitfleetError> {
             package_type,
             package_name,
         } => {
-            let owner_str = owner.as_deref().unwrap_or(p.default_host());
+            let owner_str = owner.as_deref().ok_or_else(|| {
+                GitfleetError::from(UnprocessableError::new(
+                    "Package owner is required. Use --owner OWNER.",
+                ))
+            })?;
 
             let data = ops
                 .get_package(owner_str, &package_type, &package_name)
@@ -110,7 +118,7 @@ mod tests {
     async fn test_pkg_list() {
         let app = test_helpers::make_app();
 
-        run(
+        let result = run(
             PackageCommand::List {
                 owner: None,
                 package_type: None,
@@ -118,8 +126,9 @@ mod tests {
             },
             &app,
         )
-        .await
-        .unwrap();
+        .await;
+
+        assert!(result.is_err());
     }
 
     #[tokio::test]
@@ -142,7 +151,7 @@ mod tests {
     async fn test_pkg_list_json() {
         let app = test_helpers::make_app_json();
 
-        run(
+        let result = run(
             PackageCommand::List {
                 owner: None,
                 package_type: None,
@@ -150,8 +159,9 @@ mod tests {
             },
             &app,
         )
-        .await
-        .unwrap();
+        .await;
+
+        assert!(result.is_err());
     }
 
     #[tokio::test]
@@ -175,7 +185,7 @@ mod tests {
     async fn test_pkg_view() {
         let app = test_helpers::make_app();
 
-        run(
+        let result = run(
             PackageCommand::View {
                 owner: None,
                 package_type: "npm".into(),
@@ -183,8 +193,9 @@ mod tests {
             },
             &app,
         )
-        .await
-        .unwrap();
+        .await;
+
+        assert!(result.is_err());
     }
 
     #[tokio::test]
@@ -207,7 +218,7 @@ mod tests {
     async fn test_pkg_view_json() {
         let app = test_helpers::make_app_json();
 
-        run(
+        let result = run(
             PackageCommand::View {
                 owner: None,
                 package_type: "npm".into(),
@@ -215,8 +226,9 @@ mod tests {
             },
             &app,
         )
-        .await
-        .unwrap();
+        .await;
+
+        assert!(result.is_err());
     }
 
     #[tokio::test]

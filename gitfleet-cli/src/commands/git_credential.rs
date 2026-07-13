@@ -19,9 +19,13 @@ pub async fn run(cmd: GitCredentialCommand) -> Result<(), GitfleetError> {
         GitCredentialCommand::Get => {
             let attrs = read_credential_attrs()?;
 
-            let _host = attrs.get("host").cloned().unwrap_or_default();
+            let host = attrs.get("host").cloned().unwrap_or_default();
 
-            let token = gitfleet_core::config::get_token_optional();
+            if host.is_empty() {
+                return Ok(());
+            }
+
+            let token = gitfleet_core::config::get_token_for_host(&host);
 
             if let Some(token) = token {
                 let username = attrs

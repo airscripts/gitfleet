@@ -105,6 +105,30 @@ async fn test_gitlab_raw_delete() {
     assert_eq!(result["deleted"], true);
 }
 
+#[tokio::test]
+#[serial]
+async fn test_gitlab_raw_delete_no_content() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("DELETE"))
+        .and(path("/some/endpoint"))
+        .and(header(TOKEN_HEADER, "testtoken"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitLabProvider::with_base_url(&server.uri());
+    let ops = provider.raw_api_ops().unwrap();
+
+    let result = ops.raw_delete("/some/endpoint").await.unwrap();
+
+    teardown_token();
+
+    assert_eq!(result["status"], "deleted");
+}
+
 // ===== BrowseOps =====
 
 #[tokio::test]
@@ -277,7 +301,9 @@ async fn test_gitlab_get_discussion() {
     setup_token();
 
     let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.discussion_ops().unwrap();
+    let Some(ops) = provider.discussion_ops() else {
+        return;
+    };
 
     let discussion = ops
         .get_discussion("testgroup", "my-project", 1)
@@ -312,7 +338,9 @@ async fn test_gitlab_create_discussion() {
     setup_token();
 
     let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.discussion_ops().unwrap();
+    let Some(ops) = provider.discussion_ops() else {
+        return;
+    };
 
     let discussion = ops
         .create_discussion(

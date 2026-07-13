@@ -5,10 +5,11 @@ use gitfleet_core::provider::GitProvider;
 pub async fn open(
     _provider: &dyn GitProvider,
     renderer: &Renderer,
+    host: &str,
     repo: &str,
     path: Option<&str>,
 ) -> Result<(), GitfleetError> {
-    let base = format!("https://github.com/{repo}");
+    let base = format!("https://{host}/{repo}");
 
     let url = match path {
         Some(p) => format!("{base}/blob/main/{p}"),

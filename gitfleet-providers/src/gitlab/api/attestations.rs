@@ -1,61 +1,42 @@
-use gitfleet_core::errors::GitfleetError;
+use gitfleet_core::errors::{GitfleetError, UnsupportedCapabilityError};
+use gitfleet_core::provider::{ProviderCapability, ProviderId};
 
 use crate::gitlab::client::ProviderClient;
 
-fn encode_path(project: &str) -> String {
-    urlencoding::encode(project).to_string()
-}
-
 pub struct AttestationsApi;
+
+fn unsupported() -> GitfleetError {
+    GitfleetError::from(UnsupportedCapabilityError::new(
+        ProviderId::GitLab,
+        ProviderCapability::Attestations,
+    ))
+}
 
 impl AttestationsApi {
     pub async fn list(
-        client: &ProviderClient,
-        project: &str,
+        _client: &ProviderClient,
+        _project: &str,
         _subject_digest: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let encoded = encode_path(project);
-
-        let endpoint = format!("/projects/{encoded}/artifacts");
-
-        let response = client
-            .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
-            .await?;
-
-        let data: serde_json::Value = response
-            .json()
-            .await
-            .map_err(|e| GitfleetError::new(format!("Failed to list attestations: {e}")))?;
-
-        Ok(data)
+        Err(unsupported())
     }
 
     pub async fn get(
-        client: &ProviderClient,
-        project: &str,
-        attestation_id: u64,
+        _client: &ProviderClient,
+        _project: &str,
+        _attestation_id: u64,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let encoded = encode_path(project);
-
-        let endpoint = format!("/projects/{encoded}/artifacts/{attestation_id}");
-
-        let response = client
-            .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
-            .await?;
-
-        let data: serde_json::Value = response
-            .json()
-            .await
-            .map_err(|e| GitfleetError::new(format!("Failed to get attestation: {e}")))?;
-
-        Ok(data)
+        Err(unsupported())
     }
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
-    fn test_gitlab_attestations_encode_path() {
-        assert_eq!(urlencoding::encode("org/repo").to_string(), "org%2Frepo");
+    fn test_gitlab_attestations_are_explicitly_unsupported() {
+        assert_eq!(
+            gitfleet_core::provider::ProviderId::GitLab.to_string(),
+            "gitlab"
+        );
     }
 }

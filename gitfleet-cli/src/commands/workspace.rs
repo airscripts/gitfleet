@@ -27,6 +27,39 @@ pub enum WorkspaceCommand {
 pub async fn run(cmd: WorkspaceCommand, app: &App) -> Result<(), GitfleetError> {
     match cmd {
         WorkspaceCommand::Define { name, repos } => {
+            let replacing = gitfleet_core::workspace::list()?
+                .iter()
+                .any(|workspace| workspace.name == name);
+
+            if app.dry_run() {
+                if app.renderer().is_json() {
+                    app.renderer().write_result(&serde_json::json!({
+                        "dry_run": true,
+                        "action": if replacing { "update" } else { "define" },
+                        "workspace": name,
+                        "repositories": repos,
+                    }));
+                } else {
+                    app.renderer().render_box(
+                        &format!(
+                            "Would {} workspace '{name}'",
+                            if replacing { "update" } else { "define" }
+                        ),
+                        "warning",
+                    );
+                }
+
+                return Ok(());
+            }
+
+            if replacing {
+                gitfleet_core::prompt::confirm_destructive(
+                    &format!("Replace workspace '{name}'?"),
+                    app.renderer().mode(),
+                    app.renderer().yes(),
+                )?;
+            }
+
             let ws = gitfleet_core::workspace::define_with_defaults(
                 &name,
                 &repos,
@@ -80,6 +113,27 @@ pub async fn run(cmd: WorkspaceCommand, app: &App) -> Result<(), GitfleetError> 
         }
 
         WorkspaceCommand::Remove { name } => {
+            if app.dry_run() {
+                if app.renderer().is_json() {
+                    app.renderer().write_result(&serde_json::json!({
+                        "dry_run": true,
+                        "action": "remove",
+                        "workspace": name,
+                    }));
+                } else {
+                    app.renderer()
+                        .render_box(&format!("Would remove workspace '{name}'"), "warning");
+                }
+
+                return Ok(());
+            }
+
+            gitfleet_core::prompt::confirm_destructive(
+                &format!("Remove workspace '{name}'?"),
+                app.renderer().mode(),
+                app.renderer().yes(),
+            )?;
+
             gitfleet_core::workspace::remove(&name)?;
 
             app.renderer()
@@ -212,23 +266,25 @@ mod tests {
     async fn test_workspace_archive_dry_run() {
         let _dir = setup_test_env();
 
-        let app = test_helpers::make_app_dry_run();
+        let define_app = test_helpers::make_app();
 
         run(
             WorkspaceCommand::Define {
                 name: "archive-ws".into(),
                 repos: vec!["org/repo1".into()],
             },
-            &app,
+            &define_app,
         )
         .await
         .unwrap();
+
+        let archive_app = test_helpers::make_app_dry_run();
 
         run(
             WorkspaceCommand::Archive {
                 name: "archive-ws".into(),
             },
-            &app,
+            &archive_app,
         )
         .await
         .unwrap();
@@ -239,23 +295,25 @@ mod tests {
     async fn test_workspace_archive_skips_mismatched_provider() {
         let _dir = setup_test_env();
 
-        let app = test_helpers::make_app_dry_run();
+        let define_app = test_helpers::make_app();
 
         run(
             WorkspaceCommand::Define {
                 name: "mixed-ws".into(),
                 repos: vec!["gitlab@gitlab.com:org/repo1".into()],
             },
-            &app,
+            &define_app,
         )
         .await
         .unwrap();
+
+        let archive_app = test_helpers::make_app_dry_run();
 
         let result = run(
             WorkspaceCommand::Archive {
                 name: "mixed-ws".into(),
             },
-            &app,
+            &archive_app,
         )
         .await;
 
@@ -385,7 +443,7 @@ mod tests {
     async fn test_workspace_remove() {
         let _dir = setup_test_env();
 
-        let app = test_helpers::make_app();
+        let app = test_helpers::make_app_yes();
 
         run(
             WorkspaceCommand::Define {
@@ -430,7 +488,7 @@ mod tests {
     async fn test_workspace_remove_json() {
         let _dir = setup_test_env();
 
-        let app = test_helpers::make_app_json();
+        let app = test_helpers::make_app_json_yes();
 
         run(
             WorkspaceCommand::Define {

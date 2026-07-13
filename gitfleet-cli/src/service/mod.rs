@@ -1890,7 +1890,9 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Silent);
-        browse::open(&p, &r, "org/repo", None).await.unwrap();
+        browse::open(&p, &r, "github.com", "org/repo", None)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -1898,7 +1900,9 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Human);
-        browse::open(&p, &r, "org/repo", None).await.unwrap();
+        browse::open(&p, &r, "github.com", "org/repo", None)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -1906,7 +1910,7 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Silent);
-        browse::open(&p, &r, "org/repo", Some("src/main.rs"))
+        browse::open(&p, &r, "github.com", "org/repo", Some("src/main.rs"))
             .await
             .unwrap();
     }

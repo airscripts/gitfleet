@@ -21,7 +21,7 @@ impl RegistryApi {
         let mut endpoint = format!("/projects/{encoded}/packages?per_page=100");
 
         if let Some(pt) = package_type {
-            endpoint.push_str(&format!("&package_type={pt}"));
+            endpoint.push_str(&format!("&package_type={}", urlencoding::encode(pt)));
         }
 
         let response = client
@@ -45,7 +45,9 @@ impl RegistryApi {
         let encoded = encode_path(owner);
 
         let endpoint = format!(
-            "/projects/{encoded}/packages?package_type={package_type}&package_name={package_name}"
+            "/projects/{encoded}/packages?package_type={}&package_name={}",
+            urlencoding::encode(package_type),
+            urlencoding::encode(package_name),
         );
 
         let response = client

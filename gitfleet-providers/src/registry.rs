@@ -354,7 +354,7 @@ mod tests {
         assert!(provider.runner_ops().is_some());
         assert!(provider.variable_ops().is_some());
 
-        assert!(provider.discussion_ops().is_some());
+        assert!(provider.discussion_ops().is_none());
         assert!(provider.access_ops().is_some());
 
         assert!(provider.identity_ops().is_some());
@@ -377,10 +377,10 @@ mod tests {
         assert!(provider.secret_ops().is_some());
         assert!(provider.license_ops().is_some());
 
-        assert!(provider.dependency_ops().is_some());
-        assert!(provider.advisory_ops().is_some());
-
-        assert!(provider.attestation_ops().is_some());
+        assert!(provider.discussion_ops().is_none());
+        assert!(provider.dependency_ops().is_none());
+        assert!(provider.advisory_ops().is_none());
+        assert!(provider.attestation_ops().is_none());
     }
 
     #[test]

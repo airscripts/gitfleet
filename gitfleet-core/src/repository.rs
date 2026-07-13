@@ -36,6 +36,23 @@ pub fn repository_ref_from_remote(remote_url: &str) -> Result<RepositoryRef, Con
         .iter()
         .find(|(h, _)| h.eq_ignore_ascii_case(host.as_str()))
         .map(|(_, p)| *p)
+        .or_else(|| {
+            let profile_name = crate::config::find_profile_by_host(&host).ok().flatten()?;
+            let profile = crate::config::get_profile(&profile_name).ok().flatten()?;
+
+            Some(match profile.provider.as_deref() {
+                Some("gitlab") => ProviderId::GitLab,
+                _ => ProviderId::GitHub,
+            })
+        })
+        .or_else(|| {
+            let context = crate::config::resolve_provider_context().ok()?;
+
+            context
+                .host
+                .eq_ignore_ascii_case(&host)
+                .then_some(context.provider)
+        })
         .ok_or_else(|| ConfigError::new(format!("Unsupported git provider host: {host}")))?;
 
     let path = path.trim_start_matches('/');
@@ -153,5 +170,39 @@ mod tests {
         let result = repository_ref_from_remote("invalid");
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_parse_configured_enterprise_remote() {
+        let dir = tempfile::tempdir().unwrap();
+        let original_home = std::env::var("HOME").ok();
+
+        std::env::set_var("HOME", dir.path().to_string_lossy().to_string());
+
+        crate::config::add_profile(
+            "enterprise",
+            crate::types::Profile {
+                token: Some("token".to_string()),
+                host: Some("github.example.com".to_string()),
+                provider: Some("github".to_string()),
+                extra: Default::default(),
+            },
+        )
+        .unwrap();
+
+        let result =
+            repository_ref_from_remote("https://github.example.com/enterprise/project.git")
+                .unwrap();
+
+        assert_eq!(result.provider, ProviderId::GitHub);
+        assert_eq!(result.host, "github.example.com");
+        assert_eq!(result.full_name(), "enterprise/project");
+
+        if let Some(home) = original_home {
+            std::env::set_var("HOME", home);
+        } else {
+            std::env::remove_var("HOME");
+        }
     }
 }

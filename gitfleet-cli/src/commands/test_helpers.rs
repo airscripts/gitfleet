@@ -171,6 +171,13 @@ pub fn make_app() -> App {
     App::new(registry, renderer, ProviderId::GitHub, false)
 }
 
+pub fn make_app_yes() -> App {
+    let registry = ProviderRegistry::with_provider(ProviderId::GitHub, Box::new(MockProvider));
+
+    let renderer = Renderer::new(OutputMode::Silent).with_yes(true);
+    App::new(registry, renderer, ProviderId::GitHub, false)
+}
+
 pub fn make_app_dry_run() -> App {
     let registry = ProviderRegistry::with_provider(ProviderId::GitHub, Box::new(MockProvider));
 
@@ -182,6 +189,13 @@ pub fn make_app_json() -> App {
     let registry = ProviderRegistry::with_provider(ProviderId::GitHub, Box::new(MockProvider));
 
     let renderer = Renderer::new(OutputMode::Json);
+    App::new(registry, renderer, ProviderId::GitHub, false)
+}
+
+pub fn make_app_json_yes() -> App {
+    let registry = ProviderRegistry::with_provider(ProviderId::GitHub, Box::new(MockProvider));
+
+    let renderer = Renderer::new(OutputMode::Json).with_yes(true);
     App::new(registry, renderer, ProviderId::GitHub, false)
 }
 

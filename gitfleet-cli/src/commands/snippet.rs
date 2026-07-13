@@ -107,7 +107,9 @@ pub async fn run(cmd: SnippetCommand, app: &App) -> Result<(), GitfleetError> {
 
             let content = file
                 .as_deref()
-                .map(|f| std::fs::read_to_string(f).unwrap_or_default())
+                .map(std::fs::read_to_string)
+                .transpose()
+                .map_err(|e| GitfleetError::new(format!("Failed to read snippet file: {e}")))?
                 .unwrap_or_else(|| "gitfleet test snippet".to_string());
 
             let files = serde_json::json!({

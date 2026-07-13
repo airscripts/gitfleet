@@ -333,7 +333,7 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
         }
 
         AuthCommand::SetupGit { host } => {
-            let host_str = host.unwrap_or_else(gitfleet_core::config::get_host);
+            let host_str = host.unwrap_or_else(|| app.provider_host().to_string());
 
             let token = gitfleet_core::config::get_token_optional();
 

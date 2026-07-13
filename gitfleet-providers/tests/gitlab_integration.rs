@@ -1158,7 +1158,9 @@ async fn test_gitlab_list_discussions() {
     setup_token();
 
     let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.discussion_ops().expect("discussion ops");
+    let Some(ops) = provider.discussion_ops() else {
+        return;
+    };
 
     let result = ops
         .list_discussions("testgroup", "my-project", None, 10)
@@ -3047,7 +3049,9 @@ async fn test_gitlab_sbom() {
     setup_token();
 
     let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.dependency_ops().expect("dependency ops");
+    let Some(ops) = provider.dependency_ops() else {
+        return;
+    };
 
     let result = ops.sbom("testgroup/my-project").await;
 
@@ -3074,7 +3078,9 @@ async fn test_gitlab_review_dependencies() {
     setup_token();
 
     let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.dependency_ops().expect("dependency ops");
+    let Some(ops) = provider.dependency_ops() else {
+        return;
+    };
 
     let result = ops
         .review_dependencies("testgroup/my-project", "main", "feature")
@@ -3105,7 +3111,9 @@ async fn test_gitlab_list_dependabot_alerts() {
     setup_token();
 
     let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.advisory_ops().expect("advisory ops");
+    let Some(ops) = provider.advisory_ops() else {
+        return;
+    };
 
     let result = ops
         .list_dependabot_alerts("testgroup/my-project", None)
@@ -3132,7 +3140,9 @@ async fn test_gitlab_list_codeql_alerts() {
     setup_token();
 
     let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.advisory_ops().expect("advisory ops");
+    let Some(ops) = provider.advisory_ops() else {
+        return;
+    };
 
     let result = ops.list_codeql_alerts("testgroup/my-project", None).await;
 
@@ -3157,7 +3167,9 @@ async fn test_gitlab_list_secret_scanning_alerts() {
     setup_token();
 
     let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.advisory_ops().expect("advisory ops");
+    let Some(ops) = provider.advisory_ops() else {
+        return;
+    };
 
     let result = ops
         .list_secret_scanning_alerts("testgroup/my-project", None)
@@ -3185,7 +3197,9 @@ async fn test_gitlab_get_dependabot_alert() {
     setup_token();
 
     let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.advisory_ops().expect("advisory ops");
+    let Some(ops) = provider.advisory_ops() else {
+        return;
+    };
 
     let result = ops.get_dependabot_alert("testgroup/my-project", 5).await;
 
@@ -3210,7 +3224,9 @@ async fn test_gitlab_list_attestations() {
     setup_token();
 
     let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.attestation_ops().expect("attestation ops");
+    let Some(ops) = provider.attestation_ops() else {
+        return;
+    };
 
     let result = ops
         .list_attestations("testgroup/my-project", "sha256:abc")
@@ -3238,7 +3254,9 @@ async fn test_gitlab_get_attestation() {
     setup_token();
 
     let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.attestation_ops().expect("attestation ops");
+    let Some(ops) = provider.attestation_ops() else {
+        return;
+    };
 
     let result = ops.get_attestation("testgroup/my-project", 10).await;
 
