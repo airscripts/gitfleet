@@ -25,6 +25,13 @@ fn shell_quote(value: &Path) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
+fn normalize_setup_git_host(
+    host: Option<&str>,
+    default_host: &str,
+) -> Result<String, GitfleetError> {
+    gitfleet_core::config::normalize_host(host.unwrap_or(default_host)).map_err(GitfleetError::from)
+}
+
 #[derive(Clone, Debug, ValueEnum)]
 pub enum ProviderArg {
     #[value(name = "github")]
@@ -336,7 +343,7 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
         }
 
         AuthCommand::SetupGit { host } => {
-            let host_str = host.unwrap_or_else(|| app.provider_host().to_string());
+            let host_str = normalize_setup_git_host(host.as_deref(), app.provider_host())?;
 
             let token = gitfleet_core::config::get_token_for_host(&host_str);
 
@@ -378,7 +385,7 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{mask_token, shell_quote};
+    use super::{mask_token, normalize_setup_git_host, shell_quote};
 
     #[test]
     fn mask_token_preserves_ascii_prefix_and_suffix() {
@@ -399,5 +406,13 @@ mod tests {
         let quoted = shell_quote(std::path::Path::new("/tmp/git fleet/it's"));
 
         assert_eq!(quoted, "'/tmp/git fleet/it'\\''s'");
+    }
+
+    #[test]
+    fn normalize_setup_git_host_canonicalizes_host() {
+        assert_eq!(
+            normalize_setup_git_host(Some(" GitHub.COM/"), "gitlab.com").unwrap(),
+            "github.com"
+        );
     }
 }

@@ -11,6 +11,30 @@ pub use github::GitHubProvider;
 pub use gitlab::GitLabProvider;
 pub use registry::ProviderRegistry;
 
+pub(crate) fn validate_relative_endpoint(endpoint: &str) -> Result<(), GitfleetError> {
+    if !endpoint.starts_with('/')
+        || endpoint.contains("://")
+        || endpoint.contains('#')
+        || endpoint.chars().any(char::is_control)
+    {
+        return Err(GitfleetError::new(
+            "Provider endpoint must be a relative path beginning with '/'.",
+        ));
+    }
+
+    let path = endpoint.split('?').next().unwrap_or(endpoint);
+
+    if path.split('/').any(|segment| {
+        segment == "." || segment == ".." || segment.to_ascii_lowercase().contains("%2e")
+    }) {
+        return Err(GitfleetError::new(
+            "Provider endpoint must not contain path traversal segments.",
+        ));
+    }
+
+    Ok(())
+}
+
 pub(crate) async fn parse_json<T: serde::de::DeserializeOwned>(
     response: reqwest::Response,
 ) -> Result<T, GitfleetError> {
@@ -65,4 +89,21 @@ async fn read_response_bytes(mut response: reqwest::Response) -> Result<Vec<u8>,
     }
 
     Ok(body)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_relative_endpoint;
+
+    #[test]
+    fn test_validate_relative_endpoint_accepts_provider_paths() {
+        assert!(validate_relative_endpoint("/repos/org/repo?per_page=100").is_ok());
+        assert!(validate_relative_endpoint("//mark_todos_as_done").is_ok());
+    }
+
+    #[test]
+    fn test_validate_relative_endpoint_rejects_path_traversal() {
+        assert!(validate_relative_endpoint("/../admin").is_err());
+        assert!(validate_relative_endpoint("/api/%2e%2e/admin").is_err());
+    }
 }

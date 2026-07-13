@@ -124,6 +124,8 @@ impl ProviderClient {
         token: Option<&str>,
         host: Option<&str>,
     ) -> Result<reqwest::Response, GitfleetError> {
+        crate::validate_relative_endpoint(endpoint)?;
+
         let url = format!("{}{endpoint}", self.api_base_url(host));
 
         self.request_url(method, &url, body, token, None, None)
@@ -1797,9 +1799,23 @@ fn validate_next_url(base: &str, next: &str) -> Result<String, GitfleetError> {
     if next_url.scheme() != base_url.scheme()
         || next_url.host_str() != base_url.host_str()
         || next_url.port_or_known_default() != base_url.port_or_known_default()
+        || !next_url.username().is_empty()
+        || next_url.password().is_some()
     {
         return Err(GitfleetError::new(
             "Provider pagination URL crossed the configured API origin.",
+        ));
+    }
+
+    let base_path = base_url.path().trim_end_matches('/');
+    let next_path = next_url.path();
+    let within_api_path = base_path.is_empty()
+        || next_path == base_path
+        || next_path.starts_with(&format!("{base_path}/"));
+
+    if !within_api_path {
+        return Err(GitfleetError::new(
+            "Provider pagination URL crossed the configured API path.",
         ));
     }
 
@@ -1899,6 +1915,26 @@ mod tests {
         let result = validate_next_url(
             "https://api.github.com/repos",
             "https://attacker.example/repos?page=2",
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_next_url_rejects_different_api_path() {
+        let result = validate_next_url(
+            "https://git.example.com/api/v3/repos",
+            "https://git.example.com/admin?page=2",
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_next_url_rejects_userinfo() {
+        let result = validate_next_url(
+            "https://api.github.com/repos",
+            "https://user:password@api.github.com/repos?page=2",
         );
 
         assert!(result.is_err());

@@ -13,7 +13,7 @@ impl RawApi {
             .request_token_required(reqwest::Method::GET, endpoint, None, None, None)
             .await?;
 
-        resp.json::<serde_json::Value>()
+        crate::parse_json(resp)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to parse response: {e}")))
     }
@@ -27,7 +27,7 @@ impl RawApi {
             .request_token_required(reqwest::Method::POST, endpoint, Some(body), None, None)
             .await?;
 
-        resp.json::<serde_json::Value>()
+        crate::parse_json(resp)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to parse response: {e}")))
     }
@@ -44,7 +44,7 @@ impl RawApi {
             return Ok(serde_json::json!({ "status": "deleted" }));
         }
 
-        resp.json::<serde_json::Value>()
+        crate::parse_json(resp)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to parse response: {e}")))
     }

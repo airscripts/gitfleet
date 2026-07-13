@@ -148,7 +148,16 @@ fn validate_endpoint(endpoint: &str) -> Result<(), GitfleetError> {
     if !endpoint.starts_with('/')
         || endpoint.starts_with("//")
         || endpoint.contains("://")
+        || endpoint.contains('#')
         || endpoint.chars().any(char::is_control)
+        || endpoint
+            .split('?')
+            .next()
+            .unwrap_or(endpoint)
+            .split('/')
+            .any(|segment| {
+                segment == "." || segment == ".." || segment.to_ascii_lowercase().contains("%2e")
+            })
     {
         return Err(GitfleetError::from(UnprocessableError::new(
             "API endpoint must be a relative provider path beginning with '/'.",
@@ -392,5 +401,16 @@ mod tests {
         .await;
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_endpoint_rejects_path_traversal() {
+        assert!(validate_endpoint("/../admin").is_err());
+        assert!(validate_endpoint("/api/%2e%2e/admin").is_err());
+    }
+
+    #[test]
+    fn test_validate_endpoint_rejects_fragments() {
+        assert!(validate_endpoint("/repos/org/repo#details").is_err());
     }
 }

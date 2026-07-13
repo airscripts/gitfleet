@@ -111,6 +111,8 @@ impl ProviderClient {
         token: Option<&str>,
         host: Option<&str>,
     ) -> Result<reqwest::Response, GitfleetError> {
+        crate::validate_relative_endpoint(endpoint)?;
+
         let url = format!("{}{endpoint}", self.api_base_url(host));
 
         self.request_url(method, &url, body, token).await

@@ -17,15 +17,15 @@ impl TemplatesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await;
 
-        if let Ok(resp) = response {
-            if resp.status().is_success() {
-                if let Ok(data) = resp.json::<Vec<IssueTemplate>>().await {
-                    return Ok(data);
-                }
-            }
-        }
+        let response = match response {
+            Ok(response) => response,
+            Err(GitfleetError::NotFound(_)) => return Ok(vec![]),
+            Err(error) => return Err(error),
+        };
 
-        Ok(vec![])
+        crate::parse_json(response)
+            .await
+            .map_err(|e| GitfleetError::new(format!("Failed to list issue templates: {e}")))
     }
 }
 
@@ -392,7 +392,7 @@ impl RawApi {
             .request_token_required(reqwest::Method::GET, endpoint, None, None, None)
             .await?;
 
-        resp.json::<serde_json::Value>()
+        crate::parse_json(resp)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to parse response: {e}")))
     }
@@ -406,7 +406,7 @@ impl RawApi {
             .request_token_required(reqwest::Method::POST, endpoint, Some(body), None, None)
             .await?;
 
-        resp.json::<serde_json::Value>()
+        crate::parse_json(resp)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to parse response: {e}")))
     }
@@ -420,7 +420,7 @@ impl RawApi {
             .request_token_required(reqwest::Method::PUT, endpoint, body, None, None)
             .await?;
 
-        resp.json::<serde_json::Value>()
+        crate::parse_json(resp)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to parse response: {e}")))
     }
@@ -434,7 +434,7 @@ impl RawApi {
             .request_token_required(reqwest::Method::PATCH, endpoint, Some(body), None, None)
             .await?;
 
-        resp.json::<serde_json::Value>()
+        crate::parse_json(resp)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to parse response: {e}")))
     }
@@ -453,7 +453,7 @@ impl RawApi {
             return Ok(serde_json::json!({"status": "deleted"}));
         }
 
-        resp.json::<serde_json::Value>()
+        crate::parse_json(resp)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to parse response: {e}")))
     }

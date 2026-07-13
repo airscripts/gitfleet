@@ -21,25 +21,22 @@ impl WikiApi {
             )
             .await;
 
-        if let Ok(resp) = response {
-            if resp.status().is_success() {
-                let text = resp
-                    .text()
-                    .await
-                    .map_err(|e| GitfleetError::new(format!("Failed to read wiki: {e}")))?;
+        let response = match response {
+            Ok(response) => response,
+            Err(GitfleetError::NotFound(_)) => return Ok(vec![]),
+            Err(error) => return Err(error),
+        };
 
-                let pages: Vec<WikiPage> = vec![WikiPage {
-                    path: "Home".to_string(),
-                    title: "Home".to_string(),
-                    format: "markdown".to_string(),
-                    filename: "Home.md".to_string(),
-                }];
-                let _ = text;
-                return Ok(pages);
-            }
-        }
+        let _text = crate::read_response_text(response)
+            .await
+            .map_err(|e| GitfleetError::new(format!("Failed to read wiki: {e}")))?;
 
-        Ok(vec![])
+        Ok(vec![WikiPage {
+            path: "Home".to_string(),
+            title: "Home".to_string(),
+            format: "markdown".to_string(),
+            filename: "Home.md".to_string(),
+        }])
     }
 
     pub async fn get_page(
