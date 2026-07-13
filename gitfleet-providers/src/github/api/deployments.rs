@@ -13,11 +13,7 @@ impl DeploymentsApi {
         environment: Option<&str>,
         limit: u32,
     ) -> Result<Vec<DeploymentSummary>, GitfleetError> {
-        let mut endpoint = format!("{}?per_page={limit}", repo_path(repo, &["deployments"]));
-
-        if let Some(env) = environment {
-            endpoint.push_str(&format!("&environment={env}"));
-        }
+        let endpoint = list_endpoint(repo, environment, limit);
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
@@ -122,6 +118,19 @@ impl DeploymentsApi {
     }
 }
 
+fn list_endpoint(repo: &str, environment: Option<&str>, limit: u32) -> String {
+    let mut endpoint = format!("{}?per_page={limit}", repo_path(repo, &["deployments"]));
+
+    if let Some(environment) = environment {
+        endpoint.push_str(&format!(
+            "&environment={}",
+            urlencoding::encode(environment)
+        ));
+    }
+
+    endpoint
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -213,5 +222,15 @@ mod tests {
         assert!(result.creator.is_none());
 
         assert!(!result.production);
+    }
+
+    #[test]
+    fn test_list_endpoint_encodes_environment() {
+        let endpoint = list_endpoint("org/repo", Some("prod&per_page=1"), 10);
+
+        assert_eq!(
+            endpoint,
+            "/repos/org/repo/deployments?per_page=10&environment=prod%26per_page%3D1"
+        );
     }
 }

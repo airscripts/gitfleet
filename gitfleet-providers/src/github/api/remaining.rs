@@ -1,7 +1,7 @@
 use gitfleet_core::errors::GitfleetError;
 use gitfleet_core::types::{DependencyReviewChange, IssueTemplate, LicenseDetail, LicenseSummary};
 
-use crate::github::api::path::{encode_path, repo_path};
+use crate::github::api::path::{encode_path, encode_segment, repo_path};
 use crate::github::client::ProviderClient;
 
 pub struct TemplatesApi;
@@ -47,7 +47,7 @@ impl LicensesApi {
     }
 
     pub async fn get(client: &ProviderClient, key: &str) -> Result<LicenseDetail, GitfleetError> {
-        let endpoint = format!("/licenses/{key}");
+        let endpoint = license_endpoint(key);
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
@@ -76,6 +76,10 @@ impl LicensesApi {
 
         Ok(data)
     }
+}
+
+fn license_endpoint(key: &str) -> String {
+    format!("/licenses/{}", encode_segment(key))
 }
 
 pub struct DependenciesApi;
@@ -461,6 +465,8 @@ impl RawApi {
 
 #[cfg(test)]
 mod tests {
+    use super::license_endpoint;
+
     #[test]
     fn test_advisories_dismiss_alert_body_with_comment() {
         let reason = "false_positive";
@@ -532,5 +538,13 @@ mod tests {
         assert_eq!(template.name, "Bug");
 
         assert_eq!(template.filename, "bug.md");
+    }
+
+    #[test]
+    fn test_license_endpoint_encodes_key() {
+        assert_eq!(
+            license_endpoint("custom/license"),
+            "/licenses/custom%2Flicense"
+        );
     }
 }

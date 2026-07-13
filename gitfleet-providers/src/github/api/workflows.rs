@@ -201,14 +201,7 @@ impl WorkflowsApi {
         key: Option<&str>,
         limit: u32,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let mut endpoint = format!(
-            "{}?per_page={limit}",
-            repo_path(repo, &["actions", "caches"])
-        );
-
-        if let Some(k) = key {
-            endpoint.push_str(&format!("&key={k}"));
-        }
+        let endpoint = cache_list_endpoint(repo, key, limit);
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
@@ -233,5 +226,33 @@ impl WorkflowsApi {
             .await?;
 
         Ok(())
+    }
+}
+
+fn cache_list_endpoint(repo: &str, key: Option<&str>, limit: u32) -> String {
+    let mut endpoint = format!(
+        "{}?per_page={limit}",
+        repo_path(repo, &["actions", "caches"])
+    );
+
+    if let Some(key) = key {
+        endpoint.push_str(&format!("&key={}", urlencoding::encode(key)));
+    }
+
+    endpoint
+}
+
+#[cfg(test)]
+mod tests {
+    use super::cache_list_endpoint;
+
+    #[test]
+    fn test_cache_list_endpoint_encodes_key() {
+        let endpoint = cache_list_endpoint("org/repo", Some("cache&scope=all"), 10);
+
+        assert_eq!(
+            endpoint,
+            "/repos/org/repo/actions/caches?per_page=10&key=cache%26scope%3Dall"
+        );
     }
 }

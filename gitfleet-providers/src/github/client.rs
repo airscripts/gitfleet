@@ -68,6 +68,18 @@ impl ProviderClient {
         client
     }
 
+    pub fn supports_public_wiki_reads(&self) -> bool {
+        let Some(base_url) = self.base_url_override.as_deref() else {
+            return true;
+        };
+
+        let Ok(url) = url::Url::parse(base_url) else {
+            return false;
+        };
+
+        matches!(url.host_str(), Some("api.github.com" | "github.com"))
+    }
+
     fn build_headers(
         &self,
         token: Option<&str>,
@@ -2064,6 +2076,16 @@ mod tests {
         let url = client.api_base_url(Some("github.com"));
 
         assert_eq!(url, GITHUB_API_BASE_URL);
+    }
+
+    #[test]
+    fn test_public_wiki_reads_are_limited_to_github_hosts() {
+        assert!(ProviderClient::new().supports_public_wiki_reads());
+        assert!(ProviderClient::with_host("github.com").supports_public_wiki_reads());
+        assert!(!ProviderClient::with_host("github.example.com").supports_public_wiki_reads());
+        assert!(
+            !ProviderClient::with_base_url("http://localhost:8080").supports_public_wiki_reads()
+        );
     }
 
     #[test]

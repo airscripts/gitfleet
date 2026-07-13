@@ -45,7 +45,7 @@ impl LicensesApi {
     }
 
     pub async fn get(client: &ProviderClient, key: &str) -> Result<LicenseDetail, GitfleetError> {
-        let endpoint = format!("/licenses/{key}");
+        let endpoint = license_endpoint(key);
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
@@ -117,8 +117,14 @@ impl LicensesApi {
     }
 }
 
+fn license_endpoint(key: &str) -> String {
+    format!("/licenses/{}", urlencoding::encode(key))
+}
+
 #[cfg(test)]
 mod tests {
+    use super::license_endpoint;
+
     #[test]
     fn test_gitlab_licenses_list_endpoint() {
         let endpoint = "/licenses";
@@ -134,5 +140,13 @@ mod tests {
         let endpoint = format!("/projects/{encoded}?license=true");
 
         assert!(endpoint.contains("org%2Frepo"));
+    }
+
+    #[test]
+    fn test_gitlab_license_endpoint_encodes_key() {
+        assert_eq!(
+            license_endpoint("custom/license"),
+            "/licenses/custom%2Flicense"
+        );
     }
 }
