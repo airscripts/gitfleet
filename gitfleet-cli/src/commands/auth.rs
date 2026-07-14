@@ -173,7 +173,8 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
                 gitfleet_core::config::clear_credentials()?;
             }
 
-            app.renderer().write_value(&format!("Removed {target}."));
+            app.renderer()
+                .render_success_box("Credentials removed", &target);
 
             Ok(())
         }

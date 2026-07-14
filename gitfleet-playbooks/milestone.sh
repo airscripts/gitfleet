@@ -36,6 +36,13 @@ else
   skip "milestone view (create failed)"
 fi
 
+step "Milestone Update"
+if [ -n "$MILESTONE_NUMBER" ]; then
+  expect_exit_0 "milestone update succeeds" gitfleet planning milestone update "$MILESTONE_NUMBER" --repo "$REPO" --description "Updated by gitfleet playbook"
+else
+  skip "milestone update (create failed)"
+fi
+
 step "Milestone Delete"
 if [ -n "$MILESTONE_NUMBER" ]; then
   expect_exit_0 "milestone delete succeeds" gitfleet planning milestone delete "$MILESTONE_NUMBER" --repo "$REPO" --yes

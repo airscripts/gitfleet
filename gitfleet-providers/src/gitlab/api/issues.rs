@@ -85,6 +85,11 @@ impl IssuesApi {
     ) -> Result<serde_json::Value, GitfleetError> {
         let encoded = encode_path(project);
 
+        let state = match state {
+            "open" => "opened",
+            state => state,
+        };
+
         let mut endpoint = format!(
             "/projects/{encoded}/issues?state={}&per_page={limit}",
             urlencoding::encode(state)
@@ -208,11 +213,18 @@ fn normalize_issue(raw: &mut serde_json::Value) {
             })
         })
         .unwrap_or(serde_json::Value::Null);
+    let state = object
+        .get("state")
+        .and_then(serde_json::Value::as_str)
+        .map(|state| if state == "opened" { "open" } else { state })
+        .map(|state| serde_json::Value::String(state.to_string()))
+        .unwrap_or(serde_json::Value::Null);
 
     object.insert("number".to_string(), number);
     object.insert("body".to_string(), body);
     object.insert("html_url".to_string(), html_url);
     object.insert("user".to_string(), user);
+    object.insert("state".to_string(), state);
 }
 
 #[cfg(test)]

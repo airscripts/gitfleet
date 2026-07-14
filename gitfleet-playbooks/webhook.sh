@@ -23,7 +23,7 @@ step "List Webhooks"
 expect_exit_0 "webhook list succeeds" gitfleet webhook list --repo "$REPO"
 
 step "Create Webhook"
-CREATE_JSON=$(gitfleet webhook create --url "$WEBHOOK_URL" --events push --repo "$REPO" --json 2>&1) || true
+CREATE_JSON=$(gitfleet webhook create --url "$WEBHOOK_URL" --events push --active --repo "$REPO" --json 2>&1) || true
 WEBHOOK_ID=$(echo "$CREATE_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("id",""))' 2>/dev/null || echo "")
 
 if [ -n "$WEBHOOK_ID" ]; then

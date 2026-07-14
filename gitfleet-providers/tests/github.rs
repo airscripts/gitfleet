@@ -785,6 +785,7 @@ fn webhook_json() -> serde_json::Value {
             "id": 1,
             "name": "web",
             "url": "https://api.github.com/repos/o/r/hooks/1",
+            "config": {"url": "https://example.com/webhook"},
             "events": ["push"],
             "active": true,
             "created_at": "2024-01-01T00:00:00Z",
@@ -1013,6 +1014,7 @@ async fn test_webhooks_list() {
 
     assert_eq!(hooks[0].id, 1);
     assert_eq!(hooks[0].name, "web");
+    assert_eq!(hooks[0].url, "https://example.com/webhook");
 
     assert!(hooks[0].active);
 }
@@ -1401,7 +1403,8 @@ async fn test_webhooks_create() {
         .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
             "id": 2,
             "name": "web",
-            "url": "https://example.com/webhook",
+            "url": "https://api.github.com/repos/testorg/my-repo/hooks/2",
+            "config": {"url": "https://example.com/webhook"},
             "events": ["push", "pull_request"],
             "active": true,
             "created_at": "2024-01-01T00:00:00Z",
@@ -3545,6 +3548,7 @@ async fn test_update_milestone() {
     Mock::given(method("PATCH"))
         .and(path("/repos/testorg/repo/milestones/1"))
         .and(header("authorization", "Bearer testtoken"))
+        .and(body_json(serde_json::json!({"state": "closed"})))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "id": 1, "number": 1, "title": "v1.0-updated", "state": "closed",
             "description": "Released", "html_url": "https://github.com/testorg/repo/milestone/1",
@@ -3818,6 +3822,38 @@ async fn test_delete_release() {
     let ops = provider.release_ops().unwrap();
 
     ops.delete_release("testorg/repo", "1").await.unwrap();
+
+    teardown_token();
+}
+
+#[tokio::test]
+#[serial]
+async fn test_delete_release_resolves_tag() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/repos/testorg/repo/releases/tags/v1.0.0"))
+        .and(header("authorization", "Bearer testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "id": 17,
+            "tag_name": "v1.0.0"
+        })))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("DELETE"))
+        .and(path("/repos/testorg/repo/releases/17"))
+        .and(header("authorization", "Bearer testtoken"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitHubProvider::with_base_url(&server.uri());
+    let ops = provider.release_ops().unwrap();
+
+    ops.delete_release("testorg/repo", "v1.0.0").await.unwrap();
 
     teardown_token();
 }

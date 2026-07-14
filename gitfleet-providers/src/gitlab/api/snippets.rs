@@ -1,4 +1,4 @@
-use gitfleet_core::errors::GitfleetError;
+use gitfleet_core::errors::{GitfleetError, UnprocessableError};
 use gitfleet_core::types::{GistFile, GistSummary};
 
 use crate::gitlab::client::ProviderClient;
@@ -8,8 +8,14 @@ pub struct SnippetsApi;
 impl SnippetsApi {
     pub async fn list(
         client: &ProviderClient,
-        _owner: &str,
+        owner: &str,
     ) -> Result<Vec<GistSummary>, GitfleetError> {
+        if !owner.is_empty() {
+            return Err(GitfleetError::from(UnprocessableError::new(
+                "GitLab can only list snippets for the authenticated user; omit --owner.",
+            )));
+        }
+
         let endpoint = "/snippets?per_page=100";
 
         let response = client

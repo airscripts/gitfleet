@@ -22,7 +22,7 @@ pub enum SnippetCommand {
         #[arg(long)]
         public: bool,
         #[arg(long)]
-        file: Option<String>,
+        file: String,
     },
 
     #[command(about = "Delete a snippet.")]
@@ -100,17 +100,13 @@ pub async fn run(cmd: SnippetCommand, app: &App) -> Result<(), GitfleetError> {
         } => {
             let desc = description.as_deref().unwrap_or("");
 
-            let filename = file
-                .as_deref()
-                .and_then(|f| std::path::Path::new(f).file_name().and_then(|n| n.to_str()))
+            let filename = std::path::Path::new(&file)
+                .file_name()
+                .and_then(|name| name.to_str())
                 .unwrap_or("snippet.txt");
 
-            let content = file
-                .as_deref()
-                .map(std::fs::read_to_string)
-                .transpose()
-                .map_err(|e| GitfleetError::new(format!("Failed to read snippet file: {e}")))?
-                .unwrap_or_else(|| "gitfleet test snippet".to_string());
+            let content = std::fs::read_to_string(&file)
+                .map_err(|e| GitfleetError::new(format!("Failed to read snippet file: {e}")))?;
 
             let files = serde_json::json!({
                 filename: { "content": content }
@@ -230,7 +226,7 @@ mod tests {
             SnippetCommand::Create {
                 description: Some("snippet".into()),
                 public: true,
-                file: None,
+                file: "Cargo.toml".into(),
             },
             &app,
         )
@@ -246,7 +242,7 @@ mod tests {
             SnippetCommand::Create {
                 description: None,
                 public: false,
-                file: None,
+                file: "Cargo.toml".into(),
             },
             &app,
         )

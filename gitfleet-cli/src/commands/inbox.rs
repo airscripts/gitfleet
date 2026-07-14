@@ -67,7 +67,7 @@ pub async fn run(cmd: InboxCommand, app: &App) -> Result<(), GitfleetError> {
             ops.mark_notifications_read().await?;
 
             app.renderer()
-                .write_value("All notifications marked as read.");
+                .render_success_box("Notifications updated", "All notifications marked as read.");
 
             Ok(())
         }

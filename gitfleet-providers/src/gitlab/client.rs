@@ -783,7 +783,7 @@ impl gitfleet_core::provider::PipelineOps for ProviderClient {
         r#ref: &str,
         inputs: Option<serde_json::Value>,
     ) -> Result<(), gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::PipelinesApi::dispatch_pipeline(self, repo, workflow_id, r#ref, inputs)
+        crate::gitlab::api::PipelinesApi::dispatch_pipeline(self, repo, r#ref, workflow_id, inputs)
             .await
     }
 

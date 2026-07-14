@@ -21,6 +21,8 @@ impl MilestonesApi {
         let mut endpoint = format!("/projects/{encoded}/milestones?per_page={limit}");
 
         if let Some(s) = state {
+            let s = if s == "open" { "active" } else { s };
+
             endpoint.push_str(&format!("&state={}", urlencoding::encode(s)));
         }
 
@@ -85,11 +87,27 @@ impl MilestonesApi {
         client: &ProviderClient,
         project: &str,
         number: u64,
-        input: serde_json::Value,
+        mut input: serde_json::Value,
     ) -> Result<Milestone, GitfleetError> {
         let encoded = encode_path(project);
 
         let endpoint = format!("/projects/{encoded}/milestones/{number}");
+
+        if let Some(object) = input.as_object_mut() {
+            if let Some(due_date) = object.remove("due_on") {
+                object.insert("due_date".to_string(), due_date);
+            }
+
+            if let Some(state) = object.remove("state") {
+                let state_event = match state.as_str() {
+                    Some("open") => serde_json::Value::String("activate".to_string()),
+                    Some("closed") => serde_json::Value::String("close".to_string()),
+                    _ => state,
+                };
+
+                object.insert("state_event".to_string(), state_event);
+            }
+        }
 
         let response = client
             .request_token_required(reqwest::Method::PUT, &endpoint, Some(input), None, None)

@@ -18,6 +18,7 @@ fn normalize_mr(raw: &serde_json::Value) -> PullRequest {
         state: raw
             .get("state")
             .and_then(|v| v.as_str())
+            .map(|state| if state == "opened" { "open" } else { state })
             .unwrap_or("")
             .to_string(),
         number: raw.get("iid").and_then(|v| v.as_u64()).unwrap_or(0),
@@ -114,6 +115,11 @@ impl MergeRequestsApi {
         head: Option<&str>,
     ) -> Result<Vec<PullRequest>, GitfleetError> {
         let encoded = encode_path(project);
+
+        let state = match state {
+            "open" => "opened",
+            state => state,
+        };
 
         let mut endpoint = format!(
             "/projects/{encoded}/merge_requests?state={}&per_page={limit}",
@@ -388,7 +394,7 @@ mod tests {
 
         assert_eq!(result.title, "MR");
 
-        assert_eq!(result.state, "opened");
+        assert_eq!(result.state, "open");
         assert!(!result.merged);
 
         assert_eq!(result.number, 1);

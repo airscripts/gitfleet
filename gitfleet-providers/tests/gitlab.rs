@@ -118,6 +118,8 @@ fn gitlab_webhook_json() -> serde_json::Value {
             "id": 42,
             "url": "https://example.com/webhook",
             "push_events": true,
+            "issues_events": true,
+            "disabled_until": null,
             "created_at": "2024-01-01T00:00:00Z",
             "updated_at": "2024-01-02T00:00:00Z"
         }
@@ -507,7 +509,7 @@ async fn test_gitlab_list_changes_with_branches() {
     let pulls = ops
         .list_changes(
             "testgroup/my-project",
-            "opened",
+            "open",
             50,
             Some("main"),
             Some("fix-login"),
@@ -570,7 +572,7 @@ async fn test_gitlab_list_issues() {
     let result = ops
         .list_issues(
             "testgroup/my-project",
-            "opened",
+            "open",
             30,
             &["bug&urgent".to_string()],
             &[],
@@ -760,6 +762,7 @@ async fn test_gitlab_dispatch_pipeline() {
     Mock::given(method("POST"))
         .and(path("/projects/testgroup%2Fmy-project/pipeline"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
+        .and(body_json(serde_json::json!({ "ref": "main" })))
         .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
             "id": 200,
             "sha": "abc123",
@@ -776,6 +779,32 @@ async fn test_gitlab_dispatch_pipeline() {
 
     let result = ops
         .dispatch_workflow("testgroup/my-project", "ci.yml", "main", None)
+        .await;
+
+    teardown_token();
+
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+#[serial]
+async fn test_gitlab_translates_open_change_state() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/projects/testgroup%2Fmy-project/merge_requests"))
+        .and(query_param("state", "opened"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitLabProvider::with_base_url(&server.uri());
+    let ops = provider.change_ops().expect("change ops");
+
+    let result = ops
+        .list_changes("testgroup/my-project", "open", 10, None, None)
         .await;
 
     teardown_token();
@@ -893,6 +922,7 @@ async fn test_gitlab_list_webhooks() {
 
     assert_eq!(hooks[0].id, 42);
     assert_eq!(hooks[0].url, "https://example.com/webhook");
+    assert_eq!(hooks[0].events, vec!["push", "issues"]);
 
     assert!(hooks[0].active);
 }
@@ -928,6 +958,7 @@ async fn test_gitlab_create_webhook() {
         .create_webhook(
             "testgroup/my-project",
             serde_json::json!({
+                "active": true,
                 "config": {"url": "https://example.com/new-hook"},
                 "events": ["push"]
             }),
@@ -943,6 +974,32 @@ async fn test_gitlab_create_webhook() {
     assert_eq!(hook.id, 43);
 
     assert_eq!(hook.url, "https://example.com/new-hook");
+}
+
+#[tokio::test]
+#[serial]
+async fn test_gitlab_rejects_inactive_webhook_creation() {
+    setup_token();
+
+    let provider = GitLabProvider::with_base_url("http://127.0.0.1:1");
+    let ops = provider.webhook_ops().expect("webhook ops");
+
+    let result = ops
+        .create_webhook(
+            "testgroup/my-project",
+            serde_json::json!({
+                "active": false,
+                "config": {"url": "https://example.com/new-hook"},
+                "events": ["push"]
+            }),
+        )
+        .await;
+
+    teardown_token();
+
+    let error = result.expect_err("inactive GitLab hooks must be rejected");
+
+    assert!(error.to_string().contains("pass --active"));
 }
 
 #[tokio::test]
@@ -1168,6 +1225,26 @@ async fn test_gitlab_create_environment() {
     let data = result.unwrap();
 
     assert_eq!(data["name"], "staging");
+}
+
+#[tokio::test]
+#[serial]
+async fn test_gitlab_rejects_environment_wait_timer() {
+    setup_token();
+
+    let provider = GitLabProvider::new();
+    let ops = provider.environment_ops().expect("environment ops");
+
+    let result = ops
+        .create_environment("testgroup", "my-project", "staging", Some(30))
+        .await;
+
+    teardown_token();
+
+    assert!(matches!(
+        result,
+        Err(GitfleetError::UnsupportedCapability(_))
+    ));
 }
 
 #[tokio::test]
@@ -2996,6 +3073,33 @@ async fn test_gitlab_create_deployment() {
     assert_eq!(deploy.r#ref, "v1.0");
 }
 
+#[tokio::test]
+#[serial]
+async fn test_gitlab_rejects_unsupported_deployment_fields() {
+    setup_token();
+
+    let provider = GitLabProvider::new();
+    let ops = provider.deploy_ops().expect("deploy ops");
+
+    let result = ops
+        .create_deployment(
+            "testgroup/my-project",
+            serde_json::json!({
+                "ref": "main",
+                "environment": "staging",
+                "description": "unsupported"
+            }),
+        )
+        .await;
+
+    teardown_token();
+
+    assert!(matches!(
+        result,
+        Err(GitfleetError::UnsupportedCapability(_))
+    ));
+}
+
 #[test]
 fn test_gitlab_analytics_and_governance_are_not_advertised() {
     let provider = GitLabProvider::new();
@@ -3925,7 +4029,7 @@ async fn test_gitlab_list_snippets() {
     let provider = GitLabProvider::with_base_url(&server.uri());
     let ops = provider.snippet_ops().unwrap();
 
-    let result = ops.list_snippets("owner").await.unwrap();
+    let result = ops.list_snippets("").await.unwrap();
 
     teardown_token();
 
@@ -3933,6 +4037,21 @@ async fn test_gitlab_list_snippets() {
 
     assert_eq!(result[0].id, "1");
     assert!(result[0].public);
+}
+
+#[tokio::test]
+#[serial]
+async fn test_gitlab_rejects_snippet_owner_filter() {
+    setup_token();
+
+    let provider = GitLabProvider::new();
+    let ops = provider.snippet_ops().unwrap();
+
+    let result = ops.list_snippets("someone-else").await;
+
+    teardown_token();
+
+    assert!(matches!(result, Err(GitfleetError::Unprocessable(_))));
 }
 
 #[tokio::test]
@@ -4261,6 +4380,8 @@ async fn test_gitlab_list_milestones() {
 
     Mock::given(method("GET"))
         .and(path("/projects/org%2Frepo/milestones"))
+        .and(query_param("state", "active"))
+        .and(query_param("per_page", "100"))
         .and(header(TOKEN_HEADER, "testtoken"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
             {"id": 1, "title": "v1.0", "state": "active", "web_url": "https://gitlab.com/org/repo/-/milestones/1", "open_issues": 2, "closed_issues": 3}
@@ -4273,7 +4394,10 @@ async fn test_gitlab_list_milestones() {
     let provider = GitLabProvider::with_base_url(&server.uri());
     let ops = provider.planning_ops().unwrap();
 
-    let result = ops.list_milestones("org/repo", None, 100).await.unwrap();
+    let result = ops
+        .list_milestones("org/repo", Some("open"), 100)
+        .await
+        .unwrap();
 
     teardown_token();
 
@@ -4345,6 +4469,12 @@ async fn test_gitlab_update_milestone() {
     Mock::given(method("PUT"))
         .and(path("/projects/org%2Frepo/milestones/5"))
         .and(header(TOKEN_HEADER, "testtoken"))
+        .and(body_json(serde_json::json!({
+            "description": "Ready to ship",
+            "due_date": "2026-08-01",
+            "state_event": "close",
+            "title": "v2.0-updated"
+        })))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "id": 5, "title": "v2.0-updated", "state": "closed", "web_url": "https://gitlab.com/org/repo/-/milestones/5"
         })))
@@ -4357,7 +4487,16 @@ async fn test_gitlab_update_milestone() {
     let ops = provider.planning_ops().unwrap();
 
     let result = ops
-        .update_milestone("org/repo", 5, serde_json::json!({"state": "closed"}))
+        .update_milestone(
+            "org/repo",
+            5,
+            serde_json::json!({
+                "description": "Ready to ship",
+                "due_on": "2026-08-01",
+                "state": "closed",
+                "title": "v2.0-updated"
+            }),
+        )
         .await
         .unwrap();
 

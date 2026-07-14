@@ -873,11 +873,7 @@ impl gitfleet_core::provider::ReleaseOps for ProviderClient {
         release: &str,
         body: serde_json::Value,
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
-        let release_id = release.parse::<u64>().map_err(|_| {
-            GitfleetError::from(UnprocessableError::new(
-                "GitHub releases must be identified by their numeric release ID.",
-            ))
-        })?;
+        let release_id = resolve_release_id(self, repo, release).await?;
 
         crate::github::api::ReleasesApi::update(self, repo, release_id, body).await
     }
@@ -887,14 +883,30 @@ impl gitfleet_core::provider::ReleaseOps for ProviderClient {
         repo: &str,
         release: &str,
     ) -> Result<(), gitfleet_core::errors::GitfleetError> {
-        let release_id = release.parse::<u64>().map_err(|_| {
-            GitfleetError::from(UnprocessableError::new(
-                "GitHub releases must be identified by their numeric release ID.",
-            ))
-        })?;
+        let release_id = resolve_release_id(self, repo, release).await?;
 
         crate::github::api::ReleasesApi::delete(self, repo, release_id).await
     }
+}
+
+async fn resolve_release_id(
+    client: &ProviderClient,
+    repo: &str,
+    release: &str,
+) -> Result<u64, GitfleetError> {
+    if let Ok(release_id) = release.parse::<u64>() {
+        return Ok(release_id);
+    }
+
+    let data = crate::github::api::ReleasesApi::fetch_by_tag(client, repo, release).await?;
+
+    data.get("id")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| {
+            GitfleetError::from(UnprocessableError::new(
+                "GitHub release response did not include a numeric ID.",
+            ))
+        })
 }
 
 #[async_trait::async_trait]

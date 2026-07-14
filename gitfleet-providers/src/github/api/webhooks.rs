@@ -31,7 +31,9 @@ impl WebhooksApi {
                     .unwrap_or("")
                     .to_string(),
                 url: raw
-                    .get("url")
+                    .get("config")
+                    .and_then(|config| config.get("url"))
+                    .or_else(|| raw.get("url"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string(),
@@ -82,7 +84,9 @@ impl WebhooksApi {
                 .unwrap_or("")
                 .to_string(),
             url: raw
-                .get("url")
+                .get("config")
+                .and_then(|config| config.get("url"))
+                .or_else(|| raw.get("url"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string(),

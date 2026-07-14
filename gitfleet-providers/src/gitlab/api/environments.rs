@@ -1,4 +1,5 @@
-use gitfleet_core::errors::{GitfleetError, NotFoundError};
+use gitfleet_core::errors::{GitfleetError, NotFoundError, UnsupportedCapabilityError};
+use gitfleet_core::provider::{ProviderCapability, ProviderId};
 use gitfleet_core::types::{Environment, EnvironmentListResponse};
 
 use crate::gitlab::client::ProviderClient;
@@ -36,8 +37,15 @@ impl EnvironmentsApi {
         owner: &str,
         repo: &str,
         name: &str,
-        _wait_timer: Option<u32>,
+        wait_timer: Option<u32>,
     ) -> Result<serde_json::Value, GitfleetError> {
+        if wait_timer.is_some() {
+            return Err(GitfleetError::from(UnsupportedCapabilityError::new(
+                ProviderId::GitLab,
+                ProviderCapability::Environments,
+            )));
+        }
+
         let full = format!("{owner}/{repo}");
 
         let encoded = encode_path(&full);

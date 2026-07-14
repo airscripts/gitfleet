@@ -137,7 +137,7 @@ pub async fn run(cmd: WorkspaceCommand, app: &App) -> Result<(), GitfleetError> 
             gitfleet_core::workspace::remove(&name)?;
 
             app.renderer()
-                .write_value(&format!("Workspace '{name}' removed."));
+                .render_success_box("Workspace removed", &name);
 
             Ok(())
         }

@@ -26,41 +26,7 @@ impl WebhooksApi {
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list webhooks: {e}")))?;
 
-        Ok(data
-            .iter()
-            .map(|raw| WebhookSummary {
-                id: raw.get("id").and_then(|v| v.as_u64()).unwrap_or(0),
-                name: raw
-                    .get("url")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string(),
-                url: raw
-                    .get("url")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string(),
-                events: raw
-                    .get("push_events")
-                    .and_then(|v| v.as_bool())
-                    .map(|b| if b { vec!["push".to_string()] } else { vec![] })
-                    .unwrap_or_default(),
-                active: raw
-                    .get("push_events")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false),
-                created_at: raw
-                    .get("created_at")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string(),
-                updated_at: raw
-                    .get("updated_at")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string(),
-            })
-            .collect())
+        Ok(data.iter().map(normalize_webhook).collect())
     }
 
     pub async fn create(
@@ -82,34 +48,7 @@ impl WebhooksApi {
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create webhook: {e}")))?;
 
-        Ok(WebhookSummary {
-            id: raw.get("id").and_then(|v| v.as_u64()).unwrap_or(0),
-            name: raw
-                .get("url")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
-            url: raw
-                .get("url")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
-            events: vec![],
-            active: raw
-                .get("push_events")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false),
-            created_at: raw
-                .get("created_at")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
-            updated_at: raw
-                .get("updated_at")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
-        })
+        Ok(normalize_webhook(&raw))
     }
 
     pub async fn remove(
@@ -146,6 +85,12 @@ impl WebhooksApi {
 }
 
 fn normalize_create_input(input: &serde_json::Value) -> Result<serde_json::Value, GitfleetError> {
+    if input.get("active").and_then(serde_json::Value::as_bool) == Some(false) {
+        return Err(GitfleetError::new(
+            "GitLab does not support creating a disabled project webhook; pass --active.",
+        ));
+    }
+
     let config = input
         .get("config")
         .and_then(serde_json::Value::as_object)
@@ -184,44 +129,60 @@ fn normalize_create_input(input: &serde_json::Value) -> Result<serde_json::Value
     Ok(body)
 }
 
+fn normalize_webhook(raw: &serde_json::Value) -> WebhookSummary {
+    const EVENT_FIELDS: [(&str, &str); 10] = [
+        ("push_events", "push"),
+        ("tag_push_events", "tag_push"),
+        ("issues_events", "issues"),
+        ("merge_requests_events", "pull_request"),
+        ("note_events", "issue_comment"),
+        ("releases_events", "release"),
+        ("deployment_events", "deployment"),
+        ("job_events", "workflow_job"),
+        ("pipeline_events", "workflow_run"),
+        ("wiki_page_events", "wiki"),
+    ];
+
+    let events = EVENT_FIELDS
+        .iter()
+        .filter(|(field, _)| raw.get(field).and_then(serde_json::Value::as_bool) == Some(true))
+        .map(|(_, event)| (*event).to_string())
+        .collect::<Vec<_>>();
+    let disabled = raw
+        .get("disabled_until")
+        .is_some_and(|value| !value.is_null());
+
+    WebhookSummary {
+        id: raw.get("id").and_then(|v| v.as_u64()).unwrap_or(0),
+        name: raw
+            .get("name")
+            .or_else(|| raw.get("url"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        url: raw
+            .get("url")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        active: !events.is_empty() && !disabled,
+        events,
+        created_at: raw
+            .get("created_at")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        updated_at: raw
+            .get("updated_at")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use gitfleet_core::types::WebhookSummary;
-
-    fn normalize_gitlab_webhook(raw: &serde_json::Value) -> WebhookSummary {
-        WebhookSummary {
-            id: raw.get("id").and_then(|v| v.as_u64()).unwrap_or(0),
-            name: raw
-                .get("url")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
-            url: raw
-                .get("url")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
-            events: raw
-                .get("push_events")
-                .and_then(|v| v.as_bool())
-                .map(|b| if b { vec!["push".to_string()] } else { vec![] })
-                .unwrap_or_default(),
-            active: raw
-                .get("push_events")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false),
-            created_at: raw
-                .get("created_at")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
-            updated_at: raw
-                .get("updated_at")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
-        }
-    }
+    use super::normalize_webhook;
 
     #[test]
     fn test_normalize_gitlab_webhook_full() {
@@ -233,7 +194,7 @@ mod tests {
             "updated_at": "2024-01-02T00:00:00Z"
         });
 
-        let result = normalize_gitlab_webhook(&json);
+        let result = normalize_webhook(&json);
 
         assert_eq!(result.id, 42);
 
@@ -249,21 +210,22 @@ mod tests {
         let json = serde_json::json!({
             "id": 1,
             "url": "https://example.com/hook2",
-            "push_events": false
+            "push_events": true,
+            "disabled_until": "2026-08-01T00:00:00Z"
         });
 
-        let result = normalize_gitlab_webhook(&json);
+        let result = normalize_webhook(&json);
 
         assert!(!result.active);
 
-        assert!(result.events.is_empty());
+        assert_eq!(result.events, vec!["push"]);
     }
 
     #[test]
     fn test_normalize_gitlab_webhook_minimal() {
         let json = serde_json::json!({});
 
-        let result = normalize_gitlab_webhook(&json);
+        let result = normalize_webhook(&json);
 
         assert_eq!(result.id, 0);
 

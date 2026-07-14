@@ -1,4 +1,5 @@
-use gitfleet_core::errors::GitfleetError;
+use gitfleet_core::errors::{GitfleetError, UnsupportedCapabilityError};
+use gitfleet_core::provider::{ProviderCapability, ProviderId};
 use gitfleet_core::types::DeploymentSummary;
 
 use crate::gitlab::client::ProviderClient;
@@ -122,6 +123,13 @@ async fn normalize_create_input(
     project: &str,
     input: &serde_json::Value,
 ) -> Result<serde_json::Value, GitfleetError> {
+    if input.get("task").is_some() || input.get("description").is_some() {
+        return Err(GitfleetError::from(UnsupportedCapabilityError::new(
+            ProviderId::GitLab,
+            ProviderCapability::Deployments,
+        )));
+    }
+
     let reference = input
         .get("ref")
         .and_then(serde_json::Value::as_str)

@@ -305,7 +305,15 @@ impl Renderer {
     }
 
     pub fn render_success_box(&self, title: &str, message: &str) {
-        self.render_box(&format!("{title}\n{message}"), "success");
+        if self.is_json() {
+            self.write_result(&serde_json::json!({
+                "status": "success",
+                "title": title,
+                "message": message,
+            }));
+        } else {
+            self.render_box(&format!("{title}\n{message}"), "success");
+        }
     }
 
     pub fn render_error_box(&self, title: &str, message: &str) {
@@ -688,7 +696,7 @@ mod tests {
     }
 
     #[test]
-    fn test_render_success_box_json_is_noop() {
+    fn test_render_success_box_json() {
         let r = Renderer::new(OutputMode::Json);
         r.render_success_box("Created", "org/new-repo");
     }

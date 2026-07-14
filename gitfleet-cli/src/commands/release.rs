@@ -39,6 +39,7 @@ pub enum ReleaseCommand {
 
     #[command(about = "Delete a release.")]
     Delete {
+        #[arg(help = "Release tag (or numeric GitHub release ID).")]
         release: String,
         #[arg(long)]
         repo: Option<String>,

@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use gitfleet_core::errors::{GitfleetError, UnsupportedCapabilityError};
+use gitfleet_core::errors::{GitfleetError, UnprocessableError, UnsupportedCapabilityError};
 use gitfleet_core::provider::ProviderCapability;
 
 use crate::app::App;
@@ -35,6 +35,14 @@ pub enum MilestoneCmdCommand {
         number: u64,
         #[arg(long)]
         repo: Option<String>,
+        #[arg(long)]
+        title: Option<String>,
+        #[arg(long)]
+        description: Option<String>,
+        #[arg(long)]
+        due_date: Option<String>,
+        #[arg(long, value_parser = ["open", "closed"])]
+        state: Option<String>,
     },
 
     #[command(about = "Delete a milestone.")]
@@ -141,10 +149,40 @@ pub async fn run(cmd: MilestoneCmdCommand, app: &App) -> Result<(), GitfleetErro
             Ok(())
         }
 
-        MilestoneCmdCommand::Update { number, repo } => {
+        MilestoneCmdCommand::Update {
+            number,
+            repo,
+            title,
+            description,
+            due_date,
+            state,
+        } => {
             let repo_str = crate::repo_util::resolve_repo(&repo)?;
 
-            let input = serde_json::json!({});
+            if title.is_none() && description.is_none() && due_date.is_none() && state.is_none() {
+                return Err(GitfleetError::from(UnprocessableError::new(
+                    "At least one milestone update option is required.",
+                )));
+            }
+
+            let mut input = serde_json::json!({});
+
+            if let Some(title) = title {
+                input["title"] = serde_json::Value::String(title);
+            }
+
+            if let Some(description) = description {
+                input["description"] = serde_json::Value::String(description);
+            }
+
+            if let Some(due_date) = due_date {
+                input["due_on"] = serde_json::Value::String(due_date);
+            }
+
+            if let Some(state) = state {
+                input["state"] = serde_json::Value::String(state);
+            }
+
             let result = ops.update_milestone(&repo_str, number, input).await?;
 
             if app.renderer().is_json() {
@@ -332,6 +370,10 @@ mod tests {
             MilestoneCmdCommand::Update {
                 number: 1,
                 repo: Some("org/repo".into()),
+                title: Some("Updated milestone".into()),
+                description: None,
+                due_date: None,
+                state: None,
             },
             &app,
         )
@@ -347,11 +389,35 @@ mod tests {
             MilestoneCmdCommand::Update {
                 number: 1,
                 repo: Some("org/repo".into()),
+                title: None,
+                description: Some("Updated description".into()),
+                due_date: Some("2026-12-31".into()),
+                state: Some("closed".into()),
             },
             &app,
         )
         .await
         .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_milestone_update_requires_a_change() {
+        let app = test_helpers::make_app();
+
+        let result = run(
+            MilestoneCmdCommand::Update {
+                number: 1,
+                repo: Some("org/repo".into()),
+                title: None,
+                description: None,
+                due_date: None,
+                state: None,
+            },
+            &app,
+        )
+        .await;
+
+        assert!(result.is_err());
     }
 
     #[tokio::test]
