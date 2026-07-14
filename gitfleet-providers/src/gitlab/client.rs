@@ -765,7 +765,7 @@ impl gitfleet_core::provider::PipelineOps for ProviderClient {
         limit: u32,
         page: Option<u32>,
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::PipelinesApi::list_pipelines(self, repo, limit, page).await
+        crate::gitlab::api::PipelinesApi::list_workflows(self, repo, limit, page).await
     }
 
     async fn get_workflow(
@@ -773,7 +773,7 @@ impl gitfleet_core::provider::PipelineOps for ProviderClient {
         repo: &str,
         workflow_id: &str,
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::PipelinesApi::get_pipeline(self, repo, workflow_id).await
+        crate::gitlab::api::PipelinesApi::get_workflow(self, repo, workflow_id).await
     }
 
     async fn dispatch_workflow(
@@ -793,7 +793,7 @@ impl gitfleet_core::provider::PipelineOps for ProviderClient {
         filters: &str,
         limit: u32,
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::PipelinesApi::list_jobs(self, repo, filters, limit).await
+        crate::gitlab::api::PipelinesApi::list_pipelines(self, repo, filters, limit).await
     }
 
     async fn get_run(
@@ -801,7 +801,7 @@ impl gitfleet_core::provider::PipelineOps for ProviderClient {
         repo: &str,
         run_id: u64,
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::PipelinesApi::get_job(self, repo, run_id).await
+        crate::gitlab::api::PipelinesApi::get_pipeline(self, repo, run_id).await
     }
 
     async fn cancel_run(
@@ -809,7 +809,7 @@ impl gitfleet_core::provider::PipelineOps for ProviderClient {
         repo: &str,
         run_id: u64,
     ) -> Result<(), gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::PipelinesApi::cancel_job(self, repo, run_id).await
+        crate::gitlab::api::PipelinesApi::cancel_pipeline(self, repo, run_id).await
     }
 
     async fn rerun(
@@ -817,7 +817,7 @@ impl gitfleet_core::provider::PipelineOps for ProviderClient {
         repo: &str,
         run_id: u64,
     ) -> Result<(), gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::PipelinesApi::retry_job(self, repo, run_id).await
+        crate::gitlab::api::PipelinesApi::retry_pipeline(self, repo, run_id).await
     }
 
     async fn delete_run(
@@ -1046,6 +1046,15 @@ impl gitfleet_core::provider::WebhookOps for ProviderClient {
 
 #[async_trait::async_trait]
 impl gitfleet_core::provider::AccessOps for ProviderClient {
+    async fn invite_org_member(
+        &self,
+        org: &str,
+        username: &str,
+        role: &str,
+    ) -> Result<(), gitfleet_core::errors::GitfleetError> {
+        crate::gitlab::api::AccessApi::invite_group_member(self, org, username, role).await
+    }
+
     async fn invite_collaborator(
         &self,
         owner: &str,

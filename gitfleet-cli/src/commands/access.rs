@@ -113,8 +113,7 @@ async fn run_org(cmd: OrgSubcommand, app: &App) -> Result<(), GitfleetError> {
                 ))
             })?;
 
-            ops.invite_collaborator(&org, &org, &username, &role)
-                .await?;
+            ops.invite_org_member(&org, &username, &role).await?;
 
             app.renderer()
                 .render_success_box("Invitation sent", &format!("{username} to {org}"));

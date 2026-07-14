@@ -1,4 +1,5 @@
-use gitfleet_core::errors::GitfleetError;
+use gitfleet_core::errors::{GitfleetError, NotFoundError, UnsupportedCapabilityError};
+use gitfleet_core::provider::{ProviderCapability, ProviderId};
 
 use crate::gitlab::client::ProviderClient;
 
@@ -9,6 +10,27 @@ fn encode_path(project: &str) -> String {
 pub struct AccessApi;
 
 impl AccessApi {
+    pub async fn invite_group_member(
+        client: &ProviderClient,
+        group: &str,
+        username: &str,
+        role: &str,
+    ) -> Result<(), GitfleetError> {
+        let encoded = urlencoding::encode(group);
+        let endpoint = format!("/groups/{encoded}/members");
+        let access_level = access_level(role, true);
+        let body = serde_json::json!({
+            "username": username,
+            "access_level": access_level,
+        });
+
+        client
+            .request_token_required(reqwest::Method::POST, &endpoint, Some(body), None, None)
+            .await?;
+
+        Ok(())
+    }
+
     pub async fn invite_member(
         client: &ProviderClient,
         owner: &str,
@@ -21,14 +43,7 @@ impl AccessApi {
         let encoded = encode_path(&full);
         let endpoint = format!("/projects/{encoded}/members");
 
-        let access_level = match permission {
-            "admin" => 40,
-            "maintainer" => 30,
-            "developer" => 30,
-            "reporter" => 20,
-            "guest" => 10,
-            _ => 30,
-        };
+        let access_level = access_level(permission, false);
 
         let body = serde_json::json!({
             "username": username,
@@ -54,9 +69,15 @@ impl AccessApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let mut data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list group members: {e}")))?;
+
+        if let Some(members) = data.as_array_mut() {
+            for member in members {
+                normalize_member(member);
+            }
+        }
 
         Ok(data)
     }
@@ -66,10 +87,9 @@ impl AccessApi {
         group: &str,
         username: &str,
     ) -> Result<(), GitfleetError> {
+        let user_id = resolve_user_id(client, username).await?;
         let enc_group = urlencoding::encode(group);
-
-        let enc_user = urlencoding::encode(username);
-        let endpoint = format!("/groups/{enc_group}/members/{enc_user}");
+        let endpoint = format!("/groups/{enc_group}/members/{user_id}");
 
         client
             .request_token_required(reqwest::Method::DELETE, &endpoint, None, None, None)
@@ -79,145 +99,97 @@ impl AccessApi {
     }
 
     pub async fn list_teams(
-        client: &ProviderClient,
-        group: &str,
+        _client: &ProviderClient,
+        _group: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let enc_group = urlencoding::encode(group);
-
-        let endpoint = format!("/groups/{enc_group}/subgroups?per_page=100");
-
-        let response = client
-            .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
-            .await?;
-
-        let data: serde_json::Value = crate::parse_json(response)
-            .await
-            .map_err(|e| GitfleetError::new(format!("Failed to list teams: {e}")))?;
-
-        Ok(data)
+        Err(teams_unsupported())
     }
 
     pub async fn create_team(
-        client: &ProviderClient,
-        group: &str,
-        name: &str,
+        _client: &ProviderClient,
+        _group: &str,
+        _name: &str,
         _description: &str,
         _privacy: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let endpoint = "/groups".to_string();
-
-        let payload = serde_json::json!({
-            "name": name,
-            "path": name.to_lowercase().replace(' ', "-"),
-            "parent_id": group,
-        });
-
-        let response = client
-            .request_token_required(reqwest::Method::POST, &endpoint, Some(payload), None, None)
-            .await?;
-
-        let data: serde_json::Value = crate::parse_json(response)
-            .await
-            .map_err(|e| GitfleetError::new(format!("Failed to create team: {e}")))?;
-
-        Ok(data)
+        Err(teams_unsupported())
     }
 
     pub async fn list_team_members(
-        client: &ProviderClient,
-        group: &str,
-        team_slug: &str,
+        _client: &ProviderClient,
+        _group: &str,
+        _team_slug: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let enc_group = urlencoding::encode(group);
-
-        let endpoint = format!("/groups/{enc_group}/members?per_page=100");
-        let _ = team_slug;
-        let response = client
-            .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
-            .await?;
-
-        let data: serde_json::Value = crate::parse_json(response)
-            .await
-            .map_err(|e| GitfleetError::new(format!("Failed to list team members: {e}")))?;
-
-        Ok(data)
+        Err(teams_unsupported())
     }
+}
+
+fn access_level(role: &str, group: bool) -> u64 {
+    match role {
+        "admin" | "owner" if group => 50,
+        "admin" | "maintainer" => 40,
+        "member" | "developer" => 30,
+        "reporter" => 20,
+        "guest" => 10,
+        _ => 30,
+    }
+}
+
+async fn resolve_user_id(client: &ProviderClient, username: &str) -> Result<u64, GitfleetError> {
+    let endpoint = format!("/users?username={}", urlencoding::encode(username));
+    let response = client
+        .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
+        .await?;
+    let users: Vec<serde_json::Value> = crate::parse_json(response)
+        .await
+        .map_err(|e| GitfleetError::new(format!("Failed to resolve user: {e}")))?;
+
+    users
+        .iter()
+        .find(|user| user.get("username").and_then(serde_json::Value::as_str) == Some(username))
+        .and_then(|user| user.get("id"))
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| {
+            GitfleetError::from(NotFoundError::new(format!(
+                "User '{username}' was not found."
+            )))
+        })
+}
+
+fn normalize_member(member: &mut serde_json::Value) {
+    let Some(object) = member.as_object_mut() else {
+        return;
+    };
+    let login = object
+        .get("username")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    object.insert("login".to_string(), login);
+    object.insert(
+        "type".to_string(),
+        serde_json::Value::String("User".to_string()),
+    );
+}
+
+fn teams_unsupported() -> GitfleetError {
+    GitfleetError::from(UnsupportedCapabilityError::new(
+        ProviderId::GitLab,
+        ProviderCapability::Access,
+    ))
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn test_access_level_mapping() {
-        assert_eq!(
-            match "admin" {
-                "admin" => 40,
-                "maintainer" => 30,
-                "developer" => 30,
-                "reporter" => 20,
-                "guest" => 10,
-                _ => 30,
-            },
-            40
-        );
-
-        assert_eq!(
-            match "maintainer" {
-                "admin" => 40,
-                "maintainer" => 30,
-                "developer" => 30,
-                "reporter" => 20,
-                "guest" => 10,
-                _ => 30,
-            },
-            30
-        );
-
-        assert_eq!(
-            match "developer" {
-                "admin" => 40,
-                "maintainer" => 30,
-                "developer" => 30,
-                "reporter" => 20,
-                "guest" => 10,
-                _ => 30,
-            },
-            30
-        );
-
-        assert_eq!(
-            match "reporter" {
-                "admin" => 40,
-                "maintainer" => 30,
-                "developer" => 30,
-                "reporter" => 20,
-                "guest" => 10,
-                _ => 30,
-            },
-            20
-        );
-
-        assert_eq!(
-            match "guest" {
-                "admin" => 40,
-                "maintainer" => 30,
-                "developer" => 30,
-                "reporter" => 20,
-                "guest" => 10,
-                _ => 30,
-            },
-            10
-        );
-
-        assert_eq!(
-            match "unknown" {
-                "admin" => 40,
-                "maintainer" => 30,
-                "developer" => 30,
-                "reporter" => 20,
-                "guest" => 10,
-                _ => 30,
-            },
-            30
-        );
+        assert_eq!(access_level("admin", false), 40);
+        assert_eq!(access_level("maintainer", false), 40);
+        assert_eq!(access_level("developer", false), 30);
+        assert_eq!(access_level("reporter", false), 20);
+        assert_eq!(access_level("guest", false), 10);
+        assert_eq!(access_level("unknown", false), 30);
+        assert_eq!(access_level("owner", true), 50);
     }
 }

@@ -7,7 +7,7 @@ pub struct LicensesApi;
 
 impl LicensesApi {
     pub async fn list(client: &ProviderClient) -> Result<Vec<LicenseSummary>, GitfleetError> {
-        let endpoint = "/licenses";
+        let endpoint = "/templates/licenses";
 
         let response = client
             .request_token_required(reqwest::Method::GET, endpoint, None, None, None)
@@ -32,11 +32,13 @@ impl LicensesApi {
                     .to_string(),
                 spdx_id: raw
                     .get("spdx_id")
+                    .or_else(|| raw.get("key"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string(),
                 url: raw
-                    .get("url")
+                    .get("html_url")
+                    .or_else(|| raw.get("source_url"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string(),
@@ -68,11 +70,13 @@ impl LicensesApi {
                 .to_string(),
             spdx_id: raw
                 .get("spdx_id")
+                .or_else(|| raw.get("key"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string(),
             url: raw
-                .get("url")
+                .get("html_url")
+                .or_else(|| raw.get("source_url"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string(),
@@ -86,9 +90,9 @@ impl LicensesApi {
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string(),
-            permissions: Vec::new(),
-            conditions: Vec::new(),
-            limitations: Vec::new(),
+            permissions: string_array(&raw, "permissions"),
+            conditions: string_array(&raw, "conditions"),
+            limitations: string_array(&raw, "limitations"),
             body: raw
                 .get("content")
                 .and_then(|v| v.as_str())
@@ -118,7 +122,20 @@ impl LicensesApi {
 }
 
 fn license_endpoint(key: &str) -> String {
-    format!("/licenses/{}", urlencoding::encode(key))
+    format!("/templates/licenses/{}", urlencoding::encode(key))
+}
+
+fn string_array(raw: &serde_json::Value, key: &str) -> Vec<String> {
+    raw.get(key)
+        .and_then(serde_json::Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(serde_json::Value::as_str)
+                .map(ToString::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -127,9 +144,9 @@ mod tests {
 
     #[test]
     fn test_gitlab_licenses_list_endpoint() {
-        let endpoint = "/licenses";
+        let endpoint = "/templates/licenses";
 
-        assert_eq!(endpoint, "/licenses");
+        assert_eq!(endpoint, "/templates/licenses");
     }
 
     #[test]
@@ -146,7 +163,7 @@ mod tests {
     fn test_gitlab_license_endpoint_encodes_key() {
         assert_eq!(
             license_endpoint("custom/license"),
-            "/licenses/custom%2Flicense"
+            "/templates/licenses/custom%2Flicense"
         );
     }
 }

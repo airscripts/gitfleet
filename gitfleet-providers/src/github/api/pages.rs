@@ -31,8 +31,13 @@ impl PagesApi {
     ) -> Result<serde_json::Value, GitfleetError> {
         let endpoint = repo_path(repo, &["pages"]);
 
+        let (branch, path) = source
+            .split_once('/')
+            .map_or((source, "/".to_string()), |(branch, path)| {
+                (branch, format!("/{path}"))
+            });
         let mut body = serde_json::json!({
-            "source": { "branch": source, "path": "/" }
+            "source": { "branch": branch, "path": path }
         });
 
         if let Some(bt) = build_type {
@@ -85,5 +90,18 @@ mod tests {
 
         body["build_type"] = serde_json::Value::String(build_type.to_string());
         assert_eq!(body["build_type"], "workflow");
+    }
+
+    #[test]
+    fn test_pages_source_splits_branch_and_directory() {
+        let source = "main/docs/api";
+        let (branch, path) = source
+            .split_once('/')
+            .map_or((source, "/".to_string()), |(branch, path)| {
+                (branch, format!("/{path}"))
+            });
+
+        assert_eq!(branch, "main");
+        assert_eq!(path, "/docs/api");
     }
 }

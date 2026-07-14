@@ -1,57 +1,42 @@
-use gitfleet_core::errors::GitfleetError;
+use gitfleet_core::errors::{GitfleetError, UnsupportedCapabilityError};
+use gitfleet_core::provider::{ProviderCapability, ProviderId};
 
 use crate::gitlab::client::ProviderClient;
-
-fn encode_path(project: &str) -> String {
-    urlencoding::encode(project).to_string()
-}
 
 pub struct AnalyticsApi;
 
 impl AnalyticsApi {
     pub async fn get_traffic_views(
-        client: &ProviderClient,
-        project: &str,
+        _client: &ProviderClient,
+        _project: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let encoded = encode_path(project);
-
-        let endpoint = format!("/projects/{encoded}/statistics");
-
-        let response = client
-            .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
-            .await?;
-
-        let data: serde_json::Value = crate::parse_json(response)
-            .await
-            .map_err(|e| GitfleetError::new(format!("Failed to get statistics: {e}")))?;
-
-        Ok(data)
+        Err(unsupported())
     }
 
     pub async fn get_traffic_clones(
-        client: &ProviderClient,
-        project: &str,
+        _client: &ProviderClient,
+        _project: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let encoded = encode_path(project);
-
-        let endpoint = format!("/projects/{encoded}/statistics");
-
-        let response = client
-            .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
-            .await?;
-
-        let data: serde_json::Value = crate::parse_json(response)
-            .await
-            .map_err(|e| GitfleetError::new(format!("Failed to get statistics: {e}")))?;
-
-        Ok(data)
+        Err(unsupported())
     }
+}
+
+fn unsupported() -> GitfleetError {
+    GitfleetError::from(UnsupportedCapabilityError::new(
+        ProviderId::GitLab,
+        ProviderCapability::Analytics,
+    ))
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
-    fn test_gitlab_analytics_encode_path() {
-        assert_eq!(urlencoding::encode("org/repo").to_string(), "org%2Frepo");
+    fn test_gitlab_analytics_are_explicitly_unsupported() {
+        assert!(matches!(
+            unsupported(),
+            GitfleetError::UnsupportedCapability(_)
+        ));
     }
 }

@@ -153,7 +153,8 @@ fn gitlab_notification_json() -> serde_json::Value {
         {
             "id": 99,
             "project": { "path_with_namespace": "testgroup/my-project" },
-            "body": "Merge request was approved",
+            "body": "fallback body",
+            "target": {"title": "Merge request was approved"},
             "target_type": "MergeRequest",
             "action_name": "approved",
             "state": "pending",
@@ -578,7 +579,7 @@ async fn test_gitlab_list_issues() {
         .expect("list issues");
     teardown_token();
 
-    let items = result.as_array().expect("issues array");
+    let items = result["items"].as_array().expect("issue items");
 
     assert_eq!(items.len(), 1);
 
@@ -736,19 +737,20 @@ async fn test_gitlab_list_pipelines() {
     let provider = GitLabProvider::with_base_url(&server.uri());
     let ops = provider.pipeline_ops().expect("pipeline ops");
 
-    let result = ops.list_workflows("testgroup/my-project", 30, None).await;
+    let result = ops
+        .list_runs("testgroup/my-project", "", 30)
+        .await
+        .expect("list pipelines");
 
     teardown_token();
 
-    assert!(result.is_ok());
-
-    let data = result.unwrap();
-
-    let items = data.as_array().expect("pipelines array");
+    let items = result["workflow_runs"].as_array().expect("pipeline runs");
 
     assert_eq!(items.len(), 1);
 
     assert_eq!(items[0]["id"], 101);
+    assert_eq!(items[0]["status"], "completed");
+    assert_eq!(items[0]["conclusion"], "success");
 }
 
 #[tokio::test]
@@ -904,6 +906,10 @@ async fn test_gitlab_create_webhook() {
     Mock::given(method("POST"))
         .and(path("/projects/testgroup%2Fmy-project/hooks"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
+        .and(body_json(serde_json::json!({
+            "url": "https://example.com/new-hook",
+            "push_events": true
+        })))
         .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
             "id": 43,
             "url": "https://example.com/new-hook",
@@ -923,8 +929,8 @@ async fn test_gitlab_create_webhook() {
         .create_webhook(
             "testgroup/my-project",
             serde_json::json!({
-                "url": "https://example.com/new-hook",
-                "push_events": true
+                "config": {"url": "https://example.com/new-hook"},
+                "events": ["push"]
             }),
         )
         .await;
@@ -1033,10 +1039,19 @@ async fn test_gitlab_list_notifications() {
 
     Mock::given(method("GET"))
         .and(path("/todos"))
-        .and(query_param("state", "all"))
+        .and(query_param("state", "pending"))
         .and(query_param("per_page", "100"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
         .respond_with(ResponseTemplate::new(200).set_body_json(gitlab_notification_json()))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/todos"))
+        .and(query_param("state", "done"))
+        .and(query_param("per_page", "100"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
         .mount(&server)
         .await;
 
@@ -1165,7 +1180,21 @@ async fn test_gitlab_delete_environment_resolves_numeric_id() {
         .and(path("/projects/testgroup%2Fmy-project/environments"))
         .and(query_param("name", "production"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(gitlab_environment_json()))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!([{
+                "id": 1,
+                "name": "production",
+                "state": "available"
+            }])),
+        )
+        .mount(&server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path("/projects/testgroup%2Fmy-project/environments/1/stop"))
+        .and(query_param("force", "true"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .respond_with(ResponseTemplate::new(200))
         .mount(&server)
         .await;
 
@@ -1569,6 +1598,10 @@ async fn test_gitlab_invite_collaborator() {
     Mock::given(method("POST"))
         .and(path("/projects/testgroup%2Fmy-project/members"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
+        .and(body_json(serde_json::json!({
+            "username": "newuser",
+            "access_level": 40
+        })))
         .respond_with(ResponseTemplate::new(201))
         .mount(&server)
         .await;
@@ -1586,6 +1619,35 @@ async fn test_gitlab_invite_collaborator() {
 
     assert!(result.is_ok());
 }
+
+#[tokio::test]
+#[serial]
+async fn test_gitlab_invite_group_member() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/groups/testgroup/members"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .and(body_json(serde_json::json!({
+            "username": "newuser",
+            "access_level": 50
+        })))
+        .respond_with(ResponseTemplate::new(201))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitLabProvider::with_base_url(&server.uri());
+    let ops = provider.access_ops().expect("access ops");
+
+    let result = ops.invite_org_member("testgroup", "newuser", "admin").await;
+
+    teardown_token();
+
+    assert!(result.is_ok());
+}
+
 #[tokio::test]
 #[serial]
 async fn test_gitlab_search_issues() {
@@ -1867,7 +1929,45 @@ async fn test_gitlab_list_group_members() {
     let provider = GitLabProvider::with_base_url(&server.uri());
     let ops = provider.access_ops().expect("access ops");
 
-    let result = ops.list_org_members("testgroup").await;
+    let result = ops
+        .list_org_members("testgroup")
+        .await
+        .expect("list group members");
+
+    teardown_token();
+
+    assert_eq!(result[0]["login"], "member1");
+    assert_eq!(result[0]["type"], "User");
+}
+
+#[tokio::test]
+#[serial]
+async fn test_gitlab_remove_group_member_resolves_user_id() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/users"))
+        .and(query_param("username", "member1"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            {"id": 17, "username": "member1"}
+        ])))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("DELETE"))
+        .and(path("/groups/testgroup/members/17"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitLabProvider::with_base_url(&server.uri());
+    let ops = provider.access_ops().expect("access ops");
+
+    let result = ops.remove_org_member("testgroup", "member1").await;
 
     teardown_token();
 
@@ -1877,24 +1977,7 @@ async fn test_gitlab_list_group_members() {
 #[tokio::test]
 #[serial]
 async fn test_gitlab_list_team_members() {
-    let team_members_json = serde_json::json!([
-        {
-            "id": 1,
-            "username": "dev1",
-            "name": "Developer One",
-            "access_level": 30
-        }
-    ]);
-
     let server = MockServer::start().await;
-
-    Mock::given(method("GET"))
-        .and(path("/groups/mygroup/members"))
-        .and(query_param("per_page", "100"))
-        .and(header("PRIVATE-TOKEN", "testtoken"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(team_members_json))
-        .mount(&server)
-        .await;
 
     setup_token();
 
@@ -1905,7 +1988,10 @@ async fn test_gitlab_list_team_members() {
 
     teardown_token();
 
-    assert!(result.is_ok());
+    assert!(matches!(
+        result,
+        Err(GitfleetError::UnsupportedCapability(_))
+    ));
 }
 
 #[tokio::test]
@@ -1986,7 +2072,7 @@ async fn test_gitlab_mark_notifications_read() {
     let server = MockServer::start().await;
 
     Mock::given(method("POST"))
-        .and(path("//mark_todos_as_done"))
+        .and(path("/todos/mark_as_done"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
         .respond_with(ResponseTemplate::new(204))
         .mount(&server)
@@ -2010,8 +2096,16 @@ async fn test_gitlab_list_notifications_with_repo() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/projects/testgroup%2Fmy-project/todos"))
+        .and(path("/projects/testgroup%2Fmy-project"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"id": 42})))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/todos"))
         .and(query_param("per_page", "100"))
+        .and(query_param("project_id", "42"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
         .respond_with(ResponseTemplate::new(200).set_body_json(gitlab_notification_json()))
         .mount(&server)
@@ -2648,7 +2742,9 @@ async fn test_gitlab_cancel_pipeline() {
     let server = MockServer::start().await;
 
     Mock::given(method("POST"))
-        .and(path("/projects/testgroup%2Fmy-project/jobs/101/cancel"))
+        .and(path(
+            "/projects/testgroup%2Fmy-project/pipelines/101/cancel",
+        ))
         .and(header("PRIVATE-TOKEN", "testtoken"))
         .respond_with(ResponseTemplate::new(200))
         .mount(&server)
@@ -2696,7 +2792,9 @@ async fn test_gitlab_test_webhook() {
     let server = MockServer::start().await;
 
     Mock::given(method("POST"))
-        .and(path("/projects/testgroup%2Fmy-project/hooks/42/test"))
+        .and(path(
+            "/projects/testgroup%2Fmy-project/hooks/42/test/push_events",
+        ))
         .and(header("PRIVATE-TOKEN", "testtoken"))
         .respond_with(ResponseTemplate::new(204))
         .mount(&server)
@@ -2822,12 +2920,42 @@ async fn test_gitlab_list_deployments() {
 async fn test_gitlab_create_deployment() {
     let server = MockServer::start().await;
 
-    Mock::given(method("POST"))
+    Mock::given(method("GET"))
+        .and(path(
+            "/projects/testgroup%2Fmy-project/repository/commits/v1.0",
+        ))
         .and(header("PRIVATE-TOKEN", "testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "id": "abc123"
+        })))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path(
+            "/projects/testgroup%2Fmy-project/repository/tags/v1.0",
+        ))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "name": "v1.0"
+        })))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path("/projects/testgroup%2Fmy-project/deployments"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .and(body_json(serde_json::json!({
+            "environment": "staging",
+            "sha": "abc123",
+            "ref": "v1.0",
+            "tag": true,
+            "status": "running"
+        })))
         .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
             "id": 2,
             "ref": "v1.0",
-            "environment": "staging",
+            "environment": {"name": "staging"},
             "status": "running",
             "description": null,
             "user": { "username": "ci-bot" },
@@ -2842,7 +2970,10 @@ async fn test_gitlab_create_deployment() {
     let ops = provider.deploy_ops().expect("deploy ops");
 
     let result = ops
-        .create_deployment("testgroup/my-project", serde_json::json!({}))
+        .create_deployment(
+            "testgroup/my-project",
+            serde_json::json!({"ref": "v1.0", "environment": "staging"}),
+        )
         .await;
 
     teardown_token();
@@ -2856,139 +2987,18 @@ async fn test_gitlab_create_deployment() {
     assert_eq!(deploy.r#ref, "v1.0");
 }
 
-#[tokio::test]
-#[serial]
-async fn test_gitlab_get_traffic_views() {
-    let server = MockServer::start().await;
+#[test]
+fn test_gitlab_analytics_and_governance_are_not_advertised() {
+    let provider = GitLabProvider::new();
 
-    Mock::given(method("GET"))
-        .and(header("PRIVATE-TOKEN", "testtoken"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "fetches": { "count": 100 },
-            "views": { "count": 50 }
-        })))
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.analytics_ops().expect("analytics ops");
-
-    let result = ops.get_traffic_views("testgroup/my-project").await;
-
-    teardown_token();
-
-    assert!(result.is_ok());
-}
-
-#[tokio::test]
-#[serial]
-async fn test_gitlab_get_traffic_clones() {
-    let server = MockServer::start().await;
-
-    Mock::given(method("GET"))
-        .and(header("PRIVATE-TOKEN", "testtoken"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "fetches": { "count": 200 },
-            "views": { "count": 75 }
-        })))
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.analytics_ops().expect("analytics ops");
-
-    let result = ops.get_traffic_clones("testgroup/my-project").await;
-
-    teardown_token();
-
-    assert!(result.is_ok());
-}
-
-#[tokio::test]
-#[serial]
-async fn test_gitlab_list_rulesets() {
-    let server = MockServer::start().await;
-
-    Mock::given(method("GET"))
-        .and(header("PRIVATE-TOKEN", "testtoken"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "id": 1,
-            "deny_delete_tag": true
-        })))
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.governance_ops().expect("governance ops");
-
-    let result = ops.list_rulesets("testgroup/my-project").await;
-
-    teardown_token();
-
-    assert!(result.is_ok());
-}
-
-#[tokio::test]
-#[serial]
-async fn test_gitlab_create_ruleset() {
-    let server = MockServer::start().await;
-
-    Mock::given(method("POST"))
-        .and(header("PRIVATE-TOKEN", "testtoken"))
-        .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
-            "id": 2,
-            "deny_delete_tag": false
-        })))
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.governance_ops().expect("governance ops");
-
-    let input = gitfleet_core::types::RulesetInput {
-        name: "test-rule".to_string(),
-        target: None,
-        rules: None,
-        enforcement: None,
-        conditions: None,
-    };
-
-    let result = ops.create_ruleset("testgroup/my-project", &input).await;
-
-    teardown_token();
-
-    assert!(result.is_ok());
-}
-
-#[tokio::test]
-#[serial]
-async fn test_gitlab_delete_ruleset() {
-    let server = MockServer::start().await;
-
-    Mock::given(method("DELETE"))
-        .and(header("PRIVATE-TOKEN", "testtoken"))
-        .respond_with(ResponseTemplate::new(204))
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.governance_ops().expect("governance ops");
-
-    let result = ops.delete_ruleset("testgroup/my-project", 1).await;
-
-    teardown_token();
-
-    assert!(result.is_ok());
+    assert!(provider.analytics_ops().is_none());
+    assert!(provider.governance_ops().is_none());
+    assert!(!provider
+        .capabilities()
+        .contains(&ProviderCapability::Analytics));
+    assert!(!provider
+        .capabilities()
+        .contains(&ProviderCapability::Governance));
 }
 
 #[test]
@@ -3007,6 +3017,7 @@ async fn test_gitlab_list_licenses() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
+        .and(path("/templates/licenses"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
             {
@@ -3550,13 +3561,11 @@ async fn test_gitlab_list_issue_templates() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/projects/testgroup%2Fmy-project/templates/Issues"))
+        .and(path("/projects/testgroup%2Fmy-project/templates/issues"))
         .and(header(TOKEN_HEADER, "testtoken"))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_json(serde_json::json!([
-                {"name": "Bug Report", "filename": "bug.md", "path": ".gitlab/issue_templates/bug.md", "content": "## Bug"}
-            ])),
-        )
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            {"key": "Bug Report", "name": "Bug Report", "content": "## Bug"}
+        ])))
         .mount(&server)
         .await;
 
@@ -3575,6 +3584,7 @@ async fn test_gitlab_list_issue_templates() {
     assert_eq!(templates.len(), 1);
 
     assert_eq!(templates[0].name, "Bug Report");
+    assert_eq!(templates[0].filename, "Bug Report.md");
 }
 
 #[tokio::test]
@@ -3680,7 +3690,7 @@ async fn test_gitlab_create_discussion() {
     assert_eq!(discussion.title, "New Discussion");
 }
 
-// ===== PipelineOps (get_run calls get_job) =====
+// ===== PipelineOps =====
 
 #[tokio::test]
 #[serial]
@@ -3688,10 +3698,10 @@ async fn test_gitlab_get_run() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/projects/testgroup%2Fmy-project/jobs/100"))
+        .and(path("/projects/testgroup%2Fmy-project/pipelines/100"))
         .and(header(TOKEN_HEADER, "testtoken"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "id": 100, "name": "build", "status": "success", "stage": "test", "ref": "main"
+            "id": 100, "status": "success", "ref": "main"
         })))
         .mount(&server)
         .await;
@@ -3706,6 +3716,8 @@ async fn test_gitlab_get_run() {
     teardown_token();
 
     assert_eq!(result["id"], 100);
+    assert_eq!(result["status"], "completed");
+    assert_eq!(result["head_branch"], "main");
 }
 
 // ===== ReviewOps (Award Emojis) =====
@@ -4059,69 +4071,14 @@ async fn test_gitlab_delete_tag_protection() {
     teardown_token();
 }
 
-// ===== SiteOps (Pages) =====
+// ===== SiteOps =====
 
-#[tokio::test]
-#[serial]
-async fn test_gitlab_get_pages() {
-    let server = MockServer::start().await;
-
-    Mock::given(method("GET"))
-        .and(path("/projects/org%2Frepo/pages"))
-        .and(header(TOKEN_HEADER, "testtoken"))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .set_body_json(serde_json::json!({"url": "https://org.gitlab.io/repo"})),
-        )
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.site_ops().unwrap();
-
-    let result = ops.get_pages("org/repo").await.unwrap();
-
-    teardown_token();
-
-    assert_eq!(result["url"], "https://org.gitlab.io/repo");
-}
-
-#[tokio::test]
-#[serial]
-async fn test_gitlab_create_pages() {
+#[test]
+fn test_gitlab_site_is_not_advertised() {
     let provider = GitLabProvider::new();
-    let ops = provider.site_ops().unwrap();
 
-    let result = ops.create_pages("org/repo", "main", None).await;
-
-    assert!(matches!(
-        result,
-        Err(GitfleetError::UnsupportedCapability(_))
-    ));
-}
-
-#[tokio::test]
-#[serial]
-async fn test_gitlab_remove_pages() {
-    let server = MockServer::start().await;
-
-    Mock::given(method("DELETE"))
-        .and(path("/projects/org%2Frepo/pages"))
-        .and(header(TOKEN_HEADER, "testtoken"))
-        .respond_with(ResponseTemplate::new(204))
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.site_ops().unwrap();
-
-    ops.remove_pages("org/repo").await.unwrap();
-
-    teardown_token();
+    assert!(provider.site_ops().is_none());
+    assert!(!provider.capabilities().contains(&ProviderCapability::Site));
 }
 
 // ===== RegistryOps (Package Registry) =====

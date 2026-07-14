@@ -1184,6 +1184,15 @@ impl gitfleet_core::provider::WebhookOps for ProviderClient {
 
 #[async_trait::async_trait]
 impl gitfleet_core::provider::AccessOps for ProviderClient {
+    async fn invite_org_member(
+        &self,
+        org: &str,
+        username: &str,
+        role: &str,
+    ) -> Result<(), gitfleet_core::errors::GitfleetError> {
+        crate::github::api::OrgsApi::invite_member(self, org, username, role).await
+    }
+
     async fn invite_collaborator(
         &self,
         owner: &str,

@@ -56,9 +56,11 @@ impl ProjectsApi {
             .request_optional_token(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let mut data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get project: {e}")))?;
+
+        normalize_project_value(&mut data);
 
         Ok(data)
     }
@@ -109,9 +111,11 @@ impl ProjectsApi {
             .request_token_required(reqwest::Method::POST, endpoint, Some(body), None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let mut data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create project: {e}")))?;
+
+        normalize_project_value(&mut data);
 
         Ok(data)
     }
@@ -119,19 +123,31 @@ impl ProjectsApi {
     pub async fn update(
         client: &ProviderClient,
         project: &str,
-        options: serde_json::Value,
+        mut options: serde_json::Value,
     ) -> Result<serde_json::Value, GitfleetError> {
         let encoded = encode_path(project);
 
         let endpoint = format!("/projects/{encoded}");
 
+        if options.get("homepage").is_some() {
+            return Err(GitfleetError::new(
+                "GitLab does not support repository homepage metadata.",
+            ));
+        }
+
+        if let Some(name) = options.get("name").cloned() {
+            options["path"] = name;
+        }
+
         let response = client
             .request_token_required(reqwest::Method::PUT, &endpoint, Some(options), None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let mut data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to update project: {e}")))?;
+
+        normalize_project_value(&mut data);
 
         Ok(data)
     }
@@ -261,6 +277,29 @@ fn normalize_project(raw: &serde_json::Value) -> RepoSummary {
             .and_then(|v| v.as_str())
             .map(|s| s.to_string()),
     }
+}
+
+fn normalize_project_value(raw: &mut serde_json::Value) {
+    let Some(object) = raw.as_object_mut() else {
+        return;
+    };
+
+    let full_name = object
+        .get("path_with_namespace")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let html_url = object
+        .get("web_url")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let private = object
+        .get("visibility")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|visibility| visibility == "private");
+
+    object.insert("full_name".to_string(), full_name);
+    object.insert("html_url".to_string(), html_url);
+    object.insert("private".to_string(), serde_json::Value::Bool(private));
 }
 
 #[cfg(test)]

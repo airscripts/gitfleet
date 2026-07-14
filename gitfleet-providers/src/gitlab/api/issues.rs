@@ -22,9 +22,11 @@ impl IssuesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let mut data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get issue: {e}")))?;
+
+        normalize_issue(&mut data);
 
         Ok(data)
     }
@@ -64,9 +66,11 @@ impl IssuesApi {
             .request_token_required(reqwest::Method::POST, &endpoint, Some(json), None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let mut data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create issue: {e}")))?;
+
+        normalize_issue(&mut data);
 
         Ok(data)
     }
@@ -97,11 +101,18 @@ impl IssuesApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let mut data: Vec<serde_json::Value> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list issues: {e}")))?;
 
-        Ok(data)
+        for issue in &mut data {
+            normalize_issue(issue);
+        }
+
+        Ok(serde_json::json!({
+            "total_count": data.len(),
+            "items": data,
+        }))
     }
 
     pub async fn update(
@@ -118,9 +129,11 @@ impl IssuesApi {
             .request_token_required(reqwest::Method::PUT, &endpoint, Some(options), None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let mut data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to update issue: {e}")))?;
+
+        normalize_issue(&mut data);
 
         Ok(data)
     }
@@ -166,6 +179,40 @@ impl IssuesApi {
 
         Ok(data)
     }
+}
+
+fn normalize_issue(raw: &mut serde_json::Value) {
+    let Some(object) = raw.as_object_mut() else {
+        return;
+    };
+
+    let number = object
+        .get("iid")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let body = object
+        .get("description")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let html_url = object
+        .get("web_url")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let user = object
+        .get("author")
+        .and_then(serde_json::Value::as_object)
+        .map(|author| {
+            serde_json::json!({
+                "login": author.get("username").cloned().unwrap_or(serde_json::Value::Null),
+                "id": author.get("id").cloned().unwrap_or(serde_json::Value::Null),
+            })
+        })
+        .unwrap_or(serde_json::Value::Null);
+
+    object.insert("number".to_string(), number);
+    object.insert("body".to_string(), body);
+    object.insert("html_url".to_string(), html_url);
+    object.insert("user".to_string(), user);
 }
 
 #[cfg(test)]

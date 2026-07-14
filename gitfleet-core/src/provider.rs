@@ -518,6 +518,12 @@ pub trait WebhookOps: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait AccessOps: Send + Sync {
+    async fn invite_org_member(
+        &self,
+        org: &str,
+        username: &str,
+        role: &str,
+    ) -> Result<(), GitfleetError>;
     async fn invite_collaborator(
         &self,
         owner: &str,

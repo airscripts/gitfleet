@@ -2,7 +2,7 @@ use gitfleet_core::provider::{GitProvider, ProviderCapability};
 use gitfleet_core::types::MilestoneState;
 use gitfleet_providers::GitHubProvider;
 use serial_test::serial;
-use wiremock::matchers::{body_string_contains, header, method, path, query_param};
+use wiremock::matchers::{body_json, body_string_contains, header, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn setup_token() {
@@ -1955,6 +1955,31 @@ async fn test_access_invite_collaborator() {
     let result = ops
         .invite_collaborator("testorg", "my-repo", "newuser", "admin")
         .await;
+
+    teardown_token();
+
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+#[serial]
+async fn test_access_invite_org_member() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("PUT"))
+        .and(path("/orgs/testorg/memberships/newuser"))
+        .and(header("authorization", "Bearer testtoken"))
+        .and(body_json(serde_json::json!({"role": "admin"})))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitHubProvider::with_base_url(&server.uri());
+    let ops = provider.access_ops().expect("access ops");
+
+    let result = ops.invite_org_member("testorg", "newuser", "admin").await;
 
     teardown_token();
 
@@ -4001,6 +4026,9 @@ async fn test_create_pages() {
     Mock::given(method("POST"))
         .and(path("/repos/testorg/repo/pages"))
         .and(header("authorization", "Bearer testtoken"))
+        .and(body_json(serde_json::json!({
+            "source": {"branch": "main", "path": "/docs"}
+        })))
         .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
             "url": "https://api.github.com/repos/testorg/repo/pages",
             "status": "queued",
@@ -4016,7 +4044,7 @@ async fn test_create_pages() {
     let ops = provider.site_ops().unwrap();
 
     let pages = ops
-        .create_pages("testorg/repo", "main", None)
+        .create_pages("testorg/repo", "main/docs", None)
         .await
         .unwrap();
 

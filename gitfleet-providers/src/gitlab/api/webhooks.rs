@@ -72,8 +72,10 @@ impl WebhooksApi {
 
         let endpoint = format!("/projects/{encoded}/hooks");
 
+        let body = normalize_create_input(&input)?;
+
         let response = client
-            .request_token_required(reqwest::Method::POST, &endpoint, Some(input), None, None)
+            .request_token_required(reqwest::Method::POST, &endpoint, Some(body), None, None)
             .await?;
 
         let raw: serde_json::Value = crate::parse_json(response)
@@ -133,7 +135,7 @@ impl WebhooksApi {
     ) -> Result<(), GitfleetError> {
         let encoded = encode_path(project);
 
-        let endpoint = format!("/projects/{encoded}/hooks/{hook_id}/test");
+        let endpoint = format!("/projects/{encoded}/hooks/{hook_id}/test/push_events");
 
         client
             .request_token_required(reqwest::Method::POST, &endpoint, None, None, None)
@@ -141,6 +143,45 @@ impl WebhooksApi {
 
         Ok(())
     }
+}
+
+fn normalize_create_input(input: &serde_json::Value) -> Result<serde_json::Value, GitfleetError> {
+    let config = input
+        .get("config")
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| GitfleetError::new("Webhook configuration must be a JSON object."))?;
+    let url = config
+        .get("url")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| GitfleetError::new("Webhook URL is required."))?;
+    let mut body = serde_json::json!({ "url": url });
+
+    if let Some(secret) = config.get("secret").and_then(serde_json::Value::as_str) {
+        body["token"] = serde_json::Value::String(secret.to_string());
+    }
+
+    if let Some(events) = input.get("events").and_then(serde_json::Value::as_array) {
+        for event in events.iter().filter_map(serde_json::Value::as_str) {
+            let field = match event {
+                "push" => Some("push_events"),
+                "pull_request" => Some("merge_requests_events"),
+                "issues" => Some("issues_events"),
+                "issue_comment" => Some("note_events"),
+                "release" => Some("releases_events"),
+                "deployment" => Some("deployment_events"),
+                "workflow_job" => Some("job_events"),
+                "workflow_run" => Some("pipeline_events"),
+                "wiki" => Some("wiki_page_events"),
+                _ => None,
+            };
+
+            if let Some(field) = field {
+                body[field] = serde_json::Value::Bool(true);
+            }
+        }
+    }
+
+    Ok(body)
 }
 
 #[cfg(test)]

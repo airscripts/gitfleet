@@ -16,7 +16,7 @@ impl TemplatesApi {
     ) -> Result<Vec<IssueTemplate>, GitfleetError> {
         let encoded = encode_path(project);
 
-        let endpoint = format!("/projects/{encoded}/templates/Issues");
+        let endpoint = format!("/projects/{encoded}/templates/issues");
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
@@ -34,30 +34,30 @@ impl TemplatesApi {
 
         Ok(data
             .iter()
-            .map(|raw| IssueTemplate {
-                name: raw
-                    .get("name")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string(),
-                filename: raw
-                    .get("filename")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string(),
-                path: raw
-                    .get("path")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string(),
-                body: raw
-                    .get("content")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string()),
-                about: None,
-                title: None,
-                labels: None,
-                assignees: None,
+            .map(|raw| {
+                let key = raw
+                    .get("key")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or_default();
+                let filename = format!("{key}.md");
+
+                IssueTemplate {
+                    name: raw
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    filename: filename.clone(),
+                    path: format!(".gitlab/issue_templates/{filename}"),
+                    body: raw
+                        .get("content")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    about: None,
+                    title: None,
+                    labels: None,
+                    assignees: None,
+                }
             })
             .collect())
     }

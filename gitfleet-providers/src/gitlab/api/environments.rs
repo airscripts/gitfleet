@@ -75,18 +75,31 @@ impl EnvironmentsApi {
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to resolve environment: {e}")))?;
 
-        let environment_id = environments
+        let environment = environments
             .iter()
             .find(|environment| {
                 environment.get("name").and_then(serde_json::Value::as_str) == Some(name)
             })
-            .and_then(|environment| environment.get("id"))
-            .and_then(serde_json::Value::as_u64)
             .ok_or_else(|| {
                 GitfleetError::from(NotFoundError::new(format!(
                     "Environment '{name}' was not found."
                 )))
             })?;
+        let environment_id = environment
+            .get("id")
+            .and_then(serde_json::Value::as_u64)
+            .ok_or_else(|| {
+                GitfleetError::new("GitLab environment response did not include an ID.")
+            })?;
+
+        if environment.get("state").and_then(serde_json::Value::as_str) != Some("stopped") {
+            let stop_endpoint =
+                format!("/projects/{encoded}/environments/{environment_id}/stop?force=true");
+
+            client
+                .request_token_required(reqwest::Method::POST, &stop_endpoint, None, None, None)
+                .await?;
+        }
 
         let endpoint = format!("/projects/{encoded}/environments/{environment_id}");
 

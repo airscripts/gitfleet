@@ -372,10 +372,11 @@ mod tests {
 
         assert!(provider.deploy_ops().is_some());
 
-        assert!(provider.analytics_ops().is_some());
-        assert!(provider.governance_ops().is_some());
+        assert!(provider.analytics_ops().is_none());
+        assert!(provider.governance_ops().is_none());
 
         assert!(provider.secret_ops().is_none());
+        assert!(provider.site_ops().is_none());
         assert!(provider.license_ops().is_some());
 
         assert!(provider.discussion_ops().is_none());

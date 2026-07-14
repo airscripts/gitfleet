@@ -1,9 +1,8 @@
 use gitfleet_core::provider::{
-    AccessOps, AnalyticsOps, BrowseOps, ChangeOps, CodeOps, DeployOps, EnvironmentOps, GitProvider,
-    GovernanceOps, IdentityOps, IssueOps, LabelOps, LicenseOps, NotificationOps, PipelineOps,
-    PlanningOps, PolicyOps, ProviderCapability, ProviderId, RawApiOps, RegistryOps, ReleaseOps,
-    RepoOps, ReviewOps, RunnerOps, SearchOps, SiteOps, SnippetOps, TemplateOps, VariableOps,
-    WebhookOps, WikiOps,
+    AccessOps, BrowseOps, ChangeOps, CodeOps, DeployOps, EnvironmentOps, GitProvider, IdentityOps,
+    IssueOps, LabelOps, LicenseOps, NotificationOps, PipelineOps, PlanningOps, PolicyOps,
+    ProviderCapability, ProviderId, RawApiOps, RegistryOps, ReleaseOps, RepoOps, ReviewOps,
+    RunnerOps, SearchOps, SnippetOps, TemplateOps, VariableOps, WebhookOps, WikiOps,
 };
 
 static CAPABILITIES: &[ProviderCapability] = &[
@@ -15,7 +14,6 @@ static CAPABILITIES: &[ProviderCapability] = &[
     ProviderCapability::Releases,
     ProviderCapability::Milestones,
     ProviderCapability::Wiki,
-    ProviderCapability::Site,
     ProviderCapability::Webhooks,
     ProviderCapability::Access,
     ProviderCapability::Identity,
@@ -30,8 +28,6 @@ static CAPABILITIES: &[ProviderCapability] = &[
     ProviderCapability::Browsing,
     ProviderCapability::RawApi,
     ProviderCapability::Deployments,
-    ProviderCapability::Analytics,
-    ProviderCapability::Governance,
     ProviderCapability::Licenses,
     ProviderCapability::Snippets,
     ProviderCapability::RepositoryPolicies,
@@ -122,10 +118,6 @@ impl GitProvider for GitLabProvider {
         Some(&self.client)
     }
 
-    fn site_ops(&self) -> Option<&dyn SiteOps> {
-        Some(&self.client)
-    }
-
     fn webhook_ops(&self) -> Option<&dyn WebhookOps> {
         Some(&self.client)
     }
@@ -179,14 +171,6 @@ impl GitProvider for GitLabProvider {
     }
 
     fn deploy_ops(&self) -> Option<&dyn DeployOps> {
-        Some(&self.client)
-    }
-
-    fn analytics_ops(&self) -> Option<&dyn AnalyticsOps> {
-        Some(&self.client)
-    }
-
-    fn governance_ops(&self) -> Option<&dyn GovernanceOps> {
         Some(&self.client)
     }
 
@@ -253,9 +237,9 @@ mod tests {
         assert!(!caps.contains(&ProviderCapability::Projects));
 
         assert!(caps.contains(&ProviderCapability::Deployments));
-        assert!(caps.contains(&ProviderCapability::Analytics));
+        assert!(!caps.contains(&ProviderCapability::Analytics));
 
-        assert!(caps.contains(&ProviderCapability::Governance));
+        assert!(!caps.contains(&ProviderCapability::Governance));
         assert!(!caps.contains(&ProviderCapability::Secrets));
         assert!(provider.secret_ops().is_none());
 

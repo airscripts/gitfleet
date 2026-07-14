@@ -1467,6 +1467,15 @@ impl PolicyOps for MockProvider {
 
 #[async_trait::async_trait]
 impl AccessOps for MockProvider {
+    async fn invite_org_member(
+        &self,
+        _org: &str,
+        _username: &str,
+        _role: &str,
+    ) -> Result<(), GitfleetError> {
+        Ok(())
+    }
+
     async fn invite_collaborator(
         &self,
         _owner: &str,

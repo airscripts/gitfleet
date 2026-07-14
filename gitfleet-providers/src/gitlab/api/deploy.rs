@@ -41,11 +41,7 @@ impl DeployApi {
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string(),
-                environment: raw
-                    .get("environment")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string(),
+                environment: environment_name(raw),
                 task: raw
                     .get("status")
                     .and_then(|v| v.as_str())
@@ -65,11 +61,7 @@ impl DeployApi {
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string(),
-                production: raw
-                    .get("environment")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s == "production")
-                    .unwrap_or(false),
+                production: environment_name(raw) == "production",
             })
             .collect())
     }
@@ -83,8 +75,10 @@ impl DeployApi {
 
         let endpoint = format!("/projects/{encoded}/deployments");
 
+        let body = normalize_create_input(client, project, &input).await?;
+
         let response = client
-            .request_token_required(reqwest::Method::POST, &endpoint, Some(input), None, None)
+            .request_token_required(reqwest::Method::POST, &endpoint, Some(body), None, None)
             .await?;
 
         let raw: serde_json::Value = crate::parse_json(response)
@@ -98,11 +92,7 @@ impl DeployApi {
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string(),
-            environment: raw
-                .get("environment")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
+            environment: environment_name(&raw),
             task: raw
                 .get("status")
                 .and_then(|v| v.as_str())
@@ -122,13 +112,66 @@ impl DeployApi {
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string(),
-            production: raw
-                .get("environment")
-                .and_then(|v| v.as_str())
-                .map(|s| s == "production")
-                .unwrap_or(false),
+            production: environment_name(&raw) == "production",
         })
     }
+}
+
+async fn normalize_create_input(
+    client: &ProviderClient,
+    project: &str,
+    input: &serde_json::Value,
+) -> Result<serde_json::Value, GitfleetError> {
+    let reference = input
+        .get("ref")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| GitfleetError::new("Deployment ref is required."))?;
+    let environment = input
+        .get("environment")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| GitfleetError::new("Deployment environment is required."))?;
+    let encoded = encode_path(project);
+    let encoded_ref = urlencoding::encode(reference);
+    let commit_endpoint = format!("/projects/{encoded}/repository/commits/{encoded_ref}");
+    let response = client
+        .request_token_required(reqwest::Method::GET, &commit_endpoint, None, None, None)
+        .await?;
+    let commit: serde_json::Value = crate::parse_json(response)
+        .await
+        .map_err(|e| GitfleetError::new(format!("Failed to resolve deployment ref: {e}")))?;
+    let sha = commit
+        .get("id")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| GitfleetError::new("GitLab commit response did not include a SHA."))?;
+
+    let tag_endpoint = format!("/projects/{encoded}/repository/tags/{encoded_ref}");
+    let tag = match client
+        .request_token_required(reqwest::Method::GET, &tag_endpoint, None, None, None)
+        .await
+    {
+        Ok(_) => true,
+        Err(GitfleetError::NotFound(_)) => false,
+        Err(error) => return Err(error),
+    };
+
+    Ok(serde_json::json!({
+        "environment": environment,
+        "sha": sha,
+        "ref": reference,
+        "tag": tag,
+        "status": "running",
+    }))
+}
+
+fn environment_name(raw: &serde_json::Value) -> String {
+    raw.get("environment")
+        .and_then(|environment| {
+            environment
+                .as_str()
+                .or_else(|| environment.get("name").and_then(serde_json::Value::as_str))
+        })
+        .unwrap_or_default()
+        .to_string()
 }
 
 #[cfg(test)]
