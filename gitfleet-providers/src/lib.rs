@@ -1,3 +1,5 @@
+use base64::Engine;
+
 use gitfleet_core::constants::MAX_HTTP_RESPONSE_BYTES;
 use gitfleet_core::errors::GitfleetError;
 
@@ -10,6 +12,65 @@ mod retry;
 pub use github::GitHubProvider;
 pub use gitlab::GitLabProvider;
 pub use registry::ProviderRegistry;
+
+pub(crate) fn decode_file_content(
+    mut data: serde_json::Value,
+) -> Result<serde_json::Value, GitfleetError> {
+    let is_base64 = data
+        .get("encoding")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|encoding| encoding.eq_ignore_ascii_case("base64"));
+
+    if !is_base64 {
+        return Ok(data);
+    }
+
+    let Some(content) = data.get("content").and_then(serde_json::Value::as_str) else {
+        return Ok(data);
+    };
+
+    let compact = content
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect::<String>();
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(compact)
+        .map_err(|error| GitfleetError::new(format!("Failed to decode file content: {error}")))?;
+    let decoded = String::from_utf8(decoded)
+        .map_err(|error| GitfleetError::new(format!("File content is not valid UTF-8: {error}")))?;
+
+    if let Some(object) = data.as_object_mut() {
+        object.insert("content".to_string(), serde_json::Value::String(decoded));
+        object.insert(
+            "encoding".to_string(),
+            serde_json::Value::String("utf-8".to_string()),
+        );
+    }
+
+    Ok(data)
+}
+
+#[cfg(test)]
+mod content_tests {
+    use super::*;
+
+    #[test]
+    fn decodes_base64_file_content() {
+        let data = serde_json::json!({"content": "aGVsbG8=", "encoding": "base64"});
+        let decoded = decode_file_content(data).unwrap();
+
+        assert_eq!(decoded["content"], "hello");
+        assert_eq!(decoded["encoding"], "utf-8");
+    }
+
+    #[test]
+    fn preserves_plain_file_content() {
+        let data = serde_json::json!({"content": "hello", "encoding": "text"});
+        let decoded = decode_file_content(data.clone()).unwrap();
+
+        assert_eq!(decoded, data);
+    }
+}
 
 pub(crate) fn validate_relative_endpoint(endpoint: &str) -> Result<(), GitfleetError> {
     if !endpoint.starts_with('/')

@@ -142,7 +142,7 @@ fn gitlab_runner_json() -> serde_json::Value {
             "description": "shared-runner-1",
             "platform": "linux",
             "status": "online",
-            "is_active": true,
+            "job_execution_status": "running",
             "tag_list": ["docker", "shell"]
         }
     ])
@@ -700,8 +700,7 @@ async fn test_gitlab_delete_label() {
     let server = MockServer::start().await;
 
     Mock::given(method("DELETE"))
-        .and(path("/projects/testgroup%2Fmy-project/labels"))
-        .and(query_param("search", "bug"))
+        .and(path("/projects/testgroup%2Fmy-project/labels/bug"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
         .respond_with(ResponseTemplate::new(204))
         .mount(&server)
@@ -1687,6 +1686,11 @@ async fn test_gitlab_search_issues() {
     let search = result.unwrap();
 
     assert_eq!(search.total_count, 1);
+    assert_eq!(search.items[0]["number"], 5);
+    assert_eq!(
+        search.items[0]["html_url"],
+        "https://gitlab.com/testgroup/my-project/-/issues/5"
+    );
 }
 
 #[tokio::test]
@@ -1696,7 +1700,9 @@ async fn test_gitlab_search_repos() {
         {
             "id": 42,
             "name": "my-project",
-            "path_with_namespace": "testgroup/my-project"
+            "path_with_namespace": "testgroup/my-project",
+            "visibility": "private",
+            "star_count": 7
         }
     ]);
 
@@ -1726,6 +1732,9 @@ async fn test_gitlab_search_repos() {
     let search = result.unwrap();
 
     assert_eq!(search.total_count, 1);
+    assert_eq!(search.items[0]["full_name"], "testgroup/my-project");
+    assert_eq!(search.items[0]["private"], true);
+    assert_eq!(search.items[0]["stargazers_count"], 7);
 }
 
 #[tokio::test]
@@ -3316,33 +3325,6 @@ async fn test_gitlab_list_attestations() {
     assert!(result.is_ok());
 }
 
-#[tokio::test]
-#[serial]
-async fn test_gitlab_get_attestation() {
-    let server = MockServer::start().await;
-
-    Mock::given(method("GET"))
-        .and(header("PRIVATE-TOKEN", "testtoken"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "id": 10,
-            "name": "artifact10"
-        })))
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitLabProvider::with_base_url(&server.uri());
-    let Some(ops) = provider.attestation_ops() else {
-        return;
-    };
-
-    let result = ops.get_attestation("testgroup/my-project", 10).await;
-
-    teardown_token();
-
-    assert!(result.is_ok());
-}
 const TOKEN_HEADER: &str = "PRIVATE-TOKEN";
 
 fn discussion_json() -> serde_json::Value {
@@ -3551,6 +3533,122 @@ async fn test_gitlab_file_contents() {
     teardown_token();
 
     assert_eq!(contents["file_name"], "main.rs");
+}
+
+#[tokio::test]
+#[serial]
+async fn test_gitlab_code_file_contents_decodes_base64() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path(
+            "/projects/testgroup%2Fmy-project/repository/files/src%2Fmain.rs",
+        ))
+        .and(query_param("raw", "false"))
+        .and(query_param("ref", "main"))
+        .and(header(TOKEN_HEADER, "testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "file_name": "main.rs",
+            "file_path": "src/main.rs",
+            "content": "Zm4gbWFpbigpIHt9",
+            "encoding": "base64",
+            "ref": "main"
+        })))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitLabProvider::with_base_url(&server.uri());
+    let ops = provider.code_ops().unwrap();
+
+    let contents = ops
+        .get_file_contents("testgroup/my-project", "src/main.rs", Some("main"))
+        .await
+        .unwrap();
+
+    teardown_token();
+
+    assert_eq!(contents["content"], "fn main() {}");
+    assert_eq!(contents["encoding"], "utf-8");
+}
+
+#[tokio::test]
+#[serial]
+async fn test_gitlab_code_search_scopes_to_project() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/projects/testgroup%2Fmy-project/search"))
+        .and(query_param("scope", "blobs"))
+        .and(query_param("search", "main extension:rs"))
+        .and(query_param("per_page", "10"))
+        .and(header(TOKEN_HEADER, "testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            {"path": "src/main.rs", "ref": "main", "project_id": 42}
+        ])))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitLabProvider::with_base_url(&server.uri());
+    let ops = provider.code_ops().unwrap();
+
+    let results = ops
+        .search_code("main", Some("testgroup/my-project"), Some("rust"), 10)
+        .await
+        .unwrap();
+
+    teardown_token();
+
+    assert_eq!(results[0].file, "src/main.rs");
+    assert_eq!(results[0].repo, "testgroup/my-project");
+}
+
+#[tokio::test]
+#[serial]
+async fn test_gitlab_global_code_search_normalizes_repository() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/search"))
+        .and(query_param("scope", "blobs"))
+        .and(query_param("search", "main"))
+        .and(query_param("per_page", "10"))
+        .and(header(TOKEN_HEADER, "testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            {"path": "src/main.rs", "ref": "main", "project_id": 42}
+        ])))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/projects/42"))
+        .and(header(TOKEN_HEADER, "testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "id": 42,
+            "path_with_namespace": "testgroup/my-project"
+        })))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitLabProvider::with_base_url(&server.uri());
+    let results = provider
+        .search_ops()
+        .unwrap()
+        .search_code("main", 10)
+        .await
+        .unwrap();
+
+    teardown_token();
+
+    assert_eq!(results.items[0]["path"], "src/main.rs");
+    assert_eq!(
+        results.items[0]["repository"]["full_name"],
+        "testgroup/my-project"
+    );
 }
 
 // ===== TemplateOps =====
@@ -3872,8 +3970,13 @@ async fn test_gitlab_create_snippet() {
     Mock::given(method("POST"))
         .and(path("/snippets"))
         .and(header(TOKEN_HEADER, "testtoken"))
+        .and(body_json(serde_json::json!({
+            "title": "My Snippet",
+            "visibility": "public",
+            "files": [{"file_path": "main.rs", "content": "hello"}]
+        })))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "id": 10, "title": "My Snippet", "visibility": "internal", "web_url": "https://gitlab.com/snippets/10", "created_at": "2024-01-01T00:00:00Z", "updated_at": "2024-01-01T00:00:00Z", "file_name": "snippet.txt"
+            "id": 10, "title": "My Snippet", "visibility": "public", "web_url": "https://gitlab.com/snippets/10", "created_at": "2024-01-01T00:00:00Z", "updated_at": "2024-01-01T00:00:00Z", "file_name": "main.rs"
         })))
         .mount(&server)
         .await;
@@ -3884,7 +3987,11 @@ async fn test_gitlab_create_snippet() {
     let ops = provider.snippet_ops().unwrap();
 
     let result = ops
-        .create_snippet("My Snippet", true, serde_json::json!({"content": "hello"}))
+        .create_snippet(
+            "My Snippet",
+            true,
+            serde_json::json!({"main.rs": {"content": "hello"}}),
+        )
         .await
         .unwrap();
 
@@ -3951,6 +4058,12 @@ async fn test_gitlab_protect_branch() {
     Mock::given(method("POST"))
         .and(path("/projects/org%2Frepo/protected_branches"))
         .and(header(TOKEN_HEADER, "testtoken"))
+        .and(body_json(serde_json::json!({
+            "name": "main",
+            "push_access_level": 0,
+            "merge_access_level": 40,
+            "unprotect_access_level": 40
+        })))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"name": "main"})))
         .mount(&server)
         .await;
@@ -4017,7 +4130,7 @@ async fn test_gitlab_list_tag_protection() {
 
     assert_eq!(result.len(), 1);
 
-    assert_eq!(result[0].id, 1);
+    assert_eq!(result[0].identifier, "v*");
     assert_eq!(result[0].pattern, "v*");
 }
 
@@ -4044,7 +4157,7 @@ async fn test_gitlab_create_tag_protection() {
 
     teardown_token();
 
-    assert_eq!(result.id, 2);
+    assert_eq!(result.identifier, "v*");
 
     assert_eq!(result.pattern, "v*");
 }
@@ -4055,7 +4168,7 @@ async fn test_gitlab_delete_tag_protection() {
     let server = MockServer::start().await;
 
     Mock::given(method("DELETE"))
-        .and(path("/projects/org%2Frepo/protected_tags/1"))
+        .and(path("/projects/org%2Frepo/protected_tags/v%2A"))
         .and(header(TOKEN_HEADER, "testtoken"))
         .respond_with(ResponseTemplate::new(204))
         .mount(&server)
@@ -4066,7 +4179,7 @@ async fn test_gitlab_delete_tag_protection() {
     let provider = GitLabProvider::with_base_url(&server.uri());
     let ops = provider.policy_ops().unwrap();
 
-    ops.delete_tag_protection("org/repo", 1).await.unwrap();
+    ops.delete_tag_protection("org/repo", "v*").await.unwrap();
 
     teardown_token();
 }
@@ -4121,6 +4234,7 @@ async fn test_gitlab_get_package() {
         .and(path("/projects/org%2Frepo/packages"))
         .and(header(TOKEN_HEADER, "testtoken"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            {"id": 2, "name": "my-pkg-old", "package_type": "npm"},
             {"id": 1, "name": "my-pkg", "package_type": "npm"}
         ])))
         .mount(&server)
@@ -4135,7 +4249,7 @@ async fn test_gitlab_get_package() {
 
     teardown_token();
 
-    assert_eq!(result[0]["name"], "my-pkg");
+    assert_eq!(result["name"], "my-pkg");
 }
 
 // ===== PlanningOps (Milestones) =====

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use gitfleet_core::errors::GitfleetError;
 use gitfleet_core::types::SearchResult;
 
@@ -34,10 +36,12 @@ impl SearchApi {
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to search issues: {e}")))?;
 
+        let items = raw.iter().map(normalize_issue).collect();
+
         Ok(SearchResult {
             total_count: raw.len() as u64,
             incomplete_results: false,
-            items: raw,
+            items,
         })
     }
 
@@ -69,10 +73,12 @@ impl SearchApi {
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to search projects: {e}")))?;
 
+        let items = raw.iter().map(normalize_project).collect();
+
         Ok(SearchResult {
             total_count: raw.len() as u64,
             incomplete_results: false,
-            items: raw,
+            items,
         })
     }
 
@@ -94,12 +100,82 @@ impl SearchApi {
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to search code: {e}")))?;
 
+        let mut projects: HashMap<u64, String> = HashMap::new();
+        let mut items = Vec::with_capacity(raw.len());
+
+        for item in &raw {
+            let project_id = item
+                .get("project_id")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0);
+            let project = if let Some(project) = projects.get(&project_id) {
+                project.clone()
+            } else {
+                let project = fetch_project_path(client, project_id).await?;
+                projects.insert(project_id, project.clone());
+                project
+            };
+
+            items.push(normalize_code(item, &project));
+        }
+
         Ok(SearchResult {
             total_count: raw.len() as u64,
             incomplete_results: false,
-            items: raw,
+            items,
         })
     }
+}
+
+fn normalize_issue(raw: &serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "number": raw.get("iid"),
+        "title": raw.get("title"),
+        "state": raw.get("state"),
+        "html_url": raw.get("web_url"),
+    })
+}
+
+fn normalize_project(raw: &serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "full_name": raw.get("path_with_namespace"),
+        "private": raw
+            .get("visibility")
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|visibility| visibility == "private"),
+        "stargazers_count": raw.get("star_count"),
+        "language": serde_json::Value::Null,
+        "html_url": raw.get("web_url"),
+    })
+}
+
+async fn fetch_project_path(
+    client: &ProviderClient,
+    project_id: u64,
+) -> Result<String, GitfleetError> {
+    let endpoint = format!("/projects/{project_id}");
+    let response = client
+        .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
+        .await?;
+    let project: serde_json::Value = crate::parse_json(response)
+        .await
+        .map_err(|e| GitfleetError::new(format!("Failed to resolve code search project: {e}")))?;
+
+    Ok(project
+        .get("path_with_namespace")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default()
+        .to_string())
+}
+
+fn normalize_code(raw: &serde_json::Value, project: &str) -> serde_json::Value {
+    serde_json::json!({
+        "path": raw.get("path"),
+        "repository": {
+            "full_name": project,
+        },
+        "ref": raw.get("ref"),
+    })
 }
 
 #[cfg(test)]

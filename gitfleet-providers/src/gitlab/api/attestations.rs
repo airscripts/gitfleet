@@ -20,14 +20,6 @@ impl AttestationsApi {
     ) -> Result<serde_json::Value, GitfleetError> {
         Err(unsupported())
     }
-
-    pub async fn get(
-        _client: &ProviderClient,
-        _project: &str,
-        _attestation_id: u64,
-    ) -> Result<serde_json::Value, GitfleetError> {
-        Err(unsupported())
-    }
 }
 
 #[cfg(test)]

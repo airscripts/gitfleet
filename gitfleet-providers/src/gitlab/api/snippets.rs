@@ -46,13 +46,11 @@ impl SnippetsApi {
         public: bool,
         files: serde_json::Value,
     ) -> Result<GistSummary, GitfleetError> {
-        let content = extract_content(&files);
-
-        let visibility = if public { "internal" } else { "private" };
+        let snippet_files = normalize_files(&files);
+        let visibility = if public { "public" } else { "private" };
         let body = serde_json::json!({
             "title": description,
-            "file_name": "snippet.txt",
-            "content": content,
+            "files": snippet_files,
             "visibility": visibility,
         });
 
@@ -78,20 +76,23 @@ impl SnippetsApi {
     }
 }
 
-fn extract_content(files: &serde_json::Value) -> String {
-    if let Some(content) = files.get("content").and_then(|v| v.as_str()) {
-        return content.to_string();
-    }
-
-    if let Some(obj) = files.as_object() {
-        for (_, value) in obj {
-            if let Some(content) = value.get("content").and_then(|v| v.as_str()) {
-                return content.to_string();
-            }
-        }
-    }
-
-    String::new()
+fn normalize_files(files: &serde_json::Value) -> Vec<serde_json::Value> {
+    files
+        .as_object()
+        .into_iter()
+        .flat_map(|files| files.iter())
+        .filter_map(|(file_path, value)| {
+            value
+                .get("content")
+                .and_then(serde_json::Value::as_str)
+                .map(|content| {
+                    serde_json::json!({
+                        "file_path": file_path,
+                        "content": content,
+                    })
+                })
+        })
+        .collect()
 }
 
 fn normalize_snippet(raw: &serde_json::Value) -> GistSummary {
@@ -197,23 +198,26 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_content_direct() {
-        let files = serde_json::json!({"content": "hello world"});
+    fn test_normalize_files() {
+        let files = serde_json::json!({"hello.txt": {"content": "hello world"}});
+        let normalized = normalize_files(&files);
 
-        assert_eq!(extract_content(&files), "hello world");
+        assert_eq!(normalized[0]["file_path"], "hello.txt");
+        assert_eq!(normalized[0]["content"], "hello world");
     }
 
     #[test]
-    fn test_extract_content_nested() {
+    fn test_normalize_files_preserves_filename() {
         let files = serde_json::json!({"main.py": {"content": "print('hi')"}});
+        let normalized = normalize_files(&files);
 
-        assert_eq!(extract_content(&files), "print('hi')");
+        assert_eq!(normalized[0]["file_path"], "main.py");
     }
 
     #[test]
-    fn test_extract_content_empty() {
+    fn test_normalize_files_empty() {
         let files = serde_json::json!({});
 
-        assert_eq!(extract_content(&files), "");
+        assert!(normalize_files(&files).is_empty());
     }
 }

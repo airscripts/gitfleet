@@ -1,4 +1,4 @@
-use gitfleet_core::errors::GitfleetError;
+use gitfleet_core::errors::{GitfleetError, NotFoundError};
 use gitfleet_core::types::PackageSummary;
 
 use crate::gitlab::client::ProviderClient;
@@ -53,11 +53,19 @@ impl RegistryApi {
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let data: Vec<serde_json::Value> = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get package: {e}")))?;
 
-        Ok(data)
+        data.into_iter()
+            .find(|package| {
+                package.get("name").and_then(serde_json::Value::as_str) == Some(package_name)
+                    && package
+                        .get("package_type")
+                        .and_then(serde_json::Value::as_str)
+                        == Some(package_type)
+            })
+            .ok_or_else(|| GitfleetError::from(NotFoundError::new("Package not found.")))
     }
 }
 

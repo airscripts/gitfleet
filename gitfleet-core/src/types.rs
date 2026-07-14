@@ -367,7 +367,7 @@ pub struct BranchProtection {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TagProtection {
-    pub id: u64,
+    pub identifier: String,
     pub pattern: String,
     pub created_at: String,
 }

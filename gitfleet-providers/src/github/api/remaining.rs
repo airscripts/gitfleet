@@ -1,4 +1,4 @@
-use gitfleet_core::errors::GitfleetError;
+use gitfleet_core::errors::{GitfleetError, NotFoundError};
 use gitfleet_core::types::{DependencyReviewChange, IssueTemplate, LicenseDetail, LicenseSummary};
 
 use crate::github::api::path::{encode_path, encode_segment, repo_path};
@@ -11,21 +11,56 @@ impl TemplatesApi {
         client: &ProviderClient,
         repo: &str,
     ) -> Result<Vec<IssueTemplate>, GitfleetError> {
-        let endpoint = repo_path(repo, &["issue", "templates"]);
+        let (owner, name) = repo.split_once('/').ok_or_else(|| {
+            GitfleetError::from(NotFoundError::new("Repository must use OWNER/REPO format."))
+        })?;
+        let query = r#"
+            query ListIssueTemplates($owner: String!, $name: String!) {
+                repository(owner: $owner, name: $name) {
+                    issueTemplates { name filename body about title labels assignees }
+                }
+            }
+        "#;
+        let payload = serde_json::json!({
+            "query": query,
+            "variables": { "owner": owner, "name": name }
+        });
 
         let response = client
-            .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
-            .await;
-
-        let response = match response {
-            Ok(response) => response,
-            Err(GitfleetError::NotFound(_)) => return Ok(vec![]),
-            Err(error) => return Err(error),
-        };
-
-        crate::parse_json(response)
+            .request_token_required(reqwest::Method::POST, "/graphql", Some(payload), None, None)
+            .await?;
+        let data = crate::parse_graphql(response, "issue template listing")
             .await
-            .map_err(|e| GitfleetError::new(format!("Failed to list issue templates: {e}")))
+            .map_err(|e| GitfleetError::new(format!("Failed to list issue templates: {e}")))?;
+        let templates = data
+            .get("data")
+            .and_then(|value| value.get("repository"))
+            .and_then(|value| value.get("issueTemplates"))
+            .and_then(serde_json::Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+
+        templates
+            .into_iter()
+            .map(|mut template| {
+                let filename = template
+                    .get("filename")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or_default()
+                    .to_string();
+
+                if let Some(object) = template.as_object_mut() {
+                    object.insert(
+                        "path".to_string(),
+                        serde_json::Value::String(format!(".github/ISSUE_TEMPLATE/{filename}")),
+                    );
+                }
+
+                serde_json::from_value(template).map_err(|error| {
+                    GitfleetError::new(format!("Failed to normalize issue template: {error}"))
+                })
+            })
+            .collect()
     }
 }
 
@@ -138,11 +173,7 @@ impl DependenciesApi {
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to review dependencies: {e}")))?;
 
-        let changes = data
-            .get("changes")
-            .and_then(|v| v.as_array())
-            .cloned()
-            .unwrap_or_default();
+        let changes = data.as_array().cloned().unwrap_or_default();
 
         Ok(changes
             .iter()
@@ -153,7 +184,7 @@ impl DependenciesApi {
                     .unwrap_or("")
                     .to_string(),
                 package: raw
-                    .get("package")
+                    .get("name")
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string(),
@@ -167,15 +198,11 @@ impl DependenciesApi {
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string(),
-                severity: raw
-                    .get("severity")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string(),
+                severity: highest_severity(raw.get("vulnerabilities")),
                 vulnerabilities: raw
                     .get("vulnerabilities")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as u32,
+                    .and_then(|v| v.as_array())
+                    .map_or(0, |items| items.len() as u32),
             })
             .collect())
     }
@@ -315,24 +342,28 @@ impl AttestationsApi {
 
         Ok(data)
     }
+}
 
-    pub async fn get(
-        client: &ProviderClient,
-        repo: &str,
-        attestation_id: u64,
-    ) -> Result<serde_json::Value, GitfleetError> {
-        let endpoint = repo_path(repo, &["attestations", &attestation_id.to_string()]);
+fn highest_severity(vulnerabilities: Option<&serde_json::Value>) -> String {
+    const SEVERITIES: [&str; 5] = ["critical", "high", "moderate", "medium", "low"];
 
-        let response = client
-            .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
-            .await?;
+    let found = vulnerabilities
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|item| item.get("severity").and_then(serde_json::Value::as_str))
+        .collect::<Vec<_>>();
 
-        let data: serde_json::Value = crate::parse_json(response)
-            .await
-            .map_err(|e| GitfleetError::new(format!("Failed to get attestation: {e}")))?;
-
-        Ok(data)
-    }
+    SEVERITIES
+        .iter()
+        .find(|severity| {
+            found
+                .iter()
+                .any(|found| found.eq_ignore_ascii_case(severity))
+        })
+        .copied()
+        .unwrap_or("")
+        .to_string()
 }
 
 pub struct BrowseApi;

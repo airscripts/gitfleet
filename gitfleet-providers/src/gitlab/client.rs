@@ -1499,14 +1499,6 @@ impl gitfleet_core::provider::AttestationOps for ProviderClient {
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
         crate::gitlab::api::AttestationsApi::list(self, repo, subject_digest).await
     }
-
-    async fn get_attestation(
-        &self,
-        repo: &str,
-        attestation_id: u64,
-    ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::AttestationsApi::get(self, repo, attestation_id).await
-    }
 }
 
 #[async_trait::async_trait]
@@ -1731,9 +1723,9 @@ impl gitfleet_core::provider::PolicyOps for ProviderClient {
     async fn delete_tag_protection(
         &self,
         repo: &str,
-        id: u64,
+        identifier: &str,
     ) -> Result<(), gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::PolicyApi::delete_tag_protection(self, repo, &id.to_string()).await
+        crate::gitlab::api::PolicyApi::delete_tag_protection(self, repo, identifier).await
     }
 }
 

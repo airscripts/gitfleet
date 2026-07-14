@@ -606,7 +606,11 @@ pub trait PolicyOps: Send + Sync {
         repo: &str,
         pattern: &str,
     ) -> Result<crate::types::TagProtection, GitfleetError>;
-    async fn delete_tag_protection(&self, repo: &str, id: u64) -> Result<(), GitfleetError>;
+    async fn delete_tag_protection(
+        &self,
+        repo: &str,
+        identifier: &str,
+    ) -> Result<(), GitfleetError>;
 }
 
 #[async_trait::async_trait]
@@ -717,11 +721,6 @@ pub trait AttestationOps: Send + Sync {
         &self,
         repo: &str,
         subject_digest: &str,
-    ) -> Result<serde_json::Value, GitfleetError>;
-    async fn get_attestation(
-        &self,
-        repo: &str,
-        attestation_id: u64,
     ) -> Result<serde_json::Value, GitfleetError>;
 }
 

@@ -1415,9 +1415,9 @@ impl gitfleet_core::provider::PolicyOps for ProviderClient {
     async fn delete_tag_protection(
         &self,
         repo: &str,
-        id: u64,
+        identifier: &str,
     ) -> Result<(), gitfleet_core::errors::GitfleetError> {
-        crate::github::api::ProtectionApi::delete_tag_protection(self, repo, id).await
+        crate::github::api::ProtectionApi::delete_tag_protection(self, repo, identifier).await
     }
 }
 
@@ -1650,14 +1650,6 @@ impl gitfleet_core::provider::AttestationOps for ProviderClient {
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
         crate::github::api::AttestationsApi::list(self, repo, subject_digest).await
     }
-
-    async fn get_attestation(
-        &self,
-        repo: &str,
-        attestation_id: u64,
-    ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
-        crate::github::api::AttestationsApi::get(self, repo, attestation_id).await
-    }
 }
 
 #[async_trait::async_trait]
@@ -1714,7 +1706,15 @@ impl gitfleet_core::provider::RegistryOps for ProviderClient {
         limit: u32,
     ) -> Result<Vec<gitfleet_core::types::PackageSummary>, gitfleet_core::errors::GitfleetError>
     {
-        crate::github::api::PackagesApi::list_for_org(self, owner, package_type, limit).await
+        match crate::github::api::PackagesApi::list_for_org(self, owner, package_type, limit).await
+        {
+            Ok(packages) => Ok(packages),
+            Err(gitfleet_core::errors::GitfleetError::NotFound(_)) => {
+                crate::github::api::PackagesApi::list_for_user(self, owner, package_type, limit)
+                    .await
+            }
+            Err(error) => Err(error),
+        }
     }
 
     async fn get_package(
@@ -1723,7 +1723,21 @@ impl gitfleet_core::provider::RegistryOps for ProviderClient {
         package_type: &str,
         package_name: &str,
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
-        crate::github::api::PackagesApi::get_json(self, owner, package_type, package_name).await
+        match crate::github::api::PackagesApi::get_json(self, owner, package_type, package_name)
+            .await
+        {
+            Ok(package) => Ok(package),
+            Err(gitfleet_core::errors::GitfleetError::NotFound(_)) => {
+                crate::github::api::PackagesApi::get_json_for_user(
+                    self,
+                    owner,
+                    package_type,
+                    package_name,
+                )
+                .await
+            }
+            Err(error) => Err(error),
+        }
     }
 }
 

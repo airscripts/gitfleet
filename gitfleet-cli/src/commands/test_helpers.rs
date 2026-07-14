@@ -1374,15 +1374,7 @@ impl AttestationOps for MockProvider {
         _repo: &str,
         _subject_digest: &str,
     ) -> Result<serde_json::Value, GitfleetError> {
-        Ok(serde_json::json!([{"id": 1}]))
-    }
-
-    async fn get_attestation(
-        &self,
-        _repo: &str,
-        _attestation_id: u64,
-    ) -> Result<serde_json::Value, GitfleetError> {
-        Ok(serde_json::json!({"id": 1}))
+        Ok(serde_json::json!({"attestations": [{"repository_id": 1}]}))
     }
 }
 
@@ -1454,13 +1446,17 @@ impl PolicyOps for MockProvider {
         _pattern: &str,
     ) -> Result<TagProtection, GitfleetError> {
         Ok(TagProtection {
-            id: 1,
+            identifier: "1".into(),
             pattern: "v*".into(),
             created_at: "2025-01-01".into(),
         })
     }
 
-    async fn delete_tag_protection(&self, _repo: &str, _id: u64) -> Result<(), GitfleetError> {
+    async fn delete_tag_protection(
+        &self,
+        _repo: &str,
+        _identifier: &str,
+    ) -> Result<(), GitfleetError> {
         Ok(())
     }
 }

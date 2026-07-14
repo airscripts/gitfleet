@@ -84,7 +84,11 @@ impl ProtectionApi {
         Ok(raw
             .iter()
             .map(|t| TagProtection {
-                id: t.get("id").and_then(|v| v.as_u64()).unwrap_or(0),
+                identifier: t
+                    .get("id")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0)
+                    .to_string(),
                 pattern: t
                     .get("pattern")
                     .and_then(|v| v.as_str())
@@ -116,7 +120,11 @@ impl ProtectionApi {
             .map_err(|e| GitfleetError::new(format!("Failed to create tag protection: {e}")))?;
 
         Ok(TagProtection {
-            id: raw.get("id").and_then(|v| v.as_u64()).unwrap_or(0),
+            identifier: raw
+                .get("id")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0)
+                .to_string(),
             pattern: raw
                 .get("pattern")
                 .and_then(|v| v.as_str())
@@ -133,8 +141,11 @@ impl ProtectionApi {
     pub async fn delete_tag_protection(
         client: &ProviderClient,
         repo: &str,
-        id: u64,
+        identifier: &str,
     ) -> Result<(), GitfleetError> {
+        let id = identifier.parse::<u64>().map_err(|_| {
+            GitfleetError::new("GitHub tag protection identifiers must be numeric.")
+        })?;
         let endpoint = repo_path(repo, &["tags-protection", &id.to_string()]);
 
         client
@@ -151,7 +162,11 @@ mod tests {
 
     fn normalize_tag_protection(raw: &serde_json::Value) -> TagProtection {
         TagProtection {
-            id: raw.get("id").and_then(|v| v.as_u64()).unwrap_or(0),
+            identifier: raw
+                .get("id")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0)
+                .to_string(),
             pattern: raw
                 .get("pattern")
                 .and_then(|v| v.as_str())
@@ -175,7 +190,7 @@ mod tests {
 
         let result = normalize_tag_protection(&json);
 
-        assert_eq!(result.id, 42);
+        assert_eq!(result.identifier, "42");
 
         assert_eq!(result.pattern, "v*");
         assert_eq!(result.created_at, "2024-01-01T00:00:00Z");
@@ -187,7 +202,7 @@ mod tests {
 
         let result = normalize_tag_protection(&json);
 
-        assert_eq!(result.id, 0);
+        assert_eq!(result.identifier, "0");
 
         assert_eq!(result.pattern, "");
         assert_eq!(result.created_at, "");

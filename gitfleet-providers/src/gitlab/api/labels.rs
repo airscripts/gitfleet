@@ -79,7 +79,7 @@ impl LabelsApi {
         let encoded = encode_path(project);
 
         let enc_name = urlencoding::encode(name);
-        let endpoint = format!("/projects/{encoded}/labels?search={enc_name}");
+        let endpoint = format!("/projects/{encoded}/labels/{enc_name}");
 
         client
             .request_token_required(reqwest::Method::DELETE, &endpoint, None, None, None)

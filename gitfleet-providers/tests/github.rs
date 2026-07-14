@@ -2119,11 +2119,13 @@ async fn test_code_file_contents() {
 
     let result = ops
         .get_file_contents("testorg/my-repo", "README.md", None)
-        .await;
+        .await
+        .unwrap();
 
     teardown_token();
 
-    assert!(result.is_ok());
+    assert_eq!(result["content"], "Hello World");
+    assert_eq!(result["encoding"], "utf-8");
 }
 
 #[tokio::test]
@@ -3962,7 +3964,7 @@ async fn test_create_tag_protection() {
 
     assert_eq!(result.pattern, "v*");
 
-    assert_eq!(result.id, 43);
+    assert_eq!(result.identifier, "43");
 }
 
 #[tokio::test]
@@ -3982,7 +3984,9 @@ async fn test_delete_tag_protection() {
     let provider = GitHubProvider::with_base_url(&server.uri());
     let ops = provider.policy_ops().unwrap();
 
-    ops.delete_tag_protection("testorg/repo", 42).await.unwrap();
+    ops.delete_tag_protection("testorg/repo", "42")
+        .await
+        .unwrap();
 
     teardown_token();
 }
@@ -4295,6 +4299,39 @@ async fn test_list_packages() {
 
 #[tokio::test]
 #[serial]
+async fn test_list_user_packages_falls_back_from_org_endpoint() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/orgs/testuser/packages"))
+        .respond_with(ResponseTemplate::new(404))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/users/testuser/packages"))
+        .and(query_param("per_page", "10"))
+        .and(header("authorization", "Bearer testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(package_json()))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitHubProvider::with_base_url(&server.uri());
+    let packages = provider
+        .registry_ops()
+        .unwrap()
+        .list_packages("testuser", None, 10)
+        .await
+        .unwrap();
+
+    teardown_token();
+
+    assert_eq!(packages[0].name, "my-package");
+}
+
+#[tokio::test]
+#[serial]
 async fn test_get_package() {
     let server = MockServer::start().await;
 
@@ -4325,6 +4362,43 @@ async fn test_get_package() {
     teardown_token();
 
     assert_eq!(pkg["name"], "my-package");
+}
+
+#[tokio::test]
+#[serial]
+async fn test_get_user_package_falls_back_from_org_endpoint() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/orgs/testuser/packages/npm/my-package"))
+        .respond_with(ResponseTemplate::new(404))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/users/testuser/packages/npm/my-package"))
+        .and(header("authorization", "Bearer testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "id": 123,
+            "name": "my-package",
+            "package_type": "npm",
+            "visibility": "public"
+        })))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitHubProvider::with_base_url(&server.uri());
+    let package = provider
+        .registry_ops()
+        .unwrap()
+        .get_package("testuser", "npm", "my-package")
+        .await
+        .unwrap();
+
+    teardown_token();
+
+    assert_eq!(package["name"], "my-package");
 }
 
 // ===== LicenseOps =====
@@ -4456,15 +4530,19 @@ async fn test_review_dependencies() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/repos/testorg/repo/dependency-graph/compare/main...feature"))
+        .and(path(
+            "/repos/testorg/repo/dependency-graph/compare/main...feature",
+        ))
         .and(header("authorization", "Bearer testtoken"))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "changes": [
-                    {"change_type": "added", "package": "serde", "ecosystem": "cargo", "version": "1.0", "severity": "low", "vulnerabilities": 0}
-                ]
-            })),
-        )
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            {
+                "change_type": "added",
+                "name": "serde",
+                "ecosystem": "cargo",
+                "version": "1.0",
+                "vulnerabilities": [{"severity": "high"}]
+            }
+        ])))
         .mount(&server)
         .await;
 
@@ -4484,6 +4562,8 @@ async fn test_review_dependencies() {
 
     assert_eq!(changes[0].package, "serde");
     assert_eq!(changes[0].change_type, "added");
+    assert_eq!(changes[0].severity, "high");
+    assert_eq!(changes[0].vulnerabilities, 1);
 }
 
 // ===== AdvisoryOps =====
@@ -4629,33 +4709,6 @@ async fn test_list_attestations() {
     teardown_token();
 
     assert!(result["attestations"].is_array());
-}
-
-#[tokio::test]
-#[serial]
-async fn test_get_attestation() {
-    let server = MockServer::start().await;
-
-    Mock::given(method("GET"))
-        .and(path("/repos/testorg/repo/attestations/1"))
-        .and(header("authorization", "Bearer testtoken"))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .set_body_json(serde_json::json!({"id": 1, "payload": "..."})),
-        )
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitHubProvider::with_base_url(&server.uri());
-    let ops = provider.attestation_ops().unwrap();
-
-    let result = ops.get_attestation("testorg/repo", 1).await.unwrap();
-
-    teardown_token();
-
-    assert_eq!(result["id"], 1);
 }
 
 // ===== BrowseOps =====
@@ -4833,15 +4886,15 @@ async fn test_raw_delete() {
 async fn test_list_issue_templates() {
     let server = MockServer::start().await;
 
-    Mock::given(method("GET"))
-        .and(path("/repos/testorg/repo/issue/templates"))
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
         .and(header("authorization", "Bearer testtoken"))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_json(serde_json::json!([
-                {"name": "Bug Report", "filename": "bug.md", "path": ".github/ISSUE_TEMPLATE/bug.md",
-                 "body": "## Bug", "about": "Report a bug", "title": "Bug: ", "labels": ["bug"], "assignees": []}
-            ])),
-        )
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": {"repository": {"issueTemplates": [
+                {"name": "Bug Report", "filename": "bug.md", "body": "## Bug",
+                 "about": "Report a bug", "title": "Bug: ", "labels": ["bug"], "assignees": []}
+            ]}}
+        })))
         .mount(&server)
         .await;
 
@@ -4857,6 +4910,7 @@ async fn test_list_issue_templates() {
     assert_eq!(templates.len(), 1);
 
     assert_eq!(templates[0].name, "Bug Report");
+    assert_eq!(templates[0].path, ".github/ISSUE_TEMPLATE/bug.md");
 }
 
 #[tokio::test]
@@ -4864,10 +4918,12 @@ async fn test_list_issue_templates() {
 async fn test_list_issue_templates_empty() {
     let server = MockServer::start().await;
 
-    Mock::given(method("GET"))
-        .and(path("/repos/testorg/repo/issue/templates"))
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
         .and(header("authorization", "Bearer testtoken"))
-        .respond_with(ResponseTemplate::new(404))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": {"repository": {"issueTemplates": []}}
+        })))
         .mount(&server)
         .await;
 

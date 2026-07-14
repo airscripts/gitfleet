@@ -29,7 +29,7 @@ impl CodeApi {
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get file contents: {e}")))?;
 
-        Ok(data)
+        crate::decode_file_content(data)
     }
 
     pub async fn search(

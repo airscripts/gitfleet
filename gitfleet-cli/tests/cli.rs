@@ -1357,17 +1357,6 @@ fn test_advisory_view_help() {
 }
 
 #[test]
-fn test_attestation_view_help() {
-    Command::cargo_bin("gitfleet")
-        .unwrap()
-        .arg("attestation")
-        .arg("view")
-        .arg("--help")
-        .assert()
-        .success();
-}
-
-#[test]
 fn test_access_org_list_members_help() {
     Command::cargo_bin("gitfleet")
         .unwrap()

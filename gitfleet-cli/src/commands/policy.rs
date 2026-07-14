@@ -62,7 +62,7 @@ pub enum TagProtectionSubcommand {
 
     #[command(about = "Delete a tag protection rule.")]
     Delete {
-        id: u64,
+        identifier: String,
         #[arg(long)]
         repo: Option<String>,
         #[arg(long)]
@@ -102,14 +102,9 @@ async fn run_branch_protection(
             if app.renderer().is_json() {
                 app.renderer().write_result(&data);
             } else {
-                let enabled = data
-                    .get("enabled")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
-
                 app.renderer().render_summary(
                     "Branch Protection",
-                    &[("Branch", branch), ("Enabled", enabled.to_string())],
+                    &[("Branch", branch), ("Enabled", "true".to_string())],
                 );
             }
 
@@ -218,7 +213,7 @@ async fn run_tag_protection(cmd: TagProtectionSubcommand, app: &App) -> Result<(
                     .iter()
                     .map(|r| {
                         serde_json::json!({
-                            "ID": r.id,
+                            "IDENTIFIER": r.identifier,
                             "PATTERN": r.pattern,
                             "CREATED": r.created_at,
                         })
@@ -229,7 +224,7 @@ async fn run_tag_protection(cmd: TagProtectionSubcommand, app: &App) -> Result<(
                     &rows,
                     Some("No tag protection rules found."),
                     Some("Tag Protection Rules"),
-                    Some(&["ID", "PATTERN", "CREATED"]),
+                    Some(&["IDENTIFIER", "PATTERN", "CREATED"]),
                 );
             }
 
@@ -256,14 +251,21 @@ async fn run_tag_protection(cmd: TagProtectionSubcommand, app: &App) -> Result<(
             } else {
                 app.renderer().render_success_box(
                     "Tag protection rule created",
-                    &format!("Pattern '{pattern}' protected (id: {})", result.id),
+                    &format!(
+                        "Pattern '{pattern}' protected (identifier: {})",
+                        result.identifier
+                    ),
                 );
             }
 
             Ok(())
         }
 
-        TagProtectionSubcommand::Delete { id, repo, yes } => {
+        TagProtectionSubcommand::Delete {
+            identifier,
+            repo,
+            yes,
+        } => {
             let repo_str = crate::repo_util::resolve_repo(&repo)?;
 
             if app.dry_run() {
@@ -271,11 +273,11 @@ async fn run_tag_protection(cmd: TagProtectionSubcommand, app: &App) -> Result<(
                     app.renderer().write_result(&serde_json::json!({
                         "dry_run": true,
                         "action": "delete",
-                        "target": format!("{repo_str} tag protection rule {id}"),
+                        "target": format!("{repo_str} tag protection rule {identifier}"),
                     }));
                 } else {
                     app.renderer().render_box(
-                        &format!("Would delete tag protection rule {id} from {repo_str}"),
+                        &format!("Would delete tag protection rule {identifier} from {repo_str}"),
                         "warning",
                     );
                 }
@@ -284,7 +286,7 @@ async fn run_tag_protection(cmd: TagProtectionSubcommand, app: &App) -> Result<(
             }
 
             gitfleet_core::prompt::confirm_destructive(
-                &format!("Delete tag protection rule {id}?"),
+                &format!("Delete tag protection rule {identifier}?"),
                 app.renderer().mode(),
                 app.renderer().yes() || yes,
             )?;
@@ -296,10 +298,10 @@ async fn run_tag_protection(cmd: TagProtectionSubcommand, app: &App) -> Result<(
                 ))
             })?;
 
-            ops.delete_tag_protection(&repo_str, id).await?;
+            ops.delete_tag_protection(&repo_str, &identifier).await?;
 
             app.renderer()
-                .render_success_box("Tag protection rule deleted", &id.to_string());
+                .render_success_box("Tag protection rule deleted", &identifier);
 
             Ok(())
         }
@@ -524,7 +526,7 @@ mod tests {
         run(
             PolicyCommand::TagProtection {
                 subcommand: TagProtectionSubcommand::Delete {
-                    id: 1,
+                    identifier: "1".into(),
                     repo: Some("org/repo".into()),
                     yes: true,
                 },
@@ -542,7 +544,7 @@ mod tests {
         run(
             PolicyCommand::TagProtection {
                 subcommand: TagProtectionSubcommand::Delete {
-                    id: 1,
+                    identifier: "1".into(),
                     repo: Some("org/repo".into()),
                     yes: true,
                 },
@@ -560,7 +562,7 @@ mod tests {
         run(
             PolicyCommand::TagProtection {
                 subcommand: TagProtectionSubcommand::Delete {
-                    id: 1,
+                    identifier: "1".into(),
                     repo: Some("org/repo".into()),
                     yes: true,
                 },

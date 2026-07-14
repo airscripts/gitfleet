@@ -40,16 +40,13 @@ impl PolicyApi {
         let encoded = encode_path(project);
 
         let endpoint = format!("/projects/{encoded}/protected_branches");
-        let mut body = input;
-
-        if let Some(obj) = body.as_object_mut() {
-            obj.insert(
-                "name".to_string(),
-                serde_json::Value::String(branch.to_string()),
-            );
-        } else {
-            body = serde_json::json!({ "name": branch });
-        }
+        let _ = input;
+        let body = serde_json::json!({
+            "name": branch,
+            "push_access_level": 0,
+            "merge_access_level": 40,
+            "unprotect_access_level": 40,
+        });
 
         let response = client
             .request_token_required(reqwest::Method::POST, &endpoint, Some(body), None, None)
@@ -140,7 +137,11 @@ impl PolicyApi {
 
 fn normalize_tag_protection(raw: &serde_json::Value) -> TagProtection {
     TagProtection {
-        id: raw.get("id").and_then(|v| v.as_u64()).unwrap_or(0),
+        identifier: raw
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
         pattern: raw
             .get("name")
             .and_then(|v| v.as_str())
@@ -168,7 +169,7 @@ mod tests {
 
         let result = normalize_tag_protection(&json);
 
-        assert_eq!(result.id, 10);
+        assert_eq!(result.identifier, "v*");
 
         assert_eq!(result.pattern, "v*");
         assert_eq!(result.created_at, "2024-01-01T00:00:00Z");
@@ -180,7 +181,7 @@ mod tests {
 
         let result = normalize_tag_protection(&json);
 
-        assert_eq!(result.id, 0);
+        assert_eq!(result.identifier, "");
 
         assert_eq!(result.pattern, "");
     }

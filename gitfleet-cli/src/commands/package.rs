@@ -8,7 +8,7 @@ use crate::app::App;
 pub enum PackageCommand {
     #[command(about = "List packages.")]
     List {
-        #[arg(long)]
+        #[arg(long, help = "Package owner (GitHub) or project path (GitLab).")]
         owner: Option<String>,
         #[arg(long)]
         package_type: Option<String>,
@@ -18,7 +18,7 @@ pub enum PackageCommand {
 
     #[command(about = "View a package.")]
     View {
-        #[arg(long)]
+        #[arg(long, help = "Package owner (GitHub) or project path (GitLab).")]
         owner: Option<String>,
         #[arg(long)]
         package_type: String,
@@ -101,7 +101,26 @@ pub async fn run(cmd: PackageCommand, app: &App) -> Result<(), GitfleetError> {
             if app.renderer().is_json() {
                 app.renderer().write_result(&data);
             } else {
-                app.renderer().render_success_box("Package", &package_name);
+                app.renderer().render_summary(
+                    "Package",
+                    &[
+                        ("Name", package_name),
+                        (
+                            "Type",
+                            data.get("package_type")
+                                .and_then(serde_json::Value::as_str)
+                                .unwrap_or(&package_type)
+                                .to_string(),
+                        ),
+                        (
+                            "Visibility",
+                            data.get("visibility")
+                                .and_then(serde_json::Value::as_str)
+                                .unwrap_or("unknown")
+                                .to_string(),
+                        ),
+                    ],
+                );
             }
 
             Ok(())

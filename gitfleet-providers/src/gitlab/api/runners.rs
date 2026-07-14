@@ -46,9 +46,9 @@ impl RunnersApi {
                     .unwrap_or("")
                     .to_string(),
                 busy: raw
-                    .get("is_active")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false),
+                    .get("job_execution_status")
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|status| status == "running"),
                 labels: raw
                     .get("tag_list")
                     .and_then(|v| v.as_array())
@@ -102,9 +102,9 @@ mod tests {
                 .unwrap_or("")
                 .to_string(),
             busy: raw
-                .get("is_active")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false),
+                .get("job_execution_status")
+                .and_then(|v| v.as_str())
+                .is_some_and(|status| status == "running"),
             labels: raw
                 .get("tag_list")
                 .and_then(|v| v.as_array())
@@ -124,7 +124,7 @@ mod tests {
             "description": "runner-1",
             "platform": "linux",
             "status": "online",
-            "is_active": true,
+            "job_execution_status": "running",
             "tag_list": ["docker", "shell"]
         });
 

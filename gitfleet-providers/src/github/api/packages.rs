@@ -76,8 +76,9 @@ impl PackagesApi {
         client: &ProviderClient,
         owner: &str,
         package_type: Option<&str>,
+        limit: u32,
     ) -> Result<Vec<PackageSummary>, GitfleetError> {
-        let mut endpoint = format!("/users/{}/packages?per_page=100", encode_segment(owner));
+        let mut endpoint = format!("/users/{}/packages?per_page={limit}", encode_segment(owner));
 
         if let Some(pt) = package_type {
             endpoint.push_str(&format!("&package_type={}", encode_segment(pt)));
@@ -116,6 +117,28 @@ impl PackagesApi {
             .map_err(|e| GitfleetError::new(format!("Failed to get package: {e}")))?;
 
         Ok(data)
+    }
+
+    pub async fn get_json_for_user(
+        client: &ProviderClient,
+        owner: &str,
+        package_type: &str,
+        package_name: &str,
+    ) -> Result<serde_json::Value, GitfleetError> {
+        let endpoint = format!(
+            "/users/{}/packages/{}/{}",
+            encode_segment(owner),
+            encode_segment(package_type),
+            encode_segment(package_name)
+        );
+
+        let response = client
+            .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
+            .await?;
+
+        crate::parse_json(response)
+            .await
+            .map_err(|e| GitfleetError::new(format!("Failed to get package: {e}")))
     }
 }
 
