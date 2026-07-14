@@ -788,15 +788,27 @@ impl gitfleet_core::provider::PipelineOps for ProviderClient {
         crate::github::api::WorkflowsApi::get_workflow(self, repo, workflow_id).await
     }
 
-    async fn dispatch_workflow(
+    async fn dispatch_pipeline(
         &self,
         repo: &str,
-        workflow_id: &str,
+        definition_id: Option<&str>,
         r#ref: &str,
         inputs: Option<serde_json::Value>,
     ) -> Result<(), gitfleet_core::errors::GitfleetError> {
-        crate::github::api::WorkflowsApi::dispatch_workflow(self, repo, workflow_id, r#ref, inputs)
-            .await
+        let definition_id = definition_id.ok_or_else(|| {
+            GitfleetError::from(UnprocessableError::new(
+                "GitHub pipeline triggers require a workflow definition ID.",
+            ))
+        })?;
+
+        crate::github::api::WorkflowsApi::dispatch_workflow(
+            self,
+            repo,
+            definition_id,
+            r#ref,
+            inputs,
+        )
+        .await
     }
 
     async fn list_runs(

@@ -6,14 +6,14 @@ use crate::app::App;
 
 #[derive(Subcommand, Debug)]
 pub enum CommentCmdCommand {
-    #[command(about = "List comments on an issue or PR.")]
+    #[command(about = "List comments on an issue or change request.")]
     List {
         number: u64,
         #[arg(long)]
         repo: Option<String>,
     },
 
-    #[command(about = "Create a comment on an issue or PR.")]
+    #[command(about = "Create a comment on an issue or change request.")]
     Create {
         number: u64,
         body: String,

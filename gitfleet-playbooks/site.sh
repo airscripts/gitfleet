@@ -28,6 +28,13 @@ teardown() {
 }
 
 trap teardown EXIT
+
+if ! has_capability "site"; then
+  step "Site Capability"
+  expect_exit_non0 "sites are explicitly unsupported" gitfleet site get --repo "$REPO"
+  exit 0
+fi
+
 setup
 
 step "Site Get (before enable)"

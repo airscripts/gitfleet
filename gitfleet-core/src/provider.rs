@@ -288,10 +288,10 @@ pub trait PipelineOps: Send + Sync {
         repo: &str,
         workflow_id: &str,
     ) -> Result<serde_json::Value, GitfleetError>;
-    async fn dispatch_workflow(
+    async fn dispatch_pipeline(
         &self,
         repo: &str,
-        workflow_id: &str,
+        definition_id: Option<&str>,
         r#ref: &str,
         inputs: Option<serde_json::Value>,
     ) -> Result<(), GitfleetError>;

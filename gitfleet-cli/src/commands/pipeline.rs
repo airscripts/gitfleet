@@ -7,7 +7,7 @@ use crate::service;
 
 #[derive(Subcommand, Debug)]
 pub enum PipelineCommand {
-    #[command(about = "List workflow definitions.")]
+    #[command(about = "List pipeline definitions.")]
     ListDef {
         #[arg(long)]
         repo: Option<String>,
@@ -17,14 +17,14 @@ pub enum PipelineCommand {
         page: Option<u32>,
     },
 
-    #[command(about = "View a workflow definition.")]
+    #[command(about = "View a pipeline definition.")]
     ViewDef {
         workflow_id: String,
         #[arg(long)]
         repo: Option<String>,
     },
 
-    #[command(about = "List workflow runs.")]
+    #[command(about = "List pipeline runs.")]
     ListRuns {
         #[arg(long)]
         repo: Option<String>,
@@ -34,23 +34,24 @@ pub enum PipelineCommand {
         limit: u32,
     },
 
-    #[command(about = "View a workflow run.")]
+    #[command(about = "View a pipeline run.")]
     ViewRun {
         run_id: u64,
         #[arg(long)]
         repo: Option<String>,
     },
 
-    #[command(about = "Trigger a workflow run.")]
+    #[command(about = "Trigger a pipeline run.")]
     Trigger {
-        workflow_id: String,
+        #[arg(help = "Pipeline definition ID (required by GitHub).")]
+        definition_id: Option<String>,
         #[arg(long)]
         r#ref: String,
         #[arg(long)]
         repo: Option<String>,
     },
 
-    #[command(about = "Cancel a workflow run.")]
+    #[command(about = "Cancel a pipeline run.")]
     Cancel {
         run_id: u64,
         #[arg(long)]
@@ -59,7 +60,7 @@ pub enum PipelineCommand {
         yes: bool,
     },
 
-    #[command(about = "Re-run a workflow.")]
+    #[command(about = "Re-run a pipeline.")]
     Rerun {
         run_id: u64,
         #[arg(long)]
@@ -100,7 +101,7 @@ pub async fn run(cmd: PipelineCommand, app: &App) -> Result<(), GitfleetError> {
         }
 
         PipelineCommand::Trigger {
-            workflow_id,
+            definition_id,
             r#ref,
             repo,
         } => {
@@ -110,7 +111,7 @@ pub async fn run(cmd: PipelineCommand, app: &App) -> Result<(), GitfleetError> {
                 p,
                 app.renderer(),
                 &repo_str,
-                &workflow_id,
+                definition_id.as_deref(),
                 &r#ref,
                 None,
             )
@@ -131,14 +132,14 @@ pub async fn run(cmd: PipelineCommand, app: &App) -> Result<(), GitfleetError> {
                     app.renderer().write_result(&preview);
                 } else {
                     app.renderer()
-                        .render_box(&format!("Would cancel workflow run {run_id}"), "warning");
+                        .render_box(&format!("Would cancel pipeline run {run_id}"), "warning");
                 }
 
                 return Ok(());
             }
 
             gitfleet_core::prompt::confirm_destructive(
-                &format!("Cancel workflow run {run_id}?"),
+                &format!("Cancel pipeline run {run_id}?"),
                 app.renderer().mode(),
                 app.renderer().yes() || yes,
             )?;
@@ -301,7 +302,23 @@ mod tests {
 
         run(
             PipelineCommand::Trigger {
-                workflow_id: "ci.yml".into(),
+                definition_id: Some("ci.yml".into()),
+                r#ref: "main".into(),
+                repo: Some("org/repo".into()),
+            },
+            &app,
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_trigger_without_definition() {
+        let app = test_helpers::make_app();
+
+        run(
+            PipelineCommand::Trigger {
+                definition_id: None,
                 r#ref: "main".into(),
                 repo: Some("org/repo".into()),
             },

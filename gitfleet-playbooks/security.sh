@@ -7,6 +7,12 @@ teardown() { print_summary; }
 trap teardown EXIT
 setup
 
+if ! has_capability "security"; then
+  step "Security Capability"
+  expect_exit_non0 "security is explicitly unsupported" gitfleet security advisories --repo "$REPO"
+  exit 0
+fi
+
 step "Dependabot Alerts"
 if gitfleet security advisories --repo "$REPO" >/dev/null 2>&1; then
   pass "Dependabot alert listing succeeds"

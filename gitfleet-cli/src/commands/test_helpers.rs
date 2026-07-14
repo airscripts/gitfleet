@@ -697,10 +697,10 @@ impl PipelineOps for MockProvider {
         )
     }
 
-    async fn dispatch_workflow(
+    async fn dispatch_pipeline(
         &self,
         _repo: &str,
-        _workflow_id: &str,
+        _definition_id: Option<&str>,
         _ref: &str,
         _inputs: Option<serde_json::Value>,
     ) -> Result<(), GitfleetError> {

@@ -539,10 +539,10 @@ mod tests {
             )
         }
 
-        async fn dispatch_workflow(
+        async fn dispatch_pipeline(
             &self,
             _repo: &str,
-            _workflow_id: &str,
+            _definition_id: Option<&str>,
             r#ref: &str,
             _inputs: Option<serde_json::Value>,
         ) -> Result<(), GitfleetError> {
@@ -1444,7 +1444,7 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Human);
-        pipelines::trigger_run(&p, &r, "org/repo", "ci.yml", "main", None)
+        pipelines::trigger_run(&p, &r, "org/repo", Some("ci.yml"), "main", None)
             .await
             .unwrap();
     }

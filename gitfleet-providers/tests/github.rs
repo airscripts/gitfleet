@@ -1236,12 +1236,31 @@ async fn test_workflows_dispatch() {
     let ops = provider.pipeline_ops().expect("pipeline ops");
 
     let result = ops
-        .dispatch_workflow("testorg/my-repo", "ci.yml", "main", None)
+        .dispatch_pipeline("testorg/my-repo", Some("ci.yml"), "main", None)
         .await;
 
     teardown_token();
 
     assert!(result.is_ok());
+}
+
+#[tokio::test]
+#[serial]
+async fn test_workflows_dispatch_requires_definition_id() {
+    setup_token();
+
+    let provider = GitHubProvider::with_base_url("http://127.0.0.1:1");
+    let ops = provider.pipeline_ops().expect("pipeline ops");
+
+    let result = ops
+        .dispatch_pipeline("testorg/my-repo", None, "main", None)
+        .await;
+
+    teardown_token();
+
+    let error = result.expect_err("GitHub must require a pipeline definition ID");
+
+    assert!(error.to_string().contains("definition ID"));
 }
 
 #[tokio::test]

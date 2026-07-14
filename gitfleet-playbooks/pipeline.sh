@@ -8,7 +8,11 @@ trap teardown EXIT
 setup
 
 step "Pipeline List-Def"
-expect_exit_0 "pipeline list-def succeeds" gitfleet pipeline list-def --repo "$REPO"
+if provider_is github; then
+  expect_exit_0 "pipeline list-def succeeds" gitfleet pipeline list-def --repo "$REPO"
+else
+  expect_exit_non0 "pipeline list-def is explicitly unsupported" gitfleet pipeline list-def --repo "$REPO"
+fi
 
 step "Pipeline List-Runs"
 expect_exit_0 "pipeline list-runs succeeds" gitfleet pipeline list-runs --repo "$REPO" --limit 5

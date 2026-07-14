@@ -6,7 +6,7 @@ use crate::service;
 
 #[derive(Subcommand, Debug)]
 pub enum ChangeCommand {
-    #[command(about = "Create a pull request.")]
+    #[command(about = "Create a change request.")]
     Create {
         #[arg(long)]
         repo: Option<String>,
@@ -21,7 +21,7 @@ pub enum ChangeCommand {
         draft: bool,
     },
 
-    #[command(about = "List pull requests.")]
+    #[command(about = "List change requests.")]
     List {
         #[arg(long)]
         repo: Option<String>,
@@ -33,7 +33,7 @@ pub enum ChangeCommand {
         limit: u32,
     },
 
-    #[command(about = "View a pull request.")]
+    #[command(about = "View a change request.")]
     View {
         number: u64,
         #[arg(long)]

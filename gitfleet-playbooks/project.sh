@@ -16,6 +16,12 @@ teardown() {
 trap teardown EXIT
 setup
 
+if ! has_capability "projects"; then
+  step "Project Capability"
+  expect_exit_non0 "projects are explicitly unsupported" gitfleet planning project list --owner "$OWNER"
+  exit 0
+fi
+
 step "Project List"
 expect_exit_0 "project list succeeds" gitfleet planning project list --owner "$OWNER"
 

@@ -11,6 +11,12 @@ teardown() {
 trap teardown EXIT
 setup
 
+if ! has_capability "discussions"; then
+  step "Discussion Capability"
+  expect_exit_non0 "discussions are explicitly unsupported" gitfleet discussion list --repo "$REPO"
+  exit 0
+fi
+
 step "Discussion List"
 if gitfleet discussion list --repo "$REPO" >/dev/null 2>&1; then
   pass "discussion list succeeded"

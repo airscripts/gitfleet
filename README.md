@@ -436,14 +436,16 @@ tests must never make real HTTP requests.
 ### Live API Playbooks
 
 Playbooks under `gitfleet-playbooks/` are Bash scripts for validating command
-families against a real GitHub test account and repository. They are developer
-and release-validation tools, not part of the normal end-user workflow. They
-require explicit credentials and clean up mutations during teardown.
+families against a real GitHub or GitLab test account and repository. They are
+developer and release-validation tools, not part of the normal end-user
+workflow. They use the active Gitfleet profile, require its matching explicit
+credentials, and clean up mutations during teardown.
 
 Run them only against a dedicated test repository:
 
 ```bash
 REPO=owner/test-repository ORG=example bash gitfleet-playbooks/all.sh
+GITFLEET_PROFILE=gitlab-test REPO=group/test-repository bash gitfleet-playbooks/all.sh
 REPO=owner/test-repository SKIP="pipeline,milestone,project" bash gitfleet-playbooks/all.sh
 REPO=owner/test-repository PARALLEL=1 bash gitfleet-playbooks/all.sh
 ```

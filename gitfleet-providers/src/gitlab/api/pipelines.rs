@@ -1,4 +1,4 @@
-use gitfleet_core::errors::{GitfleetError, UnsupportedCapabilityError};
+use gitfleet_core::errors::{GitfleetError, UnprocessableError, UnsupportedCapabilityError};
 use gitfleet_core::provider::{ProviderCapability, ProviderId};
 
 use crate::gitlab::client::ProviderClient;
@@ -86,14 +86,37 @@ impl PipelinesApi {
         client: &ProviderClient,
         project: &str,
         r#ref: &str,
-        _workflow_id: &str,
-        _inputs: Option<serde_json::Value>,
+        inputs: Option<serde_json::Value>,
     ) -> Result<(), GitfleetError> {
         let encoded = encode_path(project);
 
         let endpoint = format!("/projects/{encoded}/pipeline");
 
-        let body = serde_json::json!({ "ref": r#ref });
+        let mut body = serde_json::json!({ "ref": r#ref });
+
+        if let Some(inputs) = inputs {
+            let inputs = inputs.as_object().ok_or_else(|| {
+                GitfleetError::from(UnprocessableError::new(
+                    "Pipeline inputs must be a JSON object.",
+                ))
+            })?;
+            let variables = inputs
+                .iter()
+                .map(|(key, value)| {
+                    let value = value
+                        .as_str()
+                        .map(ToString::to_string)
+                        .unwrap_or_else(|| value.to_string());
+
+                    serde_json::json!({
+                        "key": key,
+                        "value": value,
+                    })
+                })
+                .collect::<Vec<_>>();
+
+            body["variables"] = serde_json::Value::Array(variables);
+        }
 
         client
             .request_token_required(reqwest::Method::POST, &endpoint, Some(body), None, None)

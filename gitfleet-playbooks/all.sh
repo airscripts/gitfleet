@@ -140,7 +140,7 @@ run_playbook() {
 }
 
 echo "[INFO] gitfleet playbook pipeline"
-echo "[INFO] REPO=$REPO  ORG=$ORG  TMPDIR=$TMPDIR"
+echo "[INFO] PROVIDER=$PLAYBOOK_PROVIDER  REPO=$REPO  ORG=$ORG  TMPDIR=$TMPDIR"
 echo ""
 
 if [ "$PARALLEL" -eq 1 ]; then

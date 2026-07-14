@@ -762,7 +762,13 @@ async fn test_gitlab_dispatch_pipeline() {
     Mock::given(method("POST"))
         .and(path("/projects/testgroup%2Fmy-project/pipeline"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
-        .and(body_json(serde_json::json!({ "ref": "main" })))
+        .and(body_json(serde_json::json!({
+            "ref": "main",
+            "variables": [
+                {"key": "DEPLOY", "value": "true"},
+                {"key": "TARGET", "value": "staging"}
+            ]
+        })))
         .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
             "id": 200,
             "sha": "abc123",
@@ -778,7 +784,15 @@ async fn test_gitlab_dispatch_pipeline() {
     let ops = provider.pipeline_ops().expect("pipeline ops");
 
     let result = ops
-        .dispatch_workflow("testgroup/my-project", "ci.yml", "main", None)
+        .dispatch_pipeline(
+            "testgroup/my-project",
+            None,
+            "main",
+            Some(serde_json::json!({
+                "DEPLOY": true,
+                "TARGET": "staging"
+            })),
+        )
         .await;
 
     teardown_token();

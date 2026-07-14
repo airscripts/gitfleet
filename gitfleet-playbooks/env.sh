@@ -26,15 +26,50 @@ export PB_RESOURCE_SUFFIX="${PB_RUN_ID//[^a-zA-Z0-9]/-}"
 export OWNER="${REPO%%/*}"
 export REPO_NAME="${REPO#*/}"
 
-if [ -z "${GITFLEET_GITHUB_TOKEN:-}" ]; then
-  GITFLEET_GITHUB_TOKEN=$(gitfleet auth token --raw 2>/dev/null || true)
-  if [ -n "$GITFLEET_GITHUB_TOKEN" ]; then
-    export GITFLEET_GITHUB_TOKEN
-  else
-    echo "[ERROR] GITFLEET_GITHUB_TOKEN is not set. Export your GitHub token before running playbooks."
-    echo "        export GITFLEET_GITHUB_TOKEN=ghp_..."
+PROVIDER_STATUS=$(gitfleet auth status --capabilities --json 2>/dev/null || true)
+PLAYBOOK_PROVIDER=$(printf '%s' "$PROVIDER_STATUS" | python3 -c \
+  'import json,sys; print(json.load(sys.stdin).get("provider", ""))' 2>/dev/null || true)
+PLAYBOOK_CAPABILITIES=$(printf '%s' "$PROVIDER_STATUS" | python3 -c \
+  'import json,sys; print(",".join(json.load(sys.stdin).get("capabilities", [])))' 2>/dev/null || true)
+
+case "$PLAYBOOK_PROVIDER" in
+  github)
+    if [ -z "${GITFLEET_GITHUB_TOKEN:-}" ]; then
+      GITFLEET_GITHUB_TOKEN=$(gitfleet auth token --raw 2>/dev/null || true)
+      export GITFLEET_GITHUB_TOKEN
+    fi
+    PLAYBOOK_TOKEN="${GITFLEET_GITHUB_TOKEN:-}"
+    ;;
+  gitlab)
+    if [ -z "${GITFLEET_GITLAB_TOKEN:-}" ]; then
+      GITFLEET_GITLAB_TOKEN=$(gitfleet auth token --raw 2>/dev/null || true)
+      export GITFLEET_GITLAB_TOKEN
+    fi
+    PLAYBOOK_TOKEN="${GITFLEET_GITLAB_TOKEN:-}"
+    ;;
+  *)
+    echo "[ERROR] Could not determine the active Gitfleet provider."
+    echo "        Select a GitHub or GitLab profile before running playbooks."
     exit 1
-  fi
+    ;;
+esac
+
+if [ -z "$PLAYBOOK_TOKEN" ]; then
+  echo "[ERROR] No token is available for the active $PLAYBOOK_PROVIDER profile."
+  echo "        Export the matching GITFLEET_GITHUB_TOKEN or GITFLEET_GITLAB_TOKEN."
+  exit 1
+fi
+
+export PLAYBOOK_PROVIDER PLAYBOOK_CAPABILITIES PLAYBOOK_TOKEN
+
+PB_ENCODED_REPO=$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$REPO")
+
+if [ "$PLAYBOOK_PROVIDER" = "github" ]; then
+  export PB_API_REPO_ENDPOINT="/repos/$REPO"
+  export PB_API_LABELS_ENDPOINT="/repos/$REPO/labels"
+else
+  export PB_API_REPO_ENDPOINT="/projects/$PB_ENCODED_REPO"
+  export PB_API_LABELS_ENDPOINT="/projects/$PB_ENCODED_REPO/labels"
 fi
 
 PB_PASS=0
@@ -78,6 +113,29 @@ expect_exit_non0() {
     fail "$label (expected non-zero exit, got 0)"
   else
     pass "$label"
+  fi
+}
+
+provider_is() {
+  [ "$PLAYBOOK_PROVIDER" = "$1" ]
+}
+
+has_capability() {
+  case ",$PLAYBOOK_CAPABILITIES," in
+    *",$1,"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+expect_capability_or_unsupported() {
+  local label="$1"
+  local capability="$2"
+  shift 2
+
+  if has_capability "$capability"; then
+    expect_exit_0 "$label succeeds" "$@"
+  else
+    expect_exit_non0 "$label is explicitly unsupported" "$@"
   fi
 }
 

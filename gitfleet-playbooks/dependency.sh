@@ -8,6 +8,11 @@ trap teardown EXIT
 setup
 
 step "Dependency List"
+if ! has_capability "dependencies"; then
+  expect_exit_non0 "dependencies are explicitly unsupported" gitfleet deps list --repo "$REPO"
+  exit 0
+fi
+
 if gitfleet deps list --repo "$REPO" >/dev/null 2>&1; then
   pass "dependency list succeeds"
 else

@@ -31,7 +31,7 @@ step "Auth Token (raw)"
 expect_exit_0 "auth token --raw succeeds" gitfleet auth token --raw
 
 step "Auth Login"
-if gitfleet auth login --profile "$AUTH_PROFILE" <<< "$GITFLEET_GITHUB_TOKEN" >/dev/null 2>&1; then
+if gitfleet auth login --profile "$AUTH_PROFILE" <<< "$PLAYBOOK_TOKEN" >/dev/null 2>&1; then
   pass "auth login succeeded"
   LOGGED_IN=true
 else

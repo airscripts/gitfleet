@@ -8,7 +8,7 @@ trap teardown EXIT
 setup
 
 step "Analytics Views"
-expect_exit_0 "analytics views succeeds" gitfleet analytics views --repo "$REPO"
+expect_capability_or_unsupported "analytics views" "analytics" gitfleet analytics views --repo "$REPO"
 
 step "Analytics Clones"
-expect_exit_0 "analytics clones succeeds" gitfleet analytics clones --repo "$REPO"
+expect_capability_or_unsupported "analytics clones" "analytics" gitfleet analytics clones --repo "$REPO"

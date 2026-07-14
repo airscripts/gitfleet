@@ -21,6 +21,12 @@ teardown() {
 trap teardown EXIT
 setup
 
+if ! has_capability "secrets"; then
+  step "Secret Capability"
+  expect_exit_non0 "secrets are explicitly unsupported" gitfleet secret list --repo "$REPO"
+  exit 0
+fi
+
 step "List Secrets"
 if gitfleet secret list --repo "$REPO" >/dev/null 2>&1; then
   pass "secret list succeeds"

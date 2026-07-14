@@ -15,7 +15,9 @@ else
 fi
 
 step "Access Team List"
-if gitfleet access team list "$ORG" >/dev/null 2>&1; then
+if provider_is gitlab; then
+  expect_exit_non0 "team operations are explicitly unsupported" gitfleet access team list "$ORG"
+elif gitfleet access team list "$ORG" >/dev/null 2>&1; then
   pass "access team list succeeds"
 else
   skip "access team list ($ORG may not be an organization)"

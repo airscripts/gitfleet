@@ -41,8 +41,8 @@ pub async fn list_workflows(
 
         renderer.render_table_titled(
             &rows,
-            Some("No workflows found."),
-            Some("Workflows"),
+            Some("No pipeline definitions found."),
+            Some("Pipeline Definitions"),
             Some(&["ID", "NAME", "STATE", "PATH"]),
         );
     }
@@ -69,7 +69,7 @@ pub async fn view_workflow(
         renderer.write_result(&data);
     } else {
         renderer.render_summary(
-            "Workflow",
+            "Pipeline Definition",
             &[
                 (
                     "ID",
@@ -173,7 +173,7 @@ pub async fn view_run(
         renderer.write_result(&data);
     } else {
         renderer.render_summary(
-            "Workflow Run",
+            "Pipeline Run",
             &[
                 (
                     "ID",
@@ -220,7 +220,7 @@ pub async fn trigger_run(
     provider: &dyn GitProvider,
     renderer: &Renderer,
     repo: &str,
-    workflow_id: &str,
+    definition_id: Option<&str>,
     ref_name: &str,
     inputs: Option<serde_json::Value>,
 ) -> Result<(), GitfleetError> {
@@ -231,13 +231,14 @@ pub async fn trigger_run(
         ))
     })?;
 
-    ops.dispatch_workflow(repo, workflow_id, ref_name, inputs)
+    ops.dispatch_pipeline(repo, definition_id, ref_name, inputs)
         .await?;
 
-    renderer.render_success_box(
-        "Workflow dispatched",
-        &format!("{workflow_id} on {ref_name}"),
-    );
+    let target = definition_id
+        .map(|id| format!("{id} on {ref_name}"))
+        .unwrap_or_else(|| ref_name.to_string());
+
+    renderer.render_success_box("Pipeline dispatched", &target);
 
     Ok(())
 }

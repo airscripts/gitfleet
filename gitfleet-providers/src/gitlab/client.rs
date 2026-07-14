@@ -776,15 +776,14 @@ impl gitfleet_core::provider::PipelineOps for ProviderClient {
         crate::gitlab::api::PipelinesApi::get_workflow(self, repo, workflow_id).await
     }
 
-    async fn dispatch_workflow(
+    async fn dispatch_pipeline(
         &self,
         repo: &str,
-        workflow_id: &str,
+        _definition_id: Option<&str>,
         r#ref: &str,
         inputs: Option<serde_json::Value>,
     ) -> Result<(), gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::PipelinesApi::dispatch_pipeline(self, repo, r#ref, workflow_id, inputs)
-            .await
+        crate::gitlab::api::PipelinesApi::dispatch_pipeline(self, repo, r#ref, inputs).await
     }
 
     async fn list_runs(
