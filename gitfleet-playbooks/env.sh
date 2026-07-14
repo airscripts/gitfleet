@@ -2,50 +2,60 @@
 # env.sh — Centralized configuration and helpers for gitfleet playbooks.
 #
 # Override defaults with environment variables:
-#   REPO=owner/repo  — Disposable repository for repo-scoped commands (required)
-#   ORG=orgname      — Organization for org-scoped commands (derived from REPO)
-#   TMPDIR=/path     — Scratch directory (default: /tmp/gitfleet-playbooks)
+#   GITFLEET_PLAYBOOK_REPO=owner/repo  — Disposable repository for repo-scoped commands (required)
+#   GITFLEET_PLAYBOOK_ORG=orgname      — Organization for org-scoped commands (derived from GITFLEET_PLAYBOOK_REPO)
+#   GITFLEET_PLAYBOOK_TEST_REPO_OWNER=owner — Account that owns disposable test repositories
+#   GITFLEET_PLAYBOOK_TEST_REPO_OWNER_TYPE=org — Disposable repository owner type: org or user
+#   GITFLEET_PLAYBOOK_TMPDIR=/path     — Scratch directory (default: /tmp/gitfleet-playbooks)
+#   GITFLEET_PLAYBOOK_WEBHOOK_URL — Owner-controlled receiver for live webhook delivery tests
 #
 # Every playbook sources this file. Change pointings here or via env vars.
 set -euo pipefail
 
-if [ -z "${REPO:-}" ]; then
-  echo "[ERROR] REPO is not set. Use a disposable test repository."
-  echo "        REPO=owner/gitfleet-test bash gitfleet-playbooks/all.sh"
+if [ -z "${GITFLEET_PLAYBOOK_REPO:-}" ]; then
+  echo "[ERROR] GITFLEET_PLAYBOOK_REPO is not set. Use a disposable test repository."
+  echo "        GITFLEET_PLAYBOOK_REPO=owner/gitfleet-test bash gitfleet-playbooks/all.sh"
   exit 1
 fi
 
-export REPO
-export ORG="${ORG:-${REPO%%/*}}"
-export TMPDIR="${TMPDIR:-/tmp/gitfleet-playbooks}"
-mkdir -p "$TMPDIR"
+export GITFLEET_PLAYBOOK_REPO
+export GITFLEET_PLAYBOOK_ORG="${GITFLEET_PLAYBOOK_ORG:-${GITFLEET_PLAYBOOK_REPO%%/*}}"
+export GITFLEET_PLAYBOOK_TEST_REPO_OWNER="${GITFLEET_PLAYBOOK_TEST_REPO_OWNER:-$GITFLEET_PLAYBOOK_ORG}"
+export GITFLEET_PLAYBOOK_TEST_REPO_OWNER_TYPE="${GITFLEET_PLAYBOOK_TEST_REPO_OWNER_TYPE:-org}"
+export GITFLEET_PLAYBOOK_TMPDIR="${GITFLEET_PLAYBOOK_TMPDIR:-/tmp/gitfleet-playbooks}"
 
-export PB_RUN_ID="${PB_RUN_ID:-$(date +%s)-$$}"
-export PB_RESOURCE_SUFFIX="${PB_RUN_ID//[^a-zA-Z0-9]/-}"
+if [ "$GITFLEET_PLAYBOOK_TEST_REPO_OWNER_TYPE" != "org" ] && [ "$GITFLEET_PLAYBOOK_TEST_REPO_OWNER_TYPE" != "user" ]; then
+  echo "[ERROR] GITFLEET_PLAYBOOK_TEST_REPO_OWNER_TYPE must be 'org' or 'user'."
+  exit 1
+fi
+mkdir -p "$GITFLEET_PLAYBOOK_TMPDIR"
 
-export OWNER="${REPO%%/*}"
-export REPO_NAME="${REPO#*/}"
+export GITFLEET_PLAYBOOK_RUN_ID="${GITFLEET_PLAYBOOK_RUN_ID:-$(date +%s)-$$}"
+export GITFLEET_PLAYBOOK_RESOURCE_SUFFIX="${GITFLEET_PLAYBOOK_RUN_ID//[^a-zA-Z0-9]/-}"
+
+export GITFLEET_PLAYBOOK_OWNER="${GITFLEET_PLAYBOOK_REPO%%/*}"
+export GITFLEET_PLAYBOOK_REPO_NAME="${GITFLEET_PLAYBOOK_REPO#*/}"
 
 PROVIDER_STATUS=$(gitfleet auth status --capabilities --json 2>/dev/null || true)
-PLAYBOOK_PROVIDER=$(printf '%s' "$PROVIDER_STATUS" | python3 -c \
+GITFLEET_PLAYBOOK_PROVIDER=$(printf '%s' "$PROVIDER_STATUS" | python3 -c \
   'import json,sys; print(json.load(sys.stdin).get("provider", ""))' 2>/dev/null || true)
-PLAYBOOK_CAPABILITIES=$(printf '%s' "$PROVIDER_STATUS" | python3 -c \
+GITFLEET_PLAYBOOK_CAPABILITIES=$(printf '%s' "$PROVIDER_STATUS" | python3 -c \
   'import json,sys; print(",".join(json.load(sys.stdin).get("capabilities", [])))' 2>/dev/null || true)
 
-case "$PLAYBOOK_PROVIDER" in
+case "$GITFLEET_PLAYBOOK_PROVIDER" in
   github)
     if [ -z "${GITFLEET_GITHUB_TOKEN:-}" ]; then
       GITFLEET_GITHUB_TOKEN=$(gitfleet auth token --raw 2>/dev/null || true)
       export GITFLEET_GITHUB_TOKEN
     fi
-    PLAYBOOK_TOKEN="${GITFLEET_GITHUB_TOKEN:-}"
+    GITFLEET_PLAYBOOK_TOKEN="${GITFLEET_GITHUB_TOKEN:-}"
     ;;
   gitlab)
     if [ -z "${GITFLEET_GITLAB_TOKEN:-}" ]; then
       GITFLEET_GITLAB_TOKEN=$(gitfleet auth token --raw 2>/dev/null || true)
       export GITFLEET_GITLAB_TOKEN
     fi
-    PLAYBOOK_TOKEN="${GITFLEET_GITLAB_TOKEN:-}"
+    GITFLEET_PLAYBOOK_TOKEN="${GITFLEET_GITLAB_TOKEN:-}"
     ;;
   *)
     echo "[ERROR] Could not determine the active Gitfleet provider."
@@ -54,22 +64,22 @@ case "$PLAYBOOK_PROVIDER" in
     ;;
 esac
 
-if [ -z "$PLAYBOOK_TOKEN" ]; then
-  echo "[ERROR] No token is available for the active $PLAYBOOK_PROVIDER profile."
+if [ -z "$GITFLEET_PLAYBOOK_TOKEN" ]; then
+  echo "[ERROR] No token is available for the active $GITFLEET_PLAYBOOK_PROVIDER profile."
   echo "        Export the matching GITFLEET_GITHUB_TOKEN or GITFLEET_GITLAB_TOKEN."
   exit 1
 fi
 
-export PLAYBOOK_PROVIDER PLAYBOOK_CAPABILITIES PLAYBOOK_TOKEN
+export GITFLEET_PLAYBOOK_PROVIDER GITFLEET_PLAYBOOK_CAPABILITIES GITFLEET_PLAYBOOK_TOKEN
 
-PB_ENCODED_REPO=$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$REPO")
+GITFLEET_PLAYBOOK_ENCODED_REPO=$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$GITFLEET_PLAYBOOK_REPO")
 
-if [ "$PLAYBOOK_PROVIDER" = "github" ]; then
-  export PB_API_REPO_ENDPOINT="/repos/$REPO"
-  export PB_API_LABELS_ENDPOINT="/repos/$REPO/labels"
+if [ "$GITFLEET_PLAYBOOK_PROVIDER" = "github" ]; then
+  export GITFLEET_PLAYBOOK_API_REPO_ENDPOINT="/repos/$GITFLEET_PLAYBOOK_REPO"
+  export GITFLEET_PLAYBOOK_API_LABELS_ENDPOINT="/repos/$GITFLEET_PLAYBOOK_REPO/labels"
 else
-  export PB_API_REPO_ENDPOINT="/projects/$PB_ENCODED_REPO"
-  export PB_API_LABELS_ENDPOINT="/projects/$PB_ENCODED_REPO/labels"
+  export GITFLEET_PLAYBOOK_API_REPO_ENDPOINT="/projects/$GITFLEET_PLAYBOOK_ENCODED_REPO"
+  export GITFLEET_PLAYBOOK_API_LABELS_ENDPOINT="/projects/$GITFLEET_PLAYBOOK_ENCODED_REPO/labels"
 fi
 
 PB_PASS=0
@@ -117,11 +127,11 @@ expect_exit_non0() {
 }
 
 provider_is() {
-  [ "$PLAYBOOK_PROVIDER" = "$1" ]
+  [ "$GITFLEET_PLAYBOOK_PROVIDER" = "$1" ]
 }
 
 has_capability() {
-  case ",$PLAYBOOK_CAPABILITIES," in
+  case ",$GITFLEET_PLAYBOOK_CAPABILITIES," in
     *",$1,"*) return 0 ;;
     *) return 1 ;;
   esac

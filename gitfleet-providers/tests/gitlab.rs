@@ -349,10 +349,13 @@ async fn test_gitlab_get_repo() {
 async fn test_gitlab_create_repo() {
     let server = MockServer::start().await;
 
+    let mut response = single_project_json();
+    response["runners_token"] = serde_json::json!("must-not-cross-provider-boundary");
+
     Mock::given(method("POST"))
         .and(path("/projects"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
-        .respond_with(ResponseTemplate::new(201).set_body_json(single_project_json()))
+        .respond_with(ResponseTemplate::new(201).set_body_json(response))
         .mount(&server)
         .await;
 
@@ -362,7 +365,14 @@ async fn test_gitlab_create_repo() {
     let ops = provider.repo_ops().expect("repo ops");
 
     let result = ops
-        .create_repo("new-project", "public", None, None, Some("New project"))
+        .create_repo(
+            "new-project",
+            "public",
+            None,
+            None,
+            Some("New project"),
+            false,
+        )
         .await;
 
     teardown_token();
@@ -372,6 +382,8 @@ async fn test_gitlab_create_repo() {
     let data = result.unwrap();
 
     assert_eq!(data["name"], "new-project");
+    assert_eq!(data["full_name"], "testuser/new-project");
+    assert!(data.get("runners_token").is_none());
 }
 
 #[tokio::test]
@@ -668,6 +680,11 @@ async fn test_gitlab_create_label() {
     Mock::given(method("POST"))
         .and(path("/projects/testgroup%2Fmy-project/labels"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
+        .and(body_json(serde_json::json!({
+            "name": "enhancement",
+            "color": "#a2eeef",
+            "description": "New feature"
+        })))
         .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
             "id": 3,
             "name": "enhancement",
@@ -684,7 +701,7 @@ async fn test_gitlab_create_label() {
 
     let label = gitfleet_core::types::Label {
         name: "enhancement".to_string(),
-        color: "#a2eeef".to_string(),
+        color: "a2eeef".to_string(),
         description: "New feature".to_string(),
         new_name: None,
     };
@@ -2144,13 +2161,14 @@ async fn test_gitlab_unarchive_repo() {
 
 #[tokio::test]
 #[serial]
-async fn test_gitlab_fork_repo() {
+async fn test_gitlab_list_forks() {
     let server = MockServer::start().await;
 
-    Mock::given(method("POST"))
-        .and(path("/projects/testgroup%2Fmy-project/fork"))
+    Mock::given(method("GET"))
+        .and(path("/projects/testgroup%2Fmy-project/forks"))
+        .and(query_param("per_page", "100"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
-        .respond_with(ResponseTemplate::new(201).set_body_json(single_project_json()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(project_json()))
         .mount(&server)
         .await;
 
@@ -2159,11 +2177,49 @@ async fn test_gitlab_fork_repo() {
     let provider = GitLabProvider::with_base_url(&server.uri());
     let ops = provider.repo_ops().expect("repo ops");
 
-    let result = ops.fork_repo("testgroup/my-project").await;
+    let forks = ops.list_forks("testgroup/my-project").await.unwrap();
+
+    teardown_token();
+
+    assert_eq!(forks.len(), 1);
+    assert_eq!(forks[0].full_name, "testgroup/my-project");
+}
+
+#[tokio::test]
+#[serial]
+async fn test_gitlab_fork_repo() {
+    let server = MockServer::start().await;
+
+    let mut response = single_project_json();
+    response["runners_token"] = serde_json::json!("must-not-cross-provider-boundary");
+
+    Mock::given(method("POST"))
+        .and(path("/projects/testgroup%2Fmy-project/fork"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .and(body_json(serde_json::json!({
+            "namespace_path": "destination-group"
+        })))
+        .respond_with(ResponseTemplate::new(201).set_body_json(response))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitLabProvider::with_base_url(&server.uri());
+    let ops = provider.repo_ops().expect("repo ops");
+
+    let result = ops
+        .fork_repo("testgroup/my-project", Some("destination-group"))
+        .await;
 
     teardown_token();
 
     assert!(result.is_ok());
+
+    let data = result.unwrap();
+
+    assert_eq!(data["full_name"], "testuser/new-project");
+    assert!(data.get("runners_token").is_none());
 }
 
 #[tokio::test]
@@ -2246,7 +2302,8 @@ async fn test_gitlab_create_repo_in_group() {
             "name": "group-project",
             "visibility": "private",
             "description": "A group project",
-            "namespace_id": 77
+            "namespace_id": 77,
+            "initialize_with_readme": true
         })))
         .respond_with(ResponseTemplate::new(201).set_body_json(single_project_json()))
         .mount(&server)
@@ -2264,6 +2321,7 @@ async fn test_gitlab_create_repo_in_group() {
             Some("testgroup"),
             Some("org"),
             Some("A group project"),
+            true,
         )
         .await;
 
@@ -3512,6 +3570,66 @@ async fn test_gitlab_raw_post() {
 
 #[tokio::test]
 #[serial]
+async fn test_gitlab_raw_put() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("PUT"))
+        .and(path("/some/endpoint"))
+        .and(header(TOKEN_HEADER, "testtoken"))
+        .and(body_json(serde_json::json!({"data": "replacement"})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "updated": true
+        })))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitLabProvider::with_base_url(&server.uri());
+    let ops = provider.raw_api_ops().unwrap();
+
+    let result = ops
+        .raw_put("/some/endpoint", serde_json::json!({"data": "replacement"}))
+        .await
+        .unwrap();
+
+    teardown_token();
+
+    assert_eq!(result["updated"], true);
+}
+
+#[tokio::test]
+#[serial]
+async fn test_gitlab_raw_patch() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("PATCH"))
+        .and(path("/some/endpoint"))
+        .and(header(TOKEN_HEADER, "testtoken"))
+        .and(body_json(serde_json::json!({"data": "partial"})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "updated": true
+        })))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitLabProvider::with_base_url(&server.uri());
+    let ops = provider.raw_api_ops().unwrap();
+
+    let result = ops
+        .raw_patch("/some/endpoint", serde_json::json!({"data": "partial"}))
+        .await
+        .unwrap();
+
+    teardown_token();
+
+    assert_eq!(result["updated"], true);
+}
+
+#[tokio::test]
+#[serial]
 async fn test_gitlab_raw_delete() {
     let server = MockServer::start().await;
 
@@ -3688,6 +3806,44 @@ async fn test_gitlab_code_file_contents_decodes_base64() {
     teardown_token();
 
     assert_eq!(contents["content"], "fn main() {}");
+    assert_eq!(contents["encoding"], "utf-8");
+}
+
+#[tokio::test]
+#[serial]
+async fn test_gitlab_code_file_contents_defaults_to_head() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path(
+            "/projects/testgroup%2Fmy-project/repository/files/README.md",
+        ))
+        .and(query_param("raw", "false"))
+        .and(query_param("ref", "HEAD"))
+        .and(header(TOKEN_HEADER, "testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "file_name": "README.md",
+            "file_path": "README.md",
+            "content": "IyBQcm9qZWN0",
+            "encoding": "base64",
+            "ref": "main"
+        })))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitLabProvider::with_base_url(&server.uri());
+    let ops = provider.code_ops().unwrap();
+
+    let contents = ops
+        .get_file_contents("testgroup/my-project", "README.md", None)
+        .await
+        .unwrap();
+
+    teardown_token();
+
+    assert_eq!(contents["content"], "# Project");
     assert_eq!(contents["encoding"], "utf-8");
 }
 

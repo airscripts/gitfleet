@@ -2,6 +2,15 @@ use gitfleet_core::errors::{GitfleetError, UnsupportedCapabilityError};
 use gitfleet_core::output::Renderer;
 use gitfleet_core::provider::{GitProvider, ProviderCapability};
 
+pub struct CreateOptions<'a> {
+    pub name: &'a str,
+    pub owner: Option<&'a str>,
+    pub owner_type: Option<&'a str>,
+    pub visibility: &'a str,
+    pub description: Option<&'a str>,
+    pub initialize: bool,
+}
+
 pub async fn list(
     provider: &dyn GitProvider,
     renderer: &Renderer,
@@ -122,11 +131,7 @@ pub async fn view(
 pub async fn create(
     provider: &dyn GitProvider,
     renderer: &Renderer,
-    name: &str,
-    owner: Option<&str>,
-    owner_type: Option<&str>,
-    visibility: &str,
-    description: Option<&str>,
+    options: CreateOptions<'_>,
 ) -> Result<(), GitfleetError> {
     let ops = provider.repo_ops().ok_or_else(|| {
         GitfleetError::from(UnsupportedCapabilityError::new(
@@ -136,7 +141,14 @@ pub async fn create(
     })?;
 
     let data = ops
-        .create_repo(name, visibility, owner, owner_type, description)
+        .create_repo(
+            options.name,
+            options.visibility,
+            options.owner,
+            options.owner_type,
+            options.description,
+            options.initialize,
+        )
         .await?;
 
     if renderer.is_json() {
@@ -145,7 +157,7 @@ pub async fn create(
         let full_name = data
             .get("full_name")
             .and_then(|v| v.as_str())
-            .unwrap_or(name);
+            .unwrap_or(options.name);
 
         let html_url = data.get("html_url").and_then(|v| v.as_str()).unwrap_or("");
         renderer.render_success_box("Repository created", &format!("{full_name}\n{html_url}"));

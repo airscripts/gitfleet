@@ -2,12 +2,13 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
-TEST_REPO="gitfleet-test-repo-$PB_RESOURCE_SUFFIX"
+TEST_REPO="gitfleet-test-repo-$GITFLEET_PLAYBOOK_RESOURCE_SUFFIX"
+TEST_REPO_PATH="$GITFLEET_PLAYBOOK_TEST_REPO_OWNER/$TEST_REPO"
 REPO_CREATED=false
 setup() { :; }
 teardown() {
   if [ "$REPO_CREATED" = true ]; then
-    gitfleet repo delete "$ORG/$TEST_REPO" --yes >/dev/null 2>&1 || true
+    gitfleet repo delete "$TEST_REPO_PATH" --yes >/dev/null 2>&1 || true
   fi
   print_summary
 }
@@ -15,25 +16,28 @@ trap teardown EXIT
 setup
 
 step "Repo View"
-expect_exit_0 "repo view succeeds" gitfleet repo view "$REPO"
+expect_exit_0 "repo view succeeds" gitfleet repo view "$GITFLEET_PLAYBOOK_REPO"
 
 step "Repo List"
-expect_exit_0 "repo list succeeds" gitfleet repo list --owner "$ORG" --owner-type org
+expect_exit_0 "repo list succeeds" gitfleet repo list --owner "$GITFLEET_PLAYBOOK_ORG" --owner-type org
+
+step "Fork List"
+expect_exit_0 "repo fork list succeeds" gitfleet repo fork list --repo "$GITFLEET_PLAYBOOK_REPO"
 
 step "Repo Create"
-if gitfleet repo create "$TEST_REPO" --owner "$ORG" --owner-type org --private --description "gitfleet repository CRUD playbook" --yes >/dev/null 2>&1; then
+if gitfleet repo create "$TEST_REPO" --owner "$GITFLEET_PLAYBOOK_TEST_REPO_OWNER" --owner-type "$GITFLEET_PLAYBOOK_TEST_REPO_OWNER_TYPE" --private --description "gitfleet repository CRUD playbook" --yes >/dev/null 2>&1; then
   pass "repo create succeeded"
   REPO_CREATED=true
 
   step "Repo Edit"
-  if gitfleet repo edit "$ORG/$TEST_REPO" --description "updated by gitfleet playbook" >/dev/null 2>&1; then
+  if gitfleet repo edit "$TEST_REPO_PATH" --description "updated by gitfleet playbook" >/dev/null 2>&1; then
     pass "repo edit succeeded"
   else
     fail "repo edit failed"
   fi
 
   step "Repo Delete"
-  if gitfleet repo delete "$ORG/$TEST_REPO" --yes >/dev/null 2>&1; then
+  if gitfleet repo delete "$TEST_REPO_PATH" --yes >/dev/null 2>&1; then
     pass "repo delete succeeded"
     REPO_CREATED=false
   else

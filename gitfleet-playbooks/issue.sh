@@ -3,12 +3,12 @@ set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
 TEST_ISSUE_NUMBER=""
-TEST_REPO_NAME="gitfleet-test-issue-$PB_RESOURCE_SUFFIX"
-TEST_REPO="$ORG/$TEST_REPO_NAME"
+TEST_REPO_NAME="gitfleet-test-issue-$GITFLEET_PLAYBOOK_RESOURCE_SUFFIX"
+TEST_REPO="$GITFLEET_PLAYBOOK_TEST_REPO_OWNER/$TEST_REPO_NAME"
 REPO_CREATED=false
 
 setup() {
-  if ! gitfleet repo create "$TEST_REPO_NAME" --owner "$ORG" --owner-type org --private --yes >/dev/null 2>&1; then
+  if ! gitfleet repo create "$TEST_REPO_NAME" --owner "$GITFLEET_PLAYBOOK_TEST_REPO_OWNER" --owner-type "$GITFLEET_PLAYBOOK_TEST_REPO_OWNER_TYPE" --private --yes >/dev/null 2>&1; then
     fail "issue test repository creation failed"
     return
   fi

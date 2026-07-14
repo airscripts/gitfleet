@@ -18,16 +18,16 @@ setup
 
 if ! has_capability "projects"; then
   step "Project Capability"
-  expect_exit_non0 "projects are explicitly unsupported" gitfleet planning project list --owner "$OWNER"
+  expect_exit_non0 "projects are explicitly unsupported" gitfleet planning project list --owner "$GITFLEET_PLAYBOOK_OWNER"
   exit 0
 fi
 
 step "Project List"
-expect_exit_0 "project list succeeds" gitfleet planning project list --owner "$OWNER"
+expect_exit_0 "project list succeeds" gitfleet planning project list --owner "$GITFLEET_PLAYBOOK_OWNER"
 
 step "Project Create"
-output=$(gitfleet planning project create "gitfleet-test-project-$PB_RESOURCE_SUFFIX" --owner "$OWNER" --json 2>&1) || true
-PROJECT_ID=$(echo "$output" | python3 -c "import sys,json; print(json.load(sys.stdin).get('number',''))" 2>/dev/null || echo "")
+output=$(gitfleet planning project create "gitfleet-test-project-$GITFLEET_PLAYBOOK_RESOURCE_SUFFIX" --owner "$GITFLEET_PLAYBOOK_OWNER" --json 2>&1) || true
+PROJECT_ID=$(echo "$output" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
 
 if [ -n "$PROJECT_ID" ]; then
   pass "project create succeeded (id=$PROJECT_ID)"

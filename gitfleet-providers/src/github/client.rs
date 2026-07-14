@@ -490,6 +490,7 @@ impl gitfleet_core::provider::RepoOps for ProviderClient {
         owner: Option<&str>,
         owner_type: Option<&str>,
         description: Option<&str>,
+        initialize: bool,
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
         let gh_repo = crate::github::api::ReposApi::create(
             self,
@@ -498,6 +499,7 @@ impl gitfleet_core::provider::RepoOps for ProviderClient {
             owner,
             owner_type,
             description,
+            initialize,
         )
         .await?;
 
@@ -529,11 +531,19 @@ impl gitfleet_core::provider::RepoOps for ProviderClient {
         crate::github::api::ReposApi::unstar(self, repo).await
     }
 
+    async fn list_forks(
+        &self,
+        repo: &str,
+    ) -> Result<Vec<gitfleet_core::types::RepoSummary>, gitfleet_core::errors::GitfleetError> {
+        crate::github::api::ReposApi::list_forks(self, repo).await
+    }
+
     async fn fork_repo(
         &self,
         repo: &str,
+        destination_owner: Option<&str>,
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
-        let gh_repo = crate::github::api::ReposApi::fork(self, repo).await?;
+        let gh_repo = crate::github::api::ReposApi::fork(self, repo, destination_owner).await?;
         serde_json::to_value(gh_repo).map_err(|e| {
             gitfleet_core::errors::GitfleetError::new(format!("Failed to serialize repo: {e}"))
         })
@@ -1422,26 +1432,41 @@ impl gitfleet_core::provider::PolicyOps for ProviderClient {
 
     async fn list_tag_protection(
         &self,
-        repo: &str,
+        _repo: &str,
     ) -> Result<Vec<gitfleet_core::types::TagProtection>, gitfleet_core::errors::GitfleetError>
     {
-        crate::github::api::ProtectionApi::list_tag_protection(self, repo).await
+        Err(gitfleet_core::errors::GitfleetError::from(
+            gitfleet_core::errors::UnsupportedCapabilityError::new(
+                gitfleet_core::provider::ProviderId::GitHub,
+                gitfleet_core::provider::ProviderCapability::TagProtection,
+            ),
+        ))
     }
 
     async fn create_tag_protection(
         &self,
-        repo: &str,
-        pattern: &str,
+        _repo: &str,
+        _pattern: &str,
     ) -> Result<gitfleet_core::types::TagProtection, gitfleet_core::errors::GitfleetError> {
-        crate::github::api::ProtectionApi::create_tag_protection(self, repo, pattern).await
+        Err(gitfleet_core::errors::GitfleetError::from(
+            gitfleet_core::errors::UnsupportedCapabilityError::new(
+                gitfleet_core::provider::ProviderId::GitHub,
+                gitfleet_core::provider::ProviderCapability::TagProtection,
+            ),
+        ))
     }
 
     async fn delete_tag_protection(
         &self,
-        repo: &str,
-        identifier: &str,
+        _repo: &str,
+        _identifier: &str,
     ) -> Result<(), gitfleet_core::errors::GitfleetError> {
-        crate::github::api::ProtectionApi::delete_tag_protection(self, repo, identifier).await
+        Err(gitfleet_core::errors::GitfleetError::from(
+            gitfleet_core::errors::UnsupportedCapabilityError::new(
+                gitfleet_core::provider::ProviderId::GitHub,
+                gitfleet_core::provider::ProviderCapability::TagProtection,
+            ),
+        ))
     }
 }
 
@@ -1711,6 +1736,22 @@ impl gitfleet_core::provider::RawApiOps for ProviderClient {
         body: serde_json::Value,
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
         crate::github::api::RawApi::post(self, endpoint, body).await
+    }
+
+    async fn raw_put(
+        &self,
+        endpoint: &str,
+        body: serde_json::Value,
+    ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
+        crate::github::api::RawApi::put(self, endpoint, Some(body)).await
+    }
+
+    async fn raw_patch(
+        &self,
+        endpoint: &str,
+        body: serde_json::Value,
+    ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
+        crate::github::api::RawApi::patch(self, endpoint, body).await
     }
 
     async fn raw_delete(

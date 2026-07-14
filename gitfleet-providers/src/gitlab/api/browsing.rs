@@ -43,14 +43,12 @@ impl BrowsingApi {
     ) -> Result<serde_json::Value, GitfleetError> {
         let encoded = encode_path(project);
 
-        let mut endpoint = format!(
-            "/projects/{encoded}/repository/files/{}?raw=false",
-            urlencoding::encode(path)
+        let reference = r#ref.unwrap_or("HEAD");
+        let endpoint = format!(
+            "/projects/{encoded}/repository/files/{}?raw=false&ref={}",
+            urlencoding::encode(path),
+            urlencoding::encode(reference)
         );
-
-        if let Some(r) = r#ref {
-            endpoint.push_str(&format!("&ref={}", urlencoding::encode(r)));
-        }
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)

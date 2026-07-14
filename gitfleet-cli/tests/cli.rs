@@ -54,7 +54,7 @@ fn test_version_subcommand_ignores_malformed_credentials() {
 
     Command::cargo_bin("gitfleet")
         .unwrap()
-        .env("HOME", home.path())
+        .env("GITFLEET_HOME", home.path())
         .arg("version")
         .assert()
         .success();
@@ -69,7 +69,7 @@ fn test_completion_ignores_malformed_credentials() {
 
     Command::cargo_bin("gitfleet")
         .unwrap()
-        .env("HOME", home.path())
+        .env("GITFLEET_HOME", home.path())
         .args(["completion", "generate", "bash"])
         .assert()
         .success();
@@ -85,7 +85,7 @@ fn test_auth_logout_recovers_from_malformed_credentials() {
 
     Command::cargo_bin("gitfleet")
         .unwrap()
-        .env("HOME", home.path())
+        .env("GITFLEET_HOME", home.path())
         .args(["auth", "logout", "--yes"])
         .assert()
         .success();
@@ -108,6 +108,13 @@ fn test_repo_rejects_removed_noop_flags() {
         .assert()
         .failure()
         .stderr(predicate::str::contains("unexpected argument '--type'"));
+
+    Command::cargo_bin("gitfleet")
+        .unwrap()
+        .args(["repo", "fork", "create", "owner/repo", "--org", "legacy"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("unexpected argument '--org'"));
 }
 
 #[test]
@@ -378,6 +385,13 @@ fn test_fork_help() {
         .arg("--help")
         .assert()
         .success();
+
+    Command::cargo_bin("gitfleet")
+        .unwrap()
+        .args(["repo", "fork", "create", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--owner"));
 }
 
 #[test]

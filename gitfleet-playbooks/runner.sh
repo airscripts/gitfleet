@@ -8,4 +8,4 @@ trap teardown EXIT
 setup
 
 step "Runner List"
-expect_exit_0 "runner list succeeds" gitfleet runner list --repo "$REPO"
+expect_exit_0 "runner list succeeds" gitfleet runner list --repo "$GITFLEET_PLAYBOOK_REPO"

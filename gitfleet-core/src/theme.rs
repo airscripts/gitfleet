@@ -1,5 +1,9 @@
 use owo_colors::OwoColorize;
 
+use crate::constants::{
+    GITFLEET_COLORFGBG_ENV, GITFLEET_COLORTERM_ENV, GITFLEET_NO_COLOR_ENV, GITFLEET_TERM_ENV,
+};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Theme {
     Dark,
@@ -52,7 +56,7 @@ pub fn get_effective_theme(theme: Theme) -> Theme {
 }
 
 fn detect_terminal_background() -> Theme {
-    if let Ok(val) = std::env::var("COLORFGBG") {
+    if let Ok(val) = std::env::var(GITFLEET_COLORFGBG_ENV) {
         let parts: Vec<&str> = val.split(';').collect();
 
         if parts.len() >= 2 {
@@ -64,13 +68,13 @@ fn detect_terminal_background() -> Theme {
         }
     }
 
-    if let Ok(ct) = std::env::var("COLORTERM") {
+    if let Ok(ct) = std::env::var(GITFLEET_COLORTERM_ENV) {
         if ct.contains("light") {
             return Theme::Light;
         }
     }
 
-    if let Ok(term) = std::env::var("TERM") {
+    if let Ok(term) = std::env::var(GITFLEET_TERM_ENV) {
         if term.contains("light") {
             return Theme::Light;
         }
@@ -86,7 +90,7 @@ pub fn init_colors(theme: Theme) -> ResolvedTheme {
         owo_colors::set_override(false);
     }
 
-    if std::env::var("NO_COLOR").is_ok() {
+    if std::env::var(GITFLEET_NO_COLOR_ENV).is_ok() {
         owo_colors::set_override(false);
     }
 

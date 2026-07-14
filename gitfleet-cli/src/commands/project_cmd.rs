@@ -15,7 +15,7 @@ pub enum ProjectCmdCommand {
     },
 
     #[command(about = "View a project.")]
-    View { id: u64 },
+    View { id: String },
 
     #[command(about = "Create a project.")]
     Create {
@@ -28,7 +28,7 @@ pub enum ProjectCmdCommand {
 
     #[command(about = "Delete a project.")]
     Delete {
-        id: u64,
+        id: String,
         #[arg(long)]
         yes: bool,
     },
@@ -85,7 +85,7 @@ pub async fn run(cmd: ProjectCmdCommand, app: &App) -> Result<(), GitfleetError>
         }
 
         ProjectCmdCommand::View { id } => {
-            let data = ops.get_project(&id.to_string()).await?;
+            let data = ops.get_project(&id).await?;
 
             if app.renderer().is_json() {
                 app.renderer().write_result(&data);
@@ -142,7 +142,7 @@ pub async fn run(cmd: ProjectCmdCommand, app: &App) -> Result<(), GitfleetError>
                 app.renderer().yes() || yes,
             )?;
 
-            ops.delete_project(&id.to_string()).await?;
+            ops.delete_project(&id).await?;
 
             app.renderer()
                 .render_success_box("Project deleted", &id.to_string());
@@ -223,14 +223,18 @@ mod tests {
     async fn test_project_view() {
         let app = test_helpers::make_app();
 
-        run(ProjectCmdCommand::View { id: 1 }, &app).await.unwrap();
+        run(ProjectCmdCommand::View { id: "P_1".into() }, &app)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
     async fn test_project_view_json() {
         let app = test_helpers::make_app_json();
 
-        run(ProjectCmdCommand::View { id: 1 }, &app).await.unwrap();
+        run(ProjectCmdCommand::View { id: "P_1".into() }, &app)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -269,25 +273,44 @@ mod tests {
     async fn test_project_delete_with_yes() {
         let app = test_helpers::make_app();
 
-        run(ProjectCmdCommand::Delete { id: 1, yes: true }, &app)
-            .await
-            .unwrap();
+        run(
+            ProjectCmdCommand::Delete {
+                id: "P_1".into(),
+                yes: true,
+            },
+            &app,
+        )
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
     async fn test_project_delete_dry_run() {
         let app = test_helpers::make_app_dry_run();
 
-        run(ProjectCmdCommand::Delete { id: 1, yes: true }, &app)
-            .await
-            .unwrap();
+        run(
+            ProjectCmdCommand::Delete {
+                id: "P_1".into(),
+                yes: true,
+            },
+            &app,
+        )
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
     async fn test_project_delete_no_caps() {
         let app = test_helpers::make_app_no_caps();
 
-        let result = run(ProjectCmdCommand::Delete { id: 1, yes: true }, &app).await;
+        let result = run(
+            ProjectCmdCommand::Delete {
+                id: "P_1".into(),
+                yes: true,
+            },
+            &app,
+        )
+        .await;
 
         assert!(result.is_err());
     }

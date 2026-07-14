@@ -13,15 +13,16 @@ impl ProjectsApi {
     ) -> Result<Vec<ProjectSummary>, GitfleetError> {
         let query = r#"
             query Projects($owner: String!, $limit: Int!) {
-                organization(login: $owner) {
-                    projectsV2(first: $limit, orderBy: {field: UPDATED_AT, direction: DESC}) {
-                        nodes { id number title shortDescription closed url updatedAt }
+                repositoryOwner(login: $owner) {
+                    ... on Organization {
+                        projectsV2(first: $limit, orderBy: {field: UPDATED_AT, direction: DESC}) {
+                            nodes { id number title shortDescription closed url updatedAt }
+                        }
                     }
-                }
-
-                user(login: $owner) {
-                    projectsV2(first: $limit, orderBy: {field: UPDATED_AT, direction: DESC}) {
-                        nodes { id number title shortDescription closed url updatedAt }
+                    ... on User {
+                        projectsV2(first: $limit, orderBy: {field: UPDATED_AT, direction: DESC}) {
+                            nodes { id number title shortDescription closed url updatedAt }
+                        }
                     }
                 }
             }
@@ -39,29 +40,16 @@ impl ProjectsApi {
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list projects: {e}")))?;
 
-        let org_nodes = data
+        let nodes = data
             .get("data")
-            .and_then(|d| d.get("organization"))
+            .and_then(|d| d.get("repositoryOwner"))
             .and_then(|o| o.get("projectsV2"))
-            .and_then(|p| p.get("nodes"))
-            .and_then(|n| n.as_array());
-
-        let user_nodes = data
-            .get("data")
-            .and_then(|d| d.get("user"))
-            .and_then(|u| u.get("projectsV2"))
             .and_then(|p| p.get("nodes"))
             .and_then(|n| n.as_array());
 
         let mut results = Vec::new();
 
-        if let Some(nodes) = org_nodes {
-            for n in nodes {
-                results.push(normalize_project_summary(n));
-            }
-        }
-
-        if let Some(nodes) = user_nodes {
+        if let Some(nodes) = nodes {
             for n in nodes {
                 results.push(normalize_project_summary(n));
             }
@@ -113,9 +101,42 @@ impl ProjectsApi {
 
     pub async fn create(
         client: &ProviderClient,
-        owner_id: &str,
+        owner: &str,
         title: &str,
     ) -> Result<ProjectSummary, GitfleetError> {
+        let owner_query = r#"
+            query ProjectOwner($owner: String!) {
+                repositoryOwner(login: $owner) {
+                    ... on Organization { id }
+                    ... on User { id }
+                }
+            }
+        "#;
+        let owner_payload = serde_json::json!({
+            "query": owner_query,
+            "variables": { "owner": owner }
+        });
+
+        let owner_response = client
+            .request_token_required(
+                reqwest::Method::POST,
+                "/graphql",
+                Some(owner_payload),
+                None,
+                None,
+            )
+            .await?;
+
+        let owner_data = crate::parse_graphql(owner_response, "project owner lookup")
+            .await
+            .map_err(|e| GitfleetError::new(format!("Failed to resolve project owner: {e}")))?;
+        let owner_id = owner_data
+            .get("data")
+            .and_then(|data| data.get("repositoryOwner"))
+            .and_then(|owner| owner.get("id"))
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| GitfleetError::new(format!("Project owner '{owner}' was not found.")))?;
+
         let mutation = r#"
             mutation CreateProject($input: CreateProjectV2Input!) {
                 createProjectV2(input: $input) { projectV2 { id number title url } }

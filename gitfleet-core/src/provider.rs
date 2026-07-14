@@ -77,6 +77,7 @@ pub enum ProviderCapability {
     Governance,
     MergeAutomation,
     RepositoryPolicies,
+    TagProtection,
     Notifications,
     Search,
     Code,
@@ -120,6 +121,7 @@ impl fmt::Display for ProviderCapability {
             ProviderCapability::Governance => "governance",
             ProviderCapability::MergeAutomation => "mergeAutomation",
             ProviderCapability::RepositoryPolicies => "repositoryPolicies",
+            ProviderCapability::TagProtection => "tagProtection",
             ProviderCapability::Notifications => "notifications",
             ProviderCapability::Search => "search",
             ProviderCapability::Code => "code",
@@ -155,6 +157,7 @@ pub trait RepoOps: Send + Sync {
         owner: Option<&str>,
         owner_type: Option<&str>,
         description: Option<&str>,
+        initialize: bool,
     ) -> Result<serde_json::Value, GitfleetError>;
     async fn update_repo(
         &self,
@@ -164,7 +167,12 @@ pub trait RepoOps: Send + Sync {
     async fn delete_repo(&self, repo: &str) -> Result<(), GitfleetError>;
     async fn star_repo(&self, repo: &str) -> Result<(), GitfleetError>;
     async fn unstar_repo(&self, repo: &str) -> Result<(), GitfleetError>;
-    async fn fork_repo(&self, repo: &str) -> Result<serde_json::Value, GitfleetError>;
+    async fn list_forks(&self, repo: &str) -> Result<Vec<RepoSummary>, GitfleetError>;
+    async fn fork_repo(
+        &self,
+        repo: &str,
+        destination_owner: Option<&str>,
+    ) -> Result<serde_json::Value, GitfleetError>;
     async fn archive_repo(&self, repo: &str) -> Result<(), GitfleetError>;
     async fn unarchive_repo(&self, repo: &str) -> Result<(), GitfleetError>;
 }
@@ -800,6 +808,16 @@ pub trait BrowseOps: Send + Sync {
 pub trait RawApiOps: Send + Sync {
     async fn raw_get(&self, endpoint: &str) -> Result<serde_json::Value, GitfleetError>;
     async fn raw_post(
+        &self,
+        endpoint: &str,
+        body: serde_json::Value,
+    ) -> Result<serde_json::Value, GitfleetError>;
+    async fn raw_put(
+        &self,
+        endpoint: &str,
+        body: serde_json::Value,
+    ) -> Result<serde_json::Value, GitfleetError>;
+    async fn raw_patch(
         &self,
         endpoint: &str,
         body: serde_json::Value,

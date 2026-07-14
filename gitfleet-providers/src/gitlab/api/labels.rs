@@ -54,9 +54,14 @@ impl LabelsApi {
         let encoded = encode_path(project);
 
         let endpoint = format!("/projects/{encoded}/labels");
+        let color = if label.color.starts_with('#') {
+            label.color.clone()
+        } else {
+            format!("#{}", label.color)
+        };
         let json = serde_json::json!({
             "name": label.name,
-            "color": label.color,
+            "color": color,
             "description": label.description,
         });
 

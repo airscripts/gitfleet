@@ -16,7 +16,7 @@ pub enum ForkCmdCommand {
     Create {
         repository: String,
         #[arg(long)]
-        org: Option<String>,
+        owner: Option<String>,
     },
 }
 
@@ -34,29 +34,39 @@ pub async fn run(cmd: ForkCmdCommand, app: &App) -> Result<(), GitfleetError> {
                 ))
             })?;
 
-            let data = ops.get_repo(&repo_str).await?;
+            let forks = ops.list_forks(&repo_str).await?;
 
             if app.renderer().is_json() {
-                let forks_count = data
-                    .get("forks_count")
-                    .cloned()
-                    .unwrap_or(serde_json::Value::Null);
+                let data = serde_json::to_value(&forks).map_err(|error| {
+                    GitfleetError::new(format!("Failed to serialize forks: {error}"))
+                })?;
 
-                app.renderer()
-                    .write_result(&serde_json::json!({ "forks_count": forks_count }));
+                app.renderer().write_result(&data);
             } else {
-                let forks_count = data
-                    .get("forks_count")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
+                let rows: Vec<serde_json::Value> = forks
+                    .iter()
+                    .map(|fork| {
+                        serde_json::json!({
+                            "NAME": fork.full_name,
+                            "VISIBILITY": if fork.private { "private" } else { "public" },
+                            "DEFAULT BRANCH": fork.default_branch,
+                            "ARCHIVED": fork.archived,
+                        })
+                    })
+                    .collect();
 
-                app.renderer().write_value(&format!("Forks: {forks_count}"));
+                app.renderer().render_table_titled(
+                    &rows,
+                    Some("No forks found."),
+                    Some("Forks"),
+                    Some(&["NAME", "VISIBILITY", "DEFAULT BRANCH", "ARCHIVED"]),
+                );
             }
 
             Ok(())
         }
 
-        ForkCmdCommand::Create { repository, org } => {
+        ForkCmdCommand::Create { repository, owner } => {
             let ops = p.repo_ops().ok_or_else(|| {
                 GitfleetError::from(UnsupportedCapabilityError::new(
                     p.id(),
@@ -64,7 +74,7 @@ pub async fn run(cmd: ForkCmdCommand, app: &App) -> Result<(), GitfleetError> {
                 ))
             })?;
 
-            let data = ops.fork_repo(&repository).await?;
+            let data = ops.fork_repo(&repository, owner.as_deref()).await?;
 
             if app.renderer().is_json() {
                 app.renderer().write_result(&data);
@@ -78,9 +88,6 @@ pub async fn run(cmd: ForkCmdCommand, app: &App) -> Result<(), GitfleetError> {
                 app.renderer()
                     .render_success_box("Fork created", &format!("{full_name}\n{html_url}"));
             }
-
-            let _ = org;
-
             Ok(())
         }
     }
@@ -141,7 +148,7 @@ mod tests {
         run(
             ForkCmdCommand::Create {
                 repository: "org/repo".into(),
-                org: None,
+                owner: None,
             },
             &app,
         )
@@ -150,13 +157,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_fork_create_with_org() {
+    async fn test_fork_create_with_owner() {
         let app = test_helpers::make_app();
 
         run(
             ForkCmdCommand::Create {
                 repository: "org/repo".into(),
-                org: Some("my-org".into()),
+                owner: Some("my-org".into()),
             },
             &app,
         )
@@ -171,7 +178,7 @@ mod tests {
         run(
             ForkCmdCommand::Create {
                 repository: "org/repo".into(),
-                org: None,
+                owner: None,
             },
             &app,
         )
@@ -186,7 +193,7 @@ mod tests {
         let result = run(
             ForkCmdCommand::Create {
                 repository: "org/repo".into(),
-                org: None,
+                owner: None,
             },
             &app,
         )

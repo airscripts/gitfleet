@@ -65,6 +65,10 @@ GitHub supports viewing and mutating individual wiki pages. GitHub does not
 provide a supported API for enumerating wiki pages, so `wiki list` reports the
 capability as unavailable instead of returning an incomplete page list.
 
+GitLab supports protected-tag operations through `policy tag`. GitHub reports
+that capability as unavailable; use GitHub repository rulesets through
+`govern ruleset` when tag policies are needed there.
+
 Configure a profile per provider or account, then switch profiles or let
 `gitfleet auth detect` select the profile from the current repository remote.
 This makes mixed GitHub and GitLab fleets manageable without changing tools or
@@ -198,6 +202,29 @@ classic token. See GitHub's official documentation for
 and
 [fine-grained permissions](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens).
 
+### GitLab Token Scopes
+
+For the complete Gitfleet command surface, use a personal access token with the
+`api` scope and an account role that permits the requested operations. Narrower
+tokens can be used when only a subset of commands is needed:
+
+| Scope              | Required for                                                        |
+| ------------------ | ------------------------------------------------------------------- |
+| `api`              | Complete read-write Gitfleet API access, including live playbooks   |
+| `read_api`         | Read-only project, group, package, registry, and metadata operations |
+| `read_user`        | Authenticated user and user-directory reads only                     |
+| `read_repository`  | Private repository file reads and Git-over-HTTPS pulls               |
+| `write_repository` | Git-over-HTTPS pushes; this scope alone cannot authenticate API writes |
+| `create_runner`    | Runner creation when using runner-registration endpoints             |
+| `manage_runner`    | Runner management and removal                                        |
+
+Do not grant `sudo` or `admin_mode` for normal Gitfleet use. Project and group
+access tokens can reduce resource reach, but they cannot perform user-scoped
+operations outside their project or group. See GitLab's official
+[access token scope reference](https://docs.gitlab.com/security/tokens/access_token_scopes/)
+and
+[personal access token guidance](https://docs.gitlab.com/user/profile/personal_access_tokens/).
+
 ## Configuration
 
 Profile metadata is stored at `~/.config/gitfleet/credentials.toml` with mode
@@ -225,15 +252,42 @@ provider environment token. Environment tokens are used for the default
 provider host when the profile has no stored token. Repository targets come
 from `--repo` or the current Git remote.
 
-Environment variables:
+Copy [`.env.example`](./.env.example) when preparing shell or CI variables.
+Gitfleet does not automatically load dotenv files; export the values through
+your shell, process manager, or CI secret store. Never commit a populated
+`.env` file.
 
-- `GITFLEET_GITHUB_TOKEN` supplies the GitHub token in automation.
-- `GITFLEET_GITLAB_TOKEN` supplies the GitLab token in automation.
-- `GITFLEET_CREDENTIAL_STORE=file` opts into plaintext file credential storage;
-  unset or any other value keeps the keyring-backed default.
-- `GITFLEET_PROFILE` selects a named profile.
-- `GITFLEET_TRUST_REPO_CONFIG=true` enables `.gitfleetrc` profile selection.
-- `CI=true` enables non-interactive behavior.
+### Environment Variables
+
+| Key                            | Example value                         | Purpose |
+| ------------------------------ | ------------------------------------- | ------- |
+| `GITFLEET_GITHUB_TOKEN`        | `github_pat_...`                      | Supplies a GitHub token for automation. |
+| `GITFLEET_GITLAB_TOKEN`        | `glpat-...`                           | Supplies a GitLab token for automation. |
+| `GITFLEET_PROFILE`             | `work`                                | Selects a named profile. |
+| `GITFLEET_TRUST_REPO_CONFIG`   | `true`                                | Allows `.gitfleetrc` to select a profile. Any other value keeps repository configuration untrusted. |
+| `GITFLEET_CREDENTIAL_STORE`    | `file`                                | Uses permission-protected plaintext credential storage. Unset or any other value uses the secure keyring default. |
+| `GITFLEET_HOME`                | `/home/example`                        | Overrides the home directory used to locate `.config/gitfleet/`; otherwise the operating-system home is used. |
+| `GITFLEET_CI`                  | `true`                                 | Enables non-interactive behavior when present. |
+| `GITFLEET_LOG`                 | `gitfleet=debug`                       | Overrides the default tracing filter using `tracing-subscriber` directives. |
+| `GITFLEET_NO_COLOR`            | `1`                                    | Disables colored output when present. |
+| `GITFLEET_TERM`                | `xterm-256color`                       | Contributes to automatic terminal theme detection. |
+| `GITFLEET_COLORTERM`           | `truecolor`                            | Enables true-color-aware automatic theme detection. |
+| `GITFLEET_COLORFGBG`           | `15;0`                                 | Supplies terminal foreground/background hints for automatic theme selection. |
+| `GITFLEET_PLAYBOOK_REPO`         | `owner/gitfleet-test-repository`     | Selects the disposable repository required by live playbooks. |
+| `GITFLEET_PLAYBOOK_ORG`          | `owner`                              | Selects the live-playbook organization or group; defaults to the owner from `GITFLEET_PLAYBOOK_REPO`. |
+| `GITFLEET_PLAYBOOK_TEST_REPO_OWNER` | `owner`                           | Selects the account that owns disposable repositories; defaults to `GITFLEET_PLAYBOOK_ORG`. |
+| `GITFLEET_PLAYBOOK_TEST_REPO_OWNER_TYPE` | `org`                         | Sets disposable repository ownership to `org` or `user`; defaults to `org`. |
+| `GITFLEET_PLAYBOOK_TMPDIR`       | `/tmp/gitfleet-playbooks`            | Selects the live-playbook scratch directory. |
+| `GITFLEET_PLAYBOOK_RUN_ID`       | `local-001`                          | Overrides the unique suffix used for live-playbook resources. |
+| `GITFLEET_PLAYBOOK_SKIP`         | `pipeline,milestone`                 | Comma- or space-separated playbooks omitted by `all.sh`. |
+| `GITFLEET_PLAYBOOK_PARALLEL`     | `1`                                  | Runs live playbooks concurrently; `0` is the safer sequential default. |
+| `GITFLEET_PLAYBOOK_WEBHOOK_URL`  | `https://hooks.example.com/gitfleet` | Enables delivery testing through an owner-controlled webhook receiver. |
+
+`GITFLEET_TEST_CREDENTIAL_STORE` is reserved for automated tests and is not a
+supported user configuration variable. Variables such as
+`GITFLEET_PLAYBOOK_RESOURCE_SUFFIX`, `GITFLEET_PLAYBOOK_PROVIDER`, and
+`GITFLEET_PLAYBOOK_CAPABILITIES` are derived internally and should not be set
+directly.
 
 ## Profiles
 
@@ -308,6 +362,7 @@ gitfleet change create "Add feature" --head feature --base main
 gitfleet change list --state open
 gitfleet review comment list 42
 gitfleet review comment create 42 "Please add a regression test."
+gitfleet review comment create 17 "I can reproduce this." --target issue
 gitfleet review reaction create 42 eyes
 ```
 
@@ -444,10 +499,10 @@ credentials, and clean up mutations during teardown.
 Run them only against a dedicated test repository:
 
 ```bash
-REPO=owner/test-repository ORG=example bash gitfleet-playbooks/all.sh
-GITFLEET_PROFILE=gitlab-test REPO=group/test-repository bash gitfleet-playbooks/all.sh
-REPO=owner/test-repository SKIP="pipeline,milestone,project" bash gitfleet-playbooks/all.sh
-REPO=owner/test-repository PARALLEL=1 bash gitfleet-playbooks/all.sh
+GITFLEET_PLAYBOOK_REPO=owner/test-repository GITFLEET_PLAYBOOK_ORG=example bash gitfleet-playbooks/all.sh
+GITFLEET_PROFILE=gitlab-test GITFLEET_PLAYBOOK_REPO=group/test-repository bash gitfleet-playbooks/all.sh
+GITFLEET_PLAYBOOK_REPO=owner/test-repository GITFLEET_PLAYBOOK_SKIP="pipeline,milestone,project" bash gitfleet-playbooks/all.sh
+GITFLEET_PLAYBOOK_REPO=owner/test-repository GITFLEET_PLAYBOOK_PARALLEL=1 bash gitfleet-playbooks/all.sh
 ```
 
 See `gitfleet-playbooks/env.sh` for configuration. Automated tests use mocks

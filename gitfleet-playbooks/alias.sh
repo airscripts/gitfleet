@@ -3,7 +3,7 @@ set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
 setup() { :; }
-ALIAS_NAME="gitfleet-test-$PB_RESOURCE_SUFFIX"
+ALIAS_NAME="gitfleet-test-$GITFLEET_PLAYBOOK_RESOURCE_SUFFIX"
 ALIAS_CREATED=false
 teardown() {
   if [ "$ALIAS_CREATED" = true ]; then

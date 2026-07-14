@@ -297,6 +297,7 @@ impl RepoOps for MockProvider {
         _owner: Option<&str>,
         _owner_type: Option<&str>,
         _description: Option<&str>,
+        _initialize: bool,
     ) -> Result<serde_json::Value, GitfleetError> {
         Ok(serde_json::json!({
             "full_name": "org/new-repo",
@@ -324,7 +325,24 @@ impl RepoOps for MockProvider {
         Ok(())
     }
 
-    async fn fork_repo(&self, _repo: &str) -> Result<serde_json::Value, GitfleetError> {
+    async fn list_forks(&self, _repo: &str) -> Result<Vec<RepoSummary>, GitfleetError> {
+        Ok(vec![RepoSummary {
+            id: 4,
+            name: "fork".into(),
+            fork: true,
+            full_name: "user/fork".into(),
+            private: false,
+            archived: false,
+            default_branch: "main".into(),
+            pushed_at: None,
+        }])
+    }
+
+    async fn fork_repo(
+        &self,
+        _repo: &str,
+        _destination_owner: Option<&str>,
+    ) -> Result<serde_json::Value, GitfleetError> {
         Ok(serde_json::json!({}))
     }
 
@@ -1314,6 +1332,22 @@ impl RawApiOps for MockProvider {
         _body: serde_json::Value,
     ) -> Result<serde_json::Value, GitfleetError> {
         Ok(serde_json::json!({"created": true}))
+    }
+
+    async fn raw_put(
+        &self,
+        _endpoint: &str,
+        _body: serde_json::Value,
+    ) -> Result<serde_json::Value, GitfleetError> {
+        Ok(serde_json::json!({"updated": true}))
+    }
+
+    async fn raw_patch(
+        &self,
+        _endpoint: &str,
+        _body: serde_json::Value,
+    ) -> Result<serde_json::Value, GitfleetError> {
+        Ok(serde_json::json!({"updated": true}))
     }
 
     async fn raw_delete(&self, _endpoint: &str) -> Result<serde_json::Value, GitfleetError> {

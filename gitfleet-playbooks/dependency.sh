@@ -9,18 +9,18 @@ setup
 
 step "Dependency List"
 if ! has_capability "dependencies"; then
-  expect_exit_non0 "dependencies are explicitly unsupported" gitfleet deps list --repo "$REPO"
+  expect_exit_non0 "dependencies are explicitly unsupported" gitfleet deps list --repo "$GITFLEET_PLAYBOOK_REPO"
   exit 0
 fi
 
-if gitfleet deps list --repo "$REPO" >/dev/null 2>&1; then
+if gitfleet deps list --repo "$GITFLEET_PLAYBOOK_REPO" >/dev/null 2>&1; then
   pass "dependency list succeeds"
 else
   skip "dependency list (may not be available for this repo)"
 fi
 
 step "Dependency Review"
-if gitfleet deps review --repo "$REPO" --base main --head HEAD >/dev/null 2>&1; then
+if gitfleet deps review --repo "$GITFLEET_PLAYBOOK_REPO" --base main --head HEAD >/dev/null 2>&1; then
   pass "dependency review succeeds"
 else
   skip "dependency review (may require a PR or specific base/head)"

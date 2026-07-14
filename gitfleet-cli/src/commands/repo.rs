@@ -23,6 +23,8 @@ pub enum RepoCommand {
         internal: bool,
         #[arg(long)]
         description: Option<String>,
+        #[arg(long)]
+        initialize: bool,
     },
 
     #[command(about = "List repositories.")]
@@ -103,6 +105,7 @@ pub async fn run(cmd: RepoCommand, app: &App) -> Result<(), GitfleetError> {
             private,
             internal,
             description,
+            initialize,
         } => {
             if [public, private, internal].iter().filter(|&&f| f).count() > 1 {
                 return Err(GitfleetError::from(UnprocessableError::new(
@@ -124,11 +127,14 @@ pub async fn run(cmd: RepoCommand, app: &App) -> Result<(), GitfleetError> {
             service::repos::create(
                 p,
                 app.renderer(),
-                &name,
-                owner_arg,
-                Some(owner_type_arg),
-                visibility,
-                description.as_deref(),
+                service::repos::CreateOptions {
+                    name: &name,
+                    owner: owner_arg,
+                    owner_type: Some(owner_type_arg),
+                    visibility,
+                    description: description.as_deref(),
+                    initialize,
+                },
             )
             .await
         }
@@ -338,6 +344,7 @@ mod tests {
                 private: false,
                 internal: false,
                 description: None,
+                initialize: false,
             },
             &app,
         )
@@ -358,6 +365,7 @@ mod tests {
                 private: true,
                 internal: false,
                 description: Some("Test".into()),
+                initialize: true,
             },
             &app,
         )
@@ -378,6 +386,7 @@ mod tests {
                 private: true,
                 internal: false,
                 description: None,
+                initialize: false,
             },
             &app,
         )

@@ -447,6 +447,12 @@ async fn test_create_repo_user() {
     Mock::given(method("POST"))
         .and(path("/user/repos"))
         .and(header("authorization", "Bearer testtoken"))
+        .and(body_json(serde_json::json!({
+            "name": "new-repo",
+            "visibility": "public",
+            "description": "New repo",
+            "auto_init": false
+        })))
         .respond_with(ResponseTemplate::new(201).set_body_json(single_repo_json()))
         .mount(&server)
         .await;
@@ -457,7 +463,7 @@ async fn test_create_repo_user() {
     let ops = provider.repo_ops().expect("repo ops");
 
     let repo = ops
-        .create_repo("new-repo", "public", None, None, Some("New repo"))
+        .create_repo("new-repo", "public", None, None, Some("New repo"), false)
         .await
         .expect("create repo");
     teardown_token();
@@ -475,6 +481,12 @@ async fn test_create_repo_org() {
     Mock::given(method("POST"))
         .and(path("/orgs/testorg/repos"))
         .and(header("authorization", "Bearer testtoken"))
+        .and(body_json(serde_json::json!({
+            "name": "new-repo",
+            "visibility": "public",
+            "description": "New repo",
+            "auto_init": true
+        })))
         .respond_with(ResponseTemplate::new(201).set_body_json(single_repo_json()))
         .mount(&server)
         .await;
@@ -491,6 +503,7 @@ async fn test_create_repo_org() {
             Some("testorg"),
             Some("org"),
             Some("New repo"),
+            true,
         )
         .await
         .expect("create org repo");
@@ -2996,16 +3009,6 @@ fn comment_json() -> serde_json::Value {
     ])
 }
 
-fn tag_protection_json() -> serde_json::Value {
-    serde_json::json!([
-        {
-            "id": 42,
-            "pattern": "v*",
-            "created_at": "2024-01-01T00:00:00Z"
-        }
-    ])
-}
-
 // ===== RepoOps =====
 
 #[tokio::test]
@@ -3112,12 +3115,52 @@ async fn test_delete_repo() {
 
 #[tokio::test]
 #[serial]
+async fn test_list_forks() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/repos/testorg/repo/forks"))
+        .and(query_param("per_page", "100"))
+        .and(header("authorization", "Bearer testtoken"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!([{
+                "id": 2,
+                "name": "repo",
+                "fork": true,
+                "private": false,
+                "archived": false,
+                "full_name": "myuser/repo",
+                "default_branch": "main"
+            }])),
+        )
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitHubProvider::with_base_url(&server.uri());
+    let ops = provider.repo_ops().unwrap();
+
+    let forks = ops.list_forks("testorg/repo").await.unwrap();
+
+    teardown_token();
+
+    assert_eq!(forks.len(), 1);
+    assert_eq!(forks[0].full_name, "myuser/repo");
+    assert!(forks[0].fork);
+}
+
+#[tokio::test]
+#[serial]
 async fn test_fork_repo() {
     let server = MockServer::start().await;
 
     Mock::given(method("POST"))
         .and(path("/repos/testorg/repo/forks"))
         .and(header("authorization", "Bearer testtoken"))
+        .and(body_json(serde_json::json!({
+            "organization": "destination-org"
+        })))
         .respond_with(ResponseTemplate::new(202).set_body_json(serde_json::json!({
             "id": 2, "name": "repo", "full_name": "myuser/repo", "private": false,
             "archived": false, "fork": true, "html_url": "https://github.com/myuser/repo",
@@ -3134,7 +3177,10 @@ async fn test_fork_repo() {
     let provider = GitHubProvider::with_base_url(&server.uri());
     let ops = provider.repo_ops().unwrap();
 
-    let result = ops.fork_repo("testorg/repo").await.unwrap();
+    let result = ops
+        .fork_repo("testorg/repo", Some("destination-org"))
+        .await
+        .unwrap();
 
     teardown_token();
 
@@ -3634,7 +3680,7 @@ async fn test_list_projects() {
         .respond_with(
             ResponseTemplate::new(200).set_body_json(serde_json::json!({
                 "data": {
-                    "organization": {
+                    "repositoryOwner": {
                         "projectsV2": {
                             "nodes": [
                                 {"id": "P_1", "number": 1, "title": "Project 1", "shortDescription": null,
@@ -3642,8 +3688,7 @@ async fn test_list_projects() {
                                  "updatedAt": "2024-01-01T00:00:00Z"}
                             ]
                         }
-                    },
-                    "user": null
+                    }
                 }
             })),
         )
@@ -3704,6 +3749,17 @@ async fn test_create_project() {
     Mock::given(method("POST"))
         .and(path("/graphql"))
         .and(header("authorization", "Bearer testtoken"))
+        .and(body_string_contains("ProjectOwner"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": {"repositoryOwner": {"id": "O_1"}}
+        })))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .and(header("authorization", "Bearer testtoken"))
+        .and(body_string_contains("CreateProject"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "data": {
                 "createProjectV2": {
@@ -3968,82 +4024,49 @@ async fn test_unprotect_branch() {
 #[tokio::test]
 #[serial]
 async fn test_list_tag_protection() {
-    let server = MockServer::start().await;
-
-    Mock::given(method("GET"))
-        .and(path("/repos/testorg/repo/tags-protection"))
-        .and(header("authorization", "Bearer testtoken"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(tag_protection_json()))
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitHubProvider::with_base_url(&server.uri());
+    let provider = GitHubProvider::new();
     let ops = provider.policy_ops().unwrap();
 
-    let result = ops.list_tag_protection("testorg/repo").await.unwrap();
+    let result = ops.list_tag_protection("testorg/repo").await;
 
-    teardown_token();
-
-    assert_eq!(result.len(), 1);
-
-    assert_eq!(result[0].pattern, "v*");
+    assert!(matches!(
+        result,
+        Err(gitfleet_core::errors::GitfleetError::UnsupportedCapability(
+            _
+        ))
+    ));
 }
 
 #[tokio::test]
 #[serial]
 async fn test_create_tag_protection() {
-    let server = MockServer::start().await;
-
-    Mock::given(method("POST"))
-        .and(path("/repos/testorg/repo/tags-protection"))
-        .and(header("authorization", "Bearer testtoken"))
-        .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
-            "id": 43, "pattern": "v*", "created_at": "2024-01-01T00:00:00Z"
-        })))
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitHubProvider::with_base_url(&server.uri());
+    let provider = GitHubProvider::new();
     let ops = provider.policy_ops().unwrap();
 
-    let result = ops
-        .create_tag_protection("testorg/repo", "v*")
-        .await
-        .unwrap();
+    let result = ops.create_tag_protection("testorg/repo", "v*").await;
 
-    teardown_token();
-
-    assert_eq!(result.pattern, "v*");
-
-    assert_eq!(result.identifier, "43");
+    assert!(matches!(
+        result,
+        Err(gitfleet_core::errors::GitfleetError::UnsupportedCapability(
+            _
+        ))
+    ));
 }
 
 #[tokio::test]
 #[serial]
 async fn test_delete_tag_protection() {
-    let server = MockServer::start().await;
-
-    Mock::given(method("DELETE"))
-        .and(path("/repos/testorg/repo/tags-protection/42"))
-        .and(header("authorization", "Bearer testtoken"))
-        .respond_with(ResponseTemplate::new(204))
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitHubProvider::with_base_url(&server.uri());
+    let provider = GitHubProvider::new();
     let ops = provider.policy_ops().unwrap();
 
-    ops.delete_tag_protection("testorg/repo", "42")
-        .await
-        .unwrap();
+    let result = ops.delete_tag_protection("testorg/repo", "42").await;
 
-    teardown_token();
+    assert!(matches!(
+        result,
+        Err(gitfleet_core::errors::GitfleetError::UnsupportedCapability(
+            _
+        ))
+    ));
 }
 
 // ===== SiteOps =====
@@ -4331,12 +4354,22 @@ async fn test_delete_codespace() {
 async fn test_list_packages() {
     let server = MockServer::start().await;
 
-    Mock::given(method("GET"))
-        .and(path("/orgs/testorg/packages"))
-        .and(header("authorization", "Bearer testtoken"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(package_json()))
-        .mount(&server)
-        .await;
+    for package_type in ["npm", "maven", "rubygems", "docker", "nuget", "container"] {
+        let response = if package_type == "npm" {
+            package_json()
+        } else {
+            serde_json::json!([])
+        };
+
+        Mock::given(method("GET"))
+            .and(path("/orgs/testorg/packages"))
+            .and(query_param("per_page", "10"))
+            .and(query_param("package_type", package_type))
+            .and(header("authorization", "Bearer testtoken"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(response))
+            .mount(&server)
+            .await;
+    }
 
     setup_token();
 
@@ -4362,13 +4395,22 @@ async fn test_list_user_packages_falls_back_from_org_endpoint() {
         .respond_with(ResponseTemplate::new(404))
         .mount(&server)
         .await;
-    Mock::given(method("GET"))
-        .and(path("/users/testuser/packages"))
-        .and(query_param("per_page", "10"))
-        .and(header("authorization", "Bearer testtoken"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(package_json()))
-        .mount(&server)
-        .await;
+    for package_type in ["npm", "maven", "rubygems", "docker", "nuget", "container"] {
+        let response = if package_type == "npm" {
+            package_json()
+        } else {
+            serde_json::json!([])
+        };
+
+        Mock::given(method("GET"))
+            .and(path("/users/testuser/packages"))
+            .and(query_param("per_page", "10"))
+            .and(query_param("package_type", package_type))
+            .and(header("authorization", "Bearer testtoken"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(response))
+            .mount(&server)
+            .await;
+    }
 
     setup_token();
 
@@ -4910,6 +4952,66 @@ async fn test_raw_post() {
 
 #[tokio::test]
 #[serial]
+async fn test_raw_put() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("PUT"))
+        .and(path("/some/endpoint"))
+        .and(header("authorization", "Bearer testtoken"))
+        .and(body_json(serde_json::json!({"data": "replacement"})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "updated": true
+        })))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitHubProvider::with_base_url(&server.uri());
+    let ops = provider.raw_api_ops().unwrap();
+
+    let result = ops
+        .raw_put("/some/endpoint", serde_json::json!({"data": "replacement"}))
+        .await
+        .unwrap();
+
+    teardown_token();
+
+    assert_eq!(result["updated"], true);
+}
+
+#[tokio::test]
+#[serial]
+async fn test_raw_patch() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("PATCH"))
+        .and(path("/some/endpoint"))
+        .and(header("authorization", "Bearer testtoken"))
+        .and(body_json(serde_json::json!({"data": "partial"})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "updated": true
+        })))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitHubProvider::with_base_url(&server.uri());
+    let ops = provider.raw_api_ops().unwrap();
+
+    let result = ops
+        .raw_patch("/some/endpoint", serde_json::json!({"data": "partial"}))
+        .await
+        .unwrap();
+
+    teardown_token();
+
+    assert_eq!(result["updated"], true);
+}
+
+#[tokio::test]
+#[serial]
 async fn test_raw_delete() {
     let server = MockServer::start().await;
 
@@ -4947,7 +5049,9 @@ async fn test_list_issue_templates() {
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "data": {"repository": {"issueTemplates": [
                 {"name": "Bug Report", "filename": "bug.md", "body": "## Bug",
-                 "about": "Report a bug", "title": "Bug: ", "labels": ["bug"], "assignees": []}
+                 "about": "Report a bug", "title": "Bug: ",
+                 "labels": {"nodes": [{"name": "bug"}]},
+                 "assignees": {"nodes": [{"login": "octocat"}]}}
             ]}}
         })))
         .mount(&server)
@@ -4966,6 +5070,8 @@ async fn test_list_issue_templates() {
 
     assert_eq!(templates[0].name, "Bug Report");
     assert_eq!(templates[0].path, ".github/ISSUE_TEMPLATE/bug.md");
+    assert_eq!(templates[0].labels, Some(vec!["bug".to_string()]));
+    assert_eq!(templates[0].assignees, Some(vec!["octocat".to_string()]));
 }
 
 #[tokio::test]

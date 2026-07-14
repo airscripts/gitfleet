@@ -564,6 +564,7 @@ impl gitfleet_core::provider::RepoOps for ProviderClient {
         owner: Option<&str>,
         owner_type: Option<&str>,
         description: Option<&str>,
+        initialize: bool,
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
         crate::gitlab::api::ProjectsApi::create(
             self,
@@ -572,6 +573,7 @@ impl gitfleet_core::provider::RepoOps for ProviderClient {
             owner,
             owner_type,
             description,
+            initialize,
         )
         .await
     }
@@ -596,11 +598,19 @@ impl gitfleet_core::provider::RepoOps for ProviderClient {
         crate::gitlab::api::ProjectsApi::unstar(self, repo).await
     }
 
+    async fn list_forks(
+        &self,
+        repo: &str,
+    ) -> Result<Vec<gitfleet_core::types::RepoSummary>, gitfleet_core::errors::GitfleetError> {
+        crate::gitlab::api::ProjectsApi::list_forks(self, repo).await
+    }
+
     async fn fork_repo(
         &self,
         repo: &str,
+        destination_owner: Option<&str>,
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::ProjectsApi::fork(self, repo).await
+        crate::gitlab::api::ProjectsApi::fork(self, repo, destination_owner).await
     }
 
     async fn archive_repo(&self, repo: &str) -> Result<(), gitfleet_core::errors::GitfleetError> {
@@ -1291,6 +1301,22 @@ impl gitfleet_core::provider::RawApiOps for ProviderClient {
         body: serde_json::Value,
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
         crate::gitlab::api::RawApi::post(self, endpoint, body).await
+    }
+
+    async fn raw_put(
+        &self,
+        endpoint: &str,
+        body: serde_json::Value,
+    ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
+        crate::gitlab::api::RawApi::put(self, endpoint, body).await
+    }
+
+    async fn raw_patch(
+        &self,
+        endpoint: &str,
+        body: serde_json::Value,
+    ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
+        crate::gitlab::api::RawApi::patch(self, endpoint, body).await
     }
 
     async fn raw_delete(

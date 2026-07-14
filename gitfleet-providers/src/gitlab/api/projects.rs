@@ -44,6 +44,19 @@ impl ProjectsApi {
         Ok(data.iter().map(normalize_project).collect())
     }
 
+    pub async fn list_forks(
+        client: &ProviderClient,
+        project: &str,
+    ) -> Result<Vec<RepoSummary>, GitfleetError> {
+        let encoded = encode_path(project);
+
+        let endpoint = format!("/projects/{encoded}/forks?per_page=100");
+
+        let data: Vec<serde_json::Value> = client.get_paginated(&endpoint, None, None).await?;
+
+        Ok(data.iter().map(normalize_project).collect())
+    }
+
     pub async fn get(
         client: &ProviderClient,
         project: &str,
@@ -72,10 +85,12 @@ impl ProjectsApi {
         owner: Option<&str>,
         owner_type: Option<&str>,
         description: Option<&str>,
+        initialize: bool,
     ) -> Result<serde_json::Value, GitfleetError> {
         let mut body = serde_json::json!({
             "name": name,
             "visibility": visibility,
+            "initialize_with_readme": initialize,
         });
 
         if let Some(d) = description {
@@ -197,24 +212,25 @@ impl ProjectsApi {
     pub async fn fork(
         client: &ProviderClient,
         project: &str,
+        destination_owner: Option<&str>,
     ) -> Result<serde_json::Value, GitfleetError> {
         let encoded = encode_path(project);
 
         let endpoint = format!("/projects/{encoded}/fork");
 
+        let body = destination_owner
+            .map(|owner| serde_json::json!({ "namespace_path": owner }))
+            .unwrap_or_else(|| serde_json::json!({}));
+
         let response = client
-            .request_token_required(
-                reqwest::Method::POST,
-                &endpoint,
-                Some(serde_json::json!({})),
-                None,
-                None,
-            )
+            .request_token_required(reqwest::Method::POST, &endpoint, Some(body), None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let mut data: serde_json::Value = crate::parse_json(response)
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to fork project: {e}")))?;
+
+        normalize_project_value(&mut data);
 
         Ok(data)
     }
@@ -280,26 +296,47 @@ fn normalize_project(raw: &serde_json::Value) -> RepoSummary {
 }
 
 fn normalize_project_value(raw: &mut serde_json::Value) {
-    let Some(object) = raw.as_object_mut() else {
+    if !raw.is_object() {
         return;
-    };
+    }
 
-    let full_name = object
-        .get("path_with_namespace")
+    let summary = normalize_project(raw);
+    let html_url = raw.get("web_url").cloned().unwrap_or_default();
+    let clone_url = raw.get("http_url_to_repo").cloned().unwrap_or_default();
+    let visibility = raw.get("visibility").cloned().unwrap_or_default();
+    let description = raw.get("description").cloned().unwrap_or_default();
+    let open_issues_count = raw.get("open_issues_count").cloned().unwrap_or_default();
+    let stargazers_count = raw.get("star_count").cloned().unwrap_or_default();
+    let owner = raw
+        .pointer("/namespace/path")
         .cloned()
-        .unwrap_or(serde_json::Value::Null);
-    let html_url = object
-        .get("web_url")
+        .map(|login| serde_json::json!({ "login": login }))
+        .unwrap_or_default();
+    let parent = raw
+        .pointer("/forked_from_project/path_with_namespace")
         .cloned()
-        .unwrap_or(serde_json::Value::Null);
-    let private = object
-        .get("visibility")
-        .and_then(serde_json::Value::as_str)
-        .is_some_and(|visibility| visibility == "private");
+        .map(|full_name| serde_json::json!({ "full_name": full_name }))
+        .unwrap_or_default();
 
-    object.insert("full_name".to_string(), full_name);
-    object.insert("html_url".to_string(), html_url);
-    object.insert("private".to_string(), serde_json::Value::Bool(private));
+    *raw = serde_json::json!({
+        "id": summary.id,
+        "name": summary.name,
+        "fork": summary.fork,
+        "private": summary.private,
+        "archived": summary.archived,
+        "full_name": summary.full_name,
+        "html_url": html_url,
+        "clone_url": clone_url,
+        "visibility": visibility,
+        "default_branch": summary.default_branch,
+        "pushed_at": summary.pushed_at,
+        "homepage": null,
+        "owner": owner,
+        "open_issues_count": open_issues_count,
+        "stargazers_count": stargazers_count,
+        "description": description,
+        "parent": parent,
+    });
 }
 
 #[cfg(test)]

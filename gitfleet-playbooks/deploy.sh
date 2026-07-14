@@ -8,4 +8,4 @@ trap teardown EXIT
 setup
 
 step "Deploy List"
-expect_exit_0 "deploy list succeeds" gitfleet deploy list --repo "$REPO"
+expect_exit_0 "deploy list succeeds" gitfleet deploy list --repo "$GITFLEET_PLAYBOOK_REPO"

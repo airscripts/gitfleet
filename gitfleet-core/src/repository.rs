@@ -176,9 +176,9 @@ mod tests {
     #[serial_test::serial]
     fn test_parse_configured_enterprise_remote() {
         let dir = tempfile::tempdir().unwrap();
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", dir.path().to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string());
 
         crate::config::add_profile(
             "enterprise",
@@ -200,9 +200,9 @@ mod tests {
         assert_eq!(result.full_name(), "enterprise/project");
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         } else {
-            std::env::remove_var("HOME");
+            std::env::remove_var("GITFLEET_HOME");
         }
     }
 }

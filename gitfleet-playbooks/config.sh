@@ -2,7 +2,7 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
-CONFIG_KEY="gitfleet_test_$PB_RESOURCE_SUFFIX"
+CONFIG_KEY="gitfleet_test_$GITFLEET_PLAYBOOK_RESOURCE_SUFFIX"
 CONFIG_SET=false
 
 setup() { :; }

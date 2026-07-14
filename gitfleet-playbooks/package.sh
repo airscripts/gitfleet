@@ -8,8 +8,10 @@ trap teardown EXIT
 setup
 
 step "Package List"
-if gitfleet registry list --owner "$OWNER" >/dev/null 2>&1; then
-  pass "package list succeeds"
+if [ "$GITFLEET_PLAYBOOK_PROVIDER" = "gitlab" ]; then
+  PACKAGE_OWNER="$GITFLEET_PLAYBOOK_REPO"
 else
-  skip "package list (org may not have packages)"
+  PACKAGE_OWNER="$GITFLEET_PLAYBOOK_OWNER"
 fi
+
+expect_exit_0 "package list succeeds" gitfleet registry list --owner "$PACKAGE_OWNER"

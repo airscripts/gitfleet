@@ -7,3 +7,9 @@ metadata/
 
 *.profraw
 *.profdata
+
+SENSITIVE.md
+
+.env
+.env.*
+!.env.example

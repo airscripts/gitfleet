@@ -8,7 +8,7 @@ fn setup_tmp_home() -> tempfile::TempDir {
     let gitfleet_dir = dir.path().join(".config").join("gitfleet");
     std::fs::create_dir_all(&gitfleet_dir).unwrap();
 
-    std::env::set_var("HOME", dir.path().to_string_lossy().to_string());
+    std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string());
     std::env::remove_var("GITFLEET_GITHUB_TOKEN");
     std::env::remove_var("GITFLEET_PROFILE");
     std::env::remove_var("GITFLEET_CREDENTIAL_STORE");

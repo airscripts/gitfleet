@@ -23,11 +23,12 @@ impl CodeApi {
             urlencoding::encode(path)
         );
 
-        endpoint.push_str("?raw=false");
+        let reference = r#ref.unwrap_or("HEAD");
 
-        if let Some(r) = r#ref {
-            endpoint.push_str(&format!("&ref={}", urlencoding::encode(r)));
-        }
+        endpoint.push_str(&format!(
+            "?raw=false&ref={}",
+            urlencoding::encode(reference)
+        ));
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)

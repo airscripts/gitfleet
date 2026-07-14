@@ -6,6 +6,8 @@ use crate::github::client::ProviderClient;
 
 pub struct PackagesApi;
 
+const PACKAGE_TYPES: [&str; 6] = ["npm", "maven", "rubygems", "docker", "nuget", "container"];
+
 impl PackagesApi {
     pub async fn list_for_org(
         client: &ProviderClient,
@@ -13,11 +15,33 @@ impl PackagesApi {
         package_type: Option<&str>,
         limit: u32,
     ) -> Result<Vec<PackageSummary>, GitfleetError> {
-        let mut endpoint = format!("/orgs/{}/packages?per_page={limit}", encode_segment(org));
-
-        if let Some(pt) = package_type {
-            endpoint.push_str(&format!("&package_type={}", encode_segment(pt)));
+        if let Some(package_type) = package_type {
+            return Self::list_for_org_type(client, org, package_type, limit).await;
         }
+
+        let mut packages = Vec::new();
+
+        for package_type in PACKAGE_TYPES {
+            packages.extend(Self::list_for_org_type(client, org, package_type, limit).await?);
+
+            if packages.len() >= limit as usize {
+                packages.truncate(limit as usize);
+
+                break;
+            }
+        }
+
+        Ok(packages)
+    }
+
+    async fn list_for_org_type(
+        client: &ProviderClient,
+        org: &str,
+        package_type: &str,
+        limit: u32,
+    ) -> Result<Vec<PackageSummary>, GitfleetError> {
+        let mut endpoint = format!("/orgs/{}/packages?per_page={limit}", encode_segment(org));
+        endpoint.push_str(&format!("&package_type={}", encode_segment(package_type)));
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
@@ -78,11 +102,33 @@ impl PackagesApi {
         package_type: Option<&str>,
         limit: u32,
     ) -> Result<Vec<PackageSummary>, GitfleetError> {
-        let mut endpoint = format!("/users/{}/packages?per_page={limit}", encode_segment(owner));
-
-        if let Some(pt) = package_type {
-            endpoint.push_str(&format!("&package_type={}", encode_segment(pt)));
+        if let Some(package_type) = package_type {
+            return Self::list_for_user_type(client, owner, package_type, limit).await;
         }
+
+        let mut packages = Vec::new();
+
+        for package_type in PACKAGE_TYPES {
+            packages.extend(Self::list_for_user_type(client, owner, package_type, limit).await?);
+
+            if packages.len() >= limit as usize {
+                packages.truncate(limit as usize);
+
+                break;
+            }
+        }
+
+        Ok(packages)
+    }
+
+    async fn list_for_user_type(
+        client: &ProviderClient,
+        owner: &str,
+        package_type: &str,
+        limit: u32,
+    ) -> Result<Vec<PackageSummary>, GitfleetError> {
+        let mut endpoint = format!("/users/{}/packages?per_page={limit}", encode_segment(owner));
+        endpoint.push_str(&format!("&package_type={}", encode_segment(package_type)));
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)

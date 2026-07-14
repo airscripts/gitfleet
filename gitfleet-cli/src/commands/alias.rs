@@ -147,9 +147,9 @@ mod tests {
         let gitfleet_dir = dir.path().join(".config").join("gitfleet");
         std::fs::create_dir_all(&gitfleet_dir).unwrap();
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", dir.path().to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var("GITFLEET_PROFILE");
         (dir, original_home)
@@ -157,7 +157,9 @@ mod tests {
 
     fn cleanup_test_env(_dir: tempfile::TempDir, original_home: Option<String>) {
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
+        } else {
+            std::env::remove_var("GITFLEET_HOME");
         }
     }
 

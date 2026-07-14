@@ -2,15 +2,18 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
-AUTH_PROFILE="gitfleet-test-auth-$PB_RESOURCE_SUFFIX"
+AUTH_PROFILE="gitfleet-test-auth-$GITFLEET_PLAYBOOK_RESOURCE_SUFFIX"
+DETECT_DIR="$GITFLEET_PLAYBOOK_TMPDIR/gitfleet-auth-detect-$GITFLEET_PLAYBOOK_RESOURCE_SUFFIX"
 LOGGED_IN=false
 
 setup() { :; }
 
 teardown() {
   if [ "$LOGGED_IN" = true ]; then
-    gitfleet auth logout --profile "$AUTH_PROFILE" --yes >/dev/null 2>&1 || true
+    GITFLEET_CREDENTIAL_STORE=file gitfleet auth logout --profile "$AUTH_PROFILE" --yes >/dev/null 2>&1 || true
   fi
+
+  rm -rf "$DETECT_DIR"
 
   print_summary
 }
@@ -31,7 +34,7 @@ step "Auth Token (raw)"
 expect_exit_0 "auth token --raw succeeds" gitfleet auth token --raw
 
 step "Auth Login"
-if gitfleet auth login --profile "$AUTH_PROFILE" <<< "$PLAYBOOK_TOKEN" >/dev/null 2>&1; then
+if GITFLEET_CREDENTIAL_STORE=file gitfleet auth login --profile "$AUTH_PROFILE" <<< "$GITFLEET_PLAYBOOK_TOKEN" >/dev/null 2>&1; then
   pass "auth login succeeded"
   LOGGED_IN=true
 else
@@ -42,14 +45,21 @@ step "Auth List"
 expect_exit_0 "auth list succeeds" gitfleet auth list
 
 step "Auth Detect"
-expect_exit_0 "auth detect succeeds" gitfleet auth detect
+mkdir -p "$DETECT_DIR"
+git -C "$DETECT_DIR" init -q
+if [ "$GITFLEET_PLAYBOOK_PROVIDER" = "gitlab" ]; then
+  git -C "$DETECT_DIR" remote add origin "https://gitlab.com/$GITFLEET_PLAYBOOK_REPO.git"
+else
+  git -C "$DETECT_DIR" remote add origin "https://github.com/$GITFLEET_PLAYBOOK_REPO.git"
+fi
+expect_exit_0 "auth detect succeeds" bash -c 'cd "$1" && exec gitfleet auth detect' _ "$DETECT_DIR"
 
 step "Auth Login Without Token"
-CI=true expect_exit_non0 "auth login without token fails" gitfleet auth login
+GITFLEET_CI=true expect_exit_non0 "auth login without token fails" gitfleet auth login
 
 step "Auth Logout"
 if [ "$LOGGED_IN" = true ]; then
-  expect_exit_0 "auth logout succeeds" gitfleet auth logout --profile "$AUTH_PROFILE" --yes
+  expect_exit_0 "auth logout succeeds" env GITFLEET_CREDENTIAL_STORE=file gitfleet auth logout --profile "$AUTH_PROFILE" --yes
   LOGGED_IN=false
 else
   skip "auth logout (was not logged in)"

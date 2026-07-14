@@ -158,14 +158,35 @@ mod tests {
     use super::super::test_helpers;
     use super::*;
 
-    fn setup_test_env() -> tempfile::TempDir {
+    struct TestEnvironment {
+        _directory: tempfile::TempDir,
+        original_home: Option<String>,
+    }
+
+    impl Drop for TestEnvironment {
+        fn drop(&mut self) {
+            if let Some(home) = &self.original_home {
+                std::env::set_var("GITFLEET_HOME", home);
+            } else {
+                std::env::remove_var("GITFLEET_HOME");
+            }
+        }
+    }
+
+    fn setup_test_env() -> TestEnvironment {
         let dir = tempfile::tempdir().unwrap();
 
         let gitfleet_dir = dir.path().join(".config").join("gitfleet");
         std::fs::create_dir_all(&gitfleet_dir).unwrap();
 
-        std::env::set_var("HOME", dir.path().to_string_lossy().to_string());
-        dir
+        let original_home = std::env::var("GITFLEET_HOME").ok();
+
+        std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string());
+
+        TestEnvironment {
+            _directory: dir,
+            original_home,
+        }
     }
 
     #[tokio::test]

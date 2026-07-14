@@ -94,6 +94,17 @@ impl ReposApi {
         Ok(data.iter().map(normalize_repo).collect())
     }
 
+    pub async fn list_forks(
+        client: &ProviderClient,
+        repo: &str,
+    ) -> Result<Vec<RepoSummary>, GitfleetError> {
+        let endpoint = format!("{}?per_page=100", repo_path(repo, &["forks"]));
+
+        let data: Vec<GitHubRepoResponse> = client.get_paginated(&endpoint, None, None).await?;
+
+        Ok(data.iter().map(normalize_repo).collect())
+    }
+
     pub async fn get(
         client: &ProviderClient,
         repo: &str,
@@ -118,11 +129,13 @@ impl ReposApi {
         owner: Option<&str>,
         owner_type: Option<&str>,
         description: Option<&str>,
+        initialize: bool,
     ) -> Result<GitHubRepoResponse, GitfleetError> {
         let body = serde_json::json!({
             "name": name,
             "visibility": visibility,
             "description": description,
+            "auto_init": initialize,
         });
 
         let endpoint = match owner_type {
@@ -198,17 +211,16 @@ impl ReposApi {
     pub async fn fork(
         client: &ProviderClient,
         repo: &str,
+        destination_owner: Option<&str>,
     ) -> Result<GitHubRepoResponse, GitfleetError> {
         let endpoint = repo_path(repo, &["forks"]);
 
+        let body = destination_owner
+            .map(|owner| serde_json::json!({ "organization": owner }))
+            .unwrap_or_else(|| serde_json::json!({}));
+
         let response = client
-            .request_token_required(
-                reqwest::Method::POST,
-                &endpoint,
-                Some(serde_json::json!({})),
-                None,
-                None,
-            )
+            .request_token_required(reqwest::Method::POST, &endpoint, Some(body), None, None)
             .await?;
 
         let data: GitHubRepoResponse = crate::parse_json(response)

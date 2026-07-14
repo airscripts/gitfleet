@@ -31,6 +31,7 @@ static CAPABILITIES: &[ProviderCapability] = &[
     ProviderCapability::Licenses,
     ProviderCapability::Snippets,
     ProviderCapability::RepositoryPolicies,
+    ProviderCapability::TagProtection,
     ProviderCapability::Registry,
 ];
 

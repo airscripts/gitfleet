@@ -22,6 +22,26 @@ pub enum ApiCommand {
         yes: bool,
     },
 
+    #[command(about = "Send a raw PUT request to the provider API.")]
+    Put {
+        #[arg(long)]
+        endpoint: String,
+        #[arg(long)]
+        body: String,
+        #[arg(long)]
+        yes: bool,
+    },
+
+    #[command(about = "Send a raw PATCH request to the provider API.")]
+    Patch {
+        #[arg(long)]
+        endpoint: String,
+        #[arg(long)]
+        body: String,
+        #[arg(long)]
+        yes: bool,
+    },
+
     #[command(about = "Send a raw DELETE request to the provider API.")]
     Delete {
         #[arg(long)]
@@ -93,6 +113,100 @@ pub async fn run(cmd: ApiCommand, app: &App) -> Result<(), GitfleetError> {
             )?;
 
             let data = ops.raw_post(&endpoint, parsed).await?;
+
+            if app.renderer().is_json() {
+                app.renderer().write_result(&data);
+            } else {
+                app.renderer()
+                    .render_success_box("Response", &format!("{data}"));
+            }
+
+            Ok(())
+        }
+
+        ApiCommand::Put {
+            endpoint,
+            body,
+            yes,
+        } => {
+            validate_endpoint(&endpoint)?;
+
+            let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+                GitfleetError::from(UnprocessableError::new(format!("Invalid JSON body: {e}")))
+            })?;
+
+            if app.dry_run() {
+                let preview = serde_json::json!({
+                    "dry_run": true,
+                    "action": "put",
+                    "endpoint": endpoint,
+                    "body": parsed,
+                });
+
+                if app.renderer().is_json() {
+                    app.renderer().write_result(&preview);
+                } else {
+                    app.renderer()
+                        .render_box(&format!("Would send {preview}"), "warning");
+                }
+
+                return Ok(());
+            }
+
+            gitfleet_core::prompt::confirm_destructive(
+                &format!("Send raw PUT request to {endpoint}?"),
+                app.renderer().mode(),
+                app.renderer().yes() || yes,
+            )?;
+
+            let data = ops.raw_put(&endpoint, parsed).await?;
+
+            if app.renderer().is_json() {
+                app.renderer().write_result(&data);
+            } else {
+                app.renderer()
+                    .render_success_box("Response", &format!("{data}"));
+            }
+
+            Ok(())
+        }
+
+        ApiCommand::Patch {
+            endpoint,
+            body,
+            yes,
+        } => {
+            validate_endpoint(&endpoint)?;
+
+            let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+                GitfleetError::from(UnprocessableError::new(format!("Invalid JSON body: {e}")))
+            })?;
+
+            if app.dry_run() {
+                let preview = serde_json::json!({
+                    "dry_run": true,
+                    "action": "patch",
+                    "endpoint": endpoint,
+                    "body": parsed,
+                });
+
+                if app.renderer().is_json() {
+                    app.renderer().write_result(&preview);
+                } else {
+                    app.renderer()
+                        .render_box(&format!("Would send {preview}"), "warning");
+                }
+
+                return Ok(());
+            }
+
+            gitfleet_core::prompt::confirm_destructive(
+                &format!("Send raw PATCH request to {endpoint}?"),
+                app.renderer().mode(),
+                app.renderer().yes() || yes,
+            )?;
+
+            let data = ops.raw_patch(&endpoint, parsed).await?;
 
             if app.renderer().is_json() {
                 app.renderer().write_result(&data);
@@ -309,6 +423,38 @@ mod tests {
         .await;
 
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_api_put() {
+        let app = test_helpers::make_app();
+
+        run(
+            ApiCommand::Put {
+                endpoint: "/repos/org/repo".into(),
+                body: r#"{"key":"value"}"#.into(),
+                yes: true,
+            },
+            &app,
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_api_patch() {
+        let app = test_helpers::make_app();
+
+        run(
+            ApiCommand::Patch {
+                endpoint: "/repos/org/repo".into(),
+                body: r#"{"key":"value"}"#.into(),
+                yes: true,
+            },
+            &app,
+        )
+        .await
+        .unwrap();
     }
 
     #[tokio::test]

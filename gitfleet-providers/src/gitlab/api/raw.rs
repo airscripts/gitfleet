@@ -32,6 +32,34 @@ impl RawApi {
             .map_err(|e| GitfleetError::new(format!("Failed to parse response: {e}")))
     }
 
+    pub async fn put(
+        client: &ProviderClient,
+        endpoint: &str,
+        body: serde_json::Value,
+    ) -> Result<serde_json::Value, GitfleetError> {
+        let resp = client
+            .request_token_required(reqwest::Method::PUT, endpoint, Some(body), None, None)
+            .await?;
+
+        crate::parse_json(resp)
+            .await
+            .map_err(|e| GitfleetError::new(format!("Failed to parse response: {e}")))
+    }
+
+    pub async fn patch(
+        client: &ProviderClient,
+        endpoint: &str,
+        body: serde_json::Value,
+    ) -> Result<serde_json::Value, GitfleetError> {
+        let resp = client
+            .request_token_required(reqwest::Method::PATCH, endpoint, Some(body), None, None)
+            .await?;
+
+        crate::parse_json(resp)
+            .await
+            .map_err(|e| GitfleetError::new(format!("Failed to parse response: {e}")))
+    }
+
     pub async fn delete(
         client: &ProviderClient,
         endpoint: &str,

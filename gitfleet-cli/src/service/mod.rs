@@ -174,6 +174,7 @@ mod tests {
             _owner: Option<&str>,
             _owner_type: Option<&str>,
             _description: Option<&str>,
+            _initialize: bool,
         ) -> Result<serde_json::Value, GitfleetError> {
             Ok(serde_json::json!({
                 "full_name": "org/new-repo",
@@ -201,7 +202,24 @@ mod tests {
             Ok(())
         }
 
-        async fn fork_repo(&self, _repo: &str) -> Result<serde_json::Value, GitfleetError> {
+        async fn list_forks(&self, _repo: &str) -> Result<Vec<RepoSummary>, GitfleetError> {
+            Ok(vec![RepoSummary {
+                id: 4,
+                name: "fork".into(),
+                fork: true,
+                full_name: "user/fork".into(),
+                private: false,
+                archived: false,
+                default_branch: "main".into(),
+                pushed_at: None,
+            }])
+        }
+
+        async fn fork_repo(
+            &self,
+            _repo: &str,
+            _destination_owner: Option<&str>,
+        ) -> Result<serde_json::Value, GitfleetError> {
             Ok(serde_json::json!({}))
         }
 
@@ -1136,9 +1154,20 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Silent);
-        repos::create(&p, &r, "new-repo", None, None, "public", None)
-            .await
-            .unwrap();
+        repos::create(
+            &p,
+            &r,
+            repos::CreateOptions {
+                name: "new-repo",
+                owner: None,
+                owner_type: None,
+                visibility: "public",
+                description: None,
+                initialize: false,
+            },
+        )
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
@@ -1146,9 +1175,20 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Human);
-        repos::create(&p, &r, "new-repo", None, None, "public", None)
-            .await
-            .unwrap();
+        repos::create(
+            &p,
+            &r,
+            repos::CreateOptions {
+                name: "new-repo",
+                owner: None,
+                owner_type: None,
+                visibility: "public",
+                description: None,
+                initialize: false,
+            },
+        )
+        .await
+        .unwrap();
     }
 
     #[tokio::test]

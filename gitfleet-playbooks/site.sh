@@ -2,16 +2,14 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
-TEST_REPO_NAME="gitfleet-test-site-$PB_RESOURCE_SUFFIX"
-TEST_REPO="$ORG/$TEST_REPO_NAME"
+TEST_REPO_NAME="gitfleet-test-site-$GITFLEET_PLAYBOOK_RESOURCE_SUFFIX"
+TEST_REPO="$GITFLEET_PLAYBOOK_TEST_REPO_OWNER/$TEST_REPO_NAME"
 REPO_CREATED=false
 SITE_ENABLED=false
 
 setup() {
-  if gitfleet repo create "$TEST_REPO_NAME" --owner "$ORG" --owner-type org --private --yes >/dev/null 2>&1; then
+  if gitfleet repo create "$TEST_REPO_NAME" --owner "$GITFLEET_PLAYBOOK_TEST_REPO_OWNER" --owner-type "$GITFLEET_PLAYBOOK_TEST_REPO_OWNER_TYPE" --public --initialize --yes >/dev/null 2>&1; then
     REPO_CREATED=true
-    content=$(printf 'Gitfleet site playbook\n' | base64 | tr -d '\n')
-    gitfleet api post --endpoint "/repos/$TEST_REPO/contents/README.md" --body "{\"message\":\"test: initialize repository\",\"content\":\"$content\"}" --json >/dev/null 2>&1 || true
   else
     fail "site test repository creation failed"
   fi
@@ -31,7 +29,7 @@ trap teardown EXIT
 
 if ! has_capability "site"; then
   step "Site Capability"
-  expect_exit_non0 "sites are explicitly unsupported" gitfleet site get --repo "$REPO"
+  expect_exit_non0 "sites are explicitly unsupported" gitfleet site get --repo "$GITFLEET_PLAYBOOK_REPO"
   exit 0
 fi
 
@@ -41,7 +39,7 @@ step "Site Get (before enable)"
 if gitfleet site get --repo "$TEST_REPO" >/dev/null 2>&1; then
   pass "site get succeeds"
 else
-  skip "site get (repo may not exist yet)"
+  pass "site get reports no configured site"
 fi
 
 step "Site Create"
@@ -49,7 +47,7 @@ if gitfleet site create --repo "$TEST_REPO" --source main >/dev/null 2>&1; then
   pass "site create succeeded"
   SITE_ENABLED=true
 else
-  skip "site create (may not be supported for this repo)"
+  fail "site create failed"
 fi
 
 step "Site Get (after create)"

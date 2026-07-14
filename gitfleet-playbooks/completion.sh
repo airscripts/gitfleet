@@ -2,7 +2,7 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
-MAN_DIR="$TMPDIR/gitfleet-man-$PB_RESOURCE_SUFFIX"
+MAN_DIR="$GITFLEET_PLAYBOOK_TMPDIR/gitfleet-man-$GITFLEET_PLAYBOOK_RESOURCE_SUFFIX"
 
 setup() { :; }
 

@@ -3,12 +3,12 @@ set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
 TEST_ISSUE_NUMBER=""
-TEST_REPO_NAME="gitfleet-test-comment-$PB_RESOURCE_SUFFIX"
-TEST_REPO="$ORG/$TEST_REPO_NAME"
+TEST_REPO_NAME="gitfleet-test-comment-$GITFLEET_PLAYBOOK_RESOURCE_SUFFIX"
+TEST_REPO="$GITFLEET_PLAYBOOK_TEST_REPO_OWNER/$TEST_REPO_NAME"
 REPO_CREATED=false
 
 setup() {
-  if ! gitfleet repo create "$TEST_REPO_NAME" --owner "$ORG" --owner-type org --private --yes >/dev/null 2>&1; then
+  if ! gitfleet repo create "$TEST_REPO_NAME" --owner "$GITFLEET_PLAYBOOK_TEST_REPO_OWNER" --owner-type "$GITFLEET_PLAYBOOK_TEST_REPO_OWNER_TYPE" --private --yes >/dev/null 2>&1; then
     fail "comment test repository creation failed"
     return
   fi
@@ -34,15 +34,7 @@ if [ -z "$TEST_ISSUE_NUMBER" ]; then
 fi
 
 step "Comment List"
-if gitfleet review comment list "$TEST_ISSUE_NUMBER" --repo "$TEST_REPO" >/dev/null 2>&1; then
-  pass "comment list succeeds"
-else
-  skip "comment list (issue may not exist)"
-fi
+expect_exit_0 "comment list succeeds" gitfleet review comment list "$TEST_ISSUE_NUMBER" --repo "$TEST_REPO" --target issue
 
 step "Comment Create"
-if gitfleet review comment create "$TEST_ISSUE_NUMBER" --body "gitfleet playbook test comment" --repo "$TEST_REPO" >/dev/null 2>&1; then
-  pass "comment create succeeds"
-else
-  skip "comment create (issue may not exist)"
-fi
+expect_exit_0 "comment create succeeds" gitfleet review comment create "$TEST_ISSUE_NUMBER" "gitfleet playbook test comment" --repo "$TEST_REPO" --target issue

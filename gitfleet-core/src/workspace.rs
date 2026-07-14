@@ -1,8 +1,6 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use dirs::home_dir;
-
 use crate::errors::GitfleetError;
 use crate::file_lock::FileLock;
 use crate::provider::ProviderId;
@@ -20,13 +18,9 @@ struct WorkspacesFile {
 }
 
 fn workspaces_path() -> Result<PathBuf, GitfleetError> {
-    home_dir()
-        .map(|home| {
-            home.join(".config")
-                .join("gitfleet")
-                .join("workspaces.toml")
-        })
-        .ok_or_else(|| GitfleetError::new("Unable to determine the home directory."))
+    crate::config::gitfleet_folder()
+        .map(|folder| folder.join("workspaces.toml"))
+        .map_err(GitfleetError::from)
 }
 
 fn ensure_dir() -> Result<(), GitfleetError> {
@@ -341,18 +335,33 @@ pub fn remove(name: &str) -> Result<(), GitfleetError> {
 mod tests {
     use super::*;
 
-    fn setup_test_env() -> tempfile::TempDir {
+    struct TestEnvironment {
+        _directory: tempfile::TempDir,
+        original_home: Option<String>,
+    }
+
+    fn setup_test_env() -> TestEnvironment {
         let dir = tempfile::tempdir().unwrap();
 
         let gitfleet_dir = dir.path().join(".config").join("gitfleet");
         std::fs::create_dir_all(&gitfleet_dir).unwrap();
 
-        std::env::set_var("HOME", dir.path().to_string_lossy().to_string());
-        dir
+        let original_home = std::env::var("GITFLEET_HOME").ok();
+
+        std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string());
+
+        TestEnvironment {
+            _directory: dir,
+            original_home,
+        }
     }
 
-    fn cleanup_test_env(dir: tempfile::TempDir) {
-        let _ = dir;
+    fn cleanup_test_env(environment: TestEnvironment) {
+        if let Some(home) = environment.original_home {
+            std::env::set_var("GITFLEET_HOME", home);
+        } else {
+            std::env::remove_var("GITFLEET_HOME");
+        }
     }
 
     #[test]

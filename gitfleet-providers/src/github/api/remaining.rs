@@ -17,7 +17,11 @@ impl TemplatesApi {
         let query = r#"
             query ListIssueTemplates($owner: String!, $name: String!) {
                 repository(owner: $owner, name: $name) {
-                    issueTemplates { name filename body about title labels assignees }
+                    issueTemplates {
+                        name filename body about title
+                        labels(first: 100) { nodes { name } }
+                        assignees(first: 100) { nodes { login } }
+                    }
                 }
             }
         "#;
@@ -43,6 +47,26 @@ impl TemplatesApi {
         templates
             .into_iter()
             .map(|mut template| {
+                let labels = template
+                    .pointer("/labels/nodes")
+                    .and_then(serde_json::Value::as_array)
+                    .map(|nodes| {
+                        nodes
+                            .iter()
+                            .filter_map(|node| node.get("name").cloned())
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let assignees = template
+                    .pointer("/assignees/nodes")
+                    .and_then(serde_json::Value::as_array)
+                    .map(|nodes| {
+                        nodes
+                            .iter()
+                            .filter_map(|node| node.get("login").cloned())
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 let filename = template
                     .get("filename")
                     .and_then(serde_json::Value::as_str)
@@ -50,6 +74,8 @@ impl TemplatesApi {
                     .to_string();
 
                 if let Some(object) = template.as_object_mut() {
+                    object.insert("labels".to_string(), serde_json::Value::Array(labels));
+                    object.insert("assignees".to_string(), serde_json::Value::Array(assignees));
                     object.insert(
                         "path".to_string(),
                         serde_json::Value::String(format!(".github/ISSUE_TEMPLATE/{filename}")),

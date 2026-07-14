@@ -11,7 +11,7 @@ step "Inbox List"
 expect_exit_0 "inbox list succeeds" gitfleet inbox list
 
 step "Inbox List --repo"
-expect_exit_0 "inbox list --repo succeeds" gitfleet inbox list --repo "$REPO"
+expect_exit_0 "inbox list --repo succeeds" gitfleet inbox list --repo "$GITFLEET_PLAYBOOK_REPO"
 
 step "Inbox List --json"
 expect_exit_0 "inbox list --json succeeds" gitfleet inbox list --json

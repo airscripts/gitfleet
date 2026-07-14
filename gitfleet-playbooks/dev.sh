@@ -9,11 +9,11 @@ setup
 
 step "Codespace List"
 if ! has_capability "developmentEnvironments"; then
-  expect_exit_non0 "development environments are explicitly unsupported" gitfleet dev list --repo "$REPO"
+  expect_exit_non0 "development environments are explicitly unsupported" gitfleet dev list --repo "$GITFLEET_PLAYBOOK_REPO"
   exit 0
 fi
 
-if gitfleet dev list --repo "$REPO" >/dev/null 2>&1; then
+if gitfleet dev list --repo "$GITFLEET_PLAYBOOK_REPO" >/dev/null 2>&1; then
   pass "codespace list succeeds"
 else
   skip "codespace list (codespaces may not be enabled)"

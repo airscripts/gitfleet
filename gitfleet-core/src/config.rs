@@ -5,15 +5,19 @@ use dirs::home_dir;
 
 use crate::constants::{
     CREDENTIALS_FILE, DEFAULT_PROFILE_NAME, GITFLEET_CREDENTIAL_STORE_ENV, GITFLEET_FOLDER,
-    GITFLEET_PROFILE_ENV, GITFLEET_TEST_CREDENTIAL_STORE_ENV, GITFLEET_TRUST_REPO_CONFIG_ENV,
-    KEYRING_SERVICE,
+    GITFLEET_HOME_ENV, GITFLEET_PROFILE_ENV, GITFLEET_TEST_CREDENTIAL_STORE_ENV,
+    GITFLEET_TRUST_REPO_CONFIG_ENV, KEYRING_SERVICE,
 };
 use crate::errors::ConfigError;
 use crate::file_lock::FileLock;
 use crate::provider::{ProviderCapability, ProviderContext, ProviderId, TokenSource};
 use crate::types::{CredentialsFile, Profile, ProfileRcFile};
 
-fn gitfleet_folder() -> Result<PathBuf, ConfigError> {
+pub(crate) fn gitfleet_folder() -> Result<PathBuf, ConfigError> {
+    if let Some(home) = std::env::var_os(GITFLEET_HOME_ENV).filter(|home| !home.is_empty()) {
+        return Ok(PathBuf::from(home).join(GITFLEET_FOLDER));
+    }
+
     home_dir()
         .map(|home| home.join(GITFLEET_FOLDER))
         .ok_or_else(|| ConfigError::new("Unable to determine the home directory."))
@@ -904,7 +908,7 @@ mod tests {
     fn test_read_credentials_returns_default_when_file_missing() {
         let dir = tempfile::tempdir().unwrap();
 
-        std::env::set_var("HOME", dir.path().to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var("GITFLEET_PROFILE");
 
@@ -913,7 +917,7 @@ mod tests {
         assert_eq!(creds.active_profile, DEFAULT_PROFILE_NAME);
 
         assert!(creds.profiles.is_empty());
-        std::env::remove_var("HOME");
+        std::env::remove_var("GITFLEET_HOME");
     }
 
     #[test]
@@ -928,9 +932,9 @@ mod tests {
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
 
         let mut profiles = HashMap::new();
         profiles.insert(
@@ -962,7 +966,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
     }
 
@@ -995,9 +999,12 @@ mod tests {
     #[serial_test::serial]
     fn test_get_token_for_host_uses_matching_profile() {
         let tmp_dir = tempfile::tempdir().unwrap();
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.path().to_string_lossy().to_string());
+        std::env::set_var(
+            "GITFLEET_HOME",
+            tmp_dir.path().to_string_lossy().to_string(),
+        );
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var("GITFLEET_GITLAB_TOKEN");
 
@@ -1038,9 +1045,9 @@ mod tests {
         assert_eq!(get_token_for_host("unknown.example.com"), None);
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         } else {
-            std::env::remove_var("HOME");
+            std::env::remove_var("GITFLEET_HOME");
         }
     }
 
@@ -1051,8 +1058,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp_dir);
         std::fs::create_dir_all(&tmp_dir).unwrap();
 
-        let original_home = std::env::var("HOME").ok();
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        let original_home = std::env::var("GITFLEET_HOME").ok();
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var(GITFLEET_PROFILE_ENV);
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var("GITFLEET_GITLAB_TOKEN");
@@ -1088,7 +1095,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp_dir);
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
     }
 
@@ -1116,16 +1123,16 @@ mod tests {
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
 
         let result = get_token();
 
         match original_home {
-            Some(home) => std::env::set_var("HOME", home),
-            None => std::env::remove_var("HOME"),
+            Some(home) => std::env::set_var("GITFLEET_HOME", home),
+            None => std::env::remove_var("GITFLEET_HOME"),
         }
 
         assert!(result.is_err());
@@ -1143,9 +1150,9 @@ mod tests {
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1163,7 +1170,7 @@ mod tests {
         assert!(entries.iter().any(|e| e.name == "test-add"));
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1181,9 +1188,9 @@ mod tests {
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1202,7 +1209,7 @@ mod tests {
         assert_eq!(creds.active_profile, "active-profile");
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1220,9 +1227,9 @@ mod tests {
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1231,7 +1238,7 @@ mod tests {
         assert!(result.is_err());
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1249,9 +1256,9 @@ mod tests {
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1270,7 +1277,7 @@ mod tests {
         assert!(!entries.iter().any(|e| e.name == "to-remove"));
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1282,9 +1289,9 @@ mod tests {
         let tmp_dir = std::env::temp_dir().join("gitfleet_test_config_remove_err");
 
         let _ = std::fs::create_dir_all(&tmp_dir);
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1293,7 +1300,7 @@ mod tests {
         assert!(result.is_err());
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1305,9 +1312,9 @@ mod tests {
         let tmp_dir = std::env::temp_dir().join("gitfleet_test_config_clear");
 
         let _ = std::fs::create_dir_all(&tmp_dir);
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1326,7 +1333,7 @@ mod tests {
         assert!(creds.profiles.is_empty());
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1336,22 +1343,22 @@ mod tests {
     #[serial_test::serial]
     fn test_clear_credentials_recovers_from_malformed_metadata() {
         let dir = tempfile::tempdir().unwrap();
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
         let folder = dir.path().join(GITFLEET_FOLDER);
         let path = folder.join(CREDENTIALS_FILE);
 
         std::fs::create_dir_all(&folder).unwrap();
         std::fs::write(&path, "not valid = [toml").unwrap();
-        std::env::set_var("HOME", dir.path());
+        std::env::set_var("GITFLEET_HOME", dir.path());
 
         clear_credentials().unwrap();
 
         assert!(!path.exists());
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         } else {
-            std::env::remove_var("HOME");
+            std::env::remove_var("GITFLEET_HOME");
         }
     }
 
@@ -1386,9 +1393,9 @@ mod tests {
         let tmp_dir = std::env::temp_dir().join("gitfleet_test_config_get_profile");
 
         let _ = std::fs::create_dir_all(&tmp_dir);
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1408,7 +1415,7 @@ mod tests {
         assert_eq!(found.unwrap().token, Some("ghp_test".into()));
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1420,9 +1427,9 @@ mod tests {
         let tmp_dir = std::env::temp_dir().join("gitfleet_test_config_get_profile_err");
 
         let _ = std::fs::create_dir_all(&tmp_dir);
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1431,7 +1438,7 @@ mod tests {
         assert!(found.is_none());
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1443,9 +1450,9 @@ mod tests {
         let tmp_dir = std::env::temp_dir().join("gitfleet_test_config_write_key");
 
         let _ = std::fs::create_dir_all(&tmp_dir);
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1461,7 +1468,7 @@ mod tests {
         write("host", "gitlab.com").unwrap();
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1473,9 +1480,9 @@ mod tests {
         let tmp_dir = std::env::temp_dir().join("gitfleet_test_config_unset");
 
         let _ = std::fs::create_dir_all(&tmp_dir);
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1491,7 +1498,7 @@ mod tests {
         unset("token").unwrap();
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1524,9 +1531,9 @@ mod tests {
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1537,7 +1544,7 @@ mod tests {
         assert_eq!(expansion, Some("repo list".to_string()));
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1555,9 +1562,9 @@ mod tests {
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1568,7 +1575,7 @@ mod tests {
         assert!(result.is_err());
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1586,9 +1593,9 @@ mod tests {
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1600,7 +1607,7 @@ mod tests {
         assert_eq!(expansion, Some("checkout -b".to_string()));
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1612,9 +1619,9 @@ mod tests {
         let tmp_dir = std::env::temp_dir().join("gitfleet_test_config_alias_get");
 
         let _ = std::fs::create_dir_all(&tmp_dir);
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1623,7 +1630,7 @@ mod tests {
         assert_eq!(result, None);
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1641,9 +1648,9 @@ mod tests {
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1652,7 +1659,7 @@ mod tests {
         assert!(entries.is_empty());
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1670,9 +1677,9 @@ mod tests {
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1690,7 +1697,7 @@ mod tests {
         assert_eq!(entries[2].name, "zebra");
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1708,9 +1715,9 @@ mod tests {
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1720,7 +1727,7 @@ mod tests {
         assert_eq!(get_alias("temp"), None);
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1732,9 +1739,9 @@ mod tests {
         let tmp_dir = std::env::temp_dir().join("gitfleet_test_config_alias_delete_err");
 
         let _ = std::fs::create_dir_all(&tmp_dir);
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1743,7 +1750,7 @@ mod tests {
         assert!(result.is_err());
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1761,9 +1768,9 @@ mod tests {
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1783,7 +1790,7 @@ mod tests {
         assert_eq!(entries[0].name, "co");
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1801,9 +1808,9 @@ mod tests {
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1823,7 +1830,7 @@ mod tests {
         assert_eq!(expansion, Some("repo list".to_string()));
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1883,9 +1890,9 @@ token = "ghp_test"
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1905,7 +1912,7 @@ token = "ghp_test"
         assert_eq!(value, Some("myorg".to_string()));
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1923,9 +1930,9 @@ token = "ghp_test"
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1944,7 +1951,7 @@ token = "ghp_test"
         assert!(read("custom_key").is_none());
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1962,9 +1969,9 @@ token = "ghp_test"
             let _ = std::fs::remove_file(&creds_path);
         }
 
-        let original_home = std::env::var("HOME").ok();
+        let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("HOME", tmp_dir.to_string_lossy().to_string());
+        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
         std::env::remove_var("GITFLEET_GITHUB_TOKEN");
         std::env::remove_var(GITFLEET_PROFILE_ENV);
 
@@ -1982,7 +1989,7 @@ token = "ghp_test"
         assert!(result.is_err());
 
         if let Some(home) = original_home {
-            std::env::set_var("HOME", home);
+            std::env::set_var("GITFLEET_HOME", home);
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
