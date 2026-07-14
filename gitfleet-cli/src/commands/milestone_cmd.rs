@@ -53,7 +53,7 @@ pub async fn run(cmd: MilestoneCmdCommand, app: &App) -> Result<(), GitfleetErro
     let ops = p.planning_ops().ok_or_else(|| {
         GitfleetError::UnsupportedCapability(UnsupportedCapabilityError::new(
             app.provider_id(),
-            ProviderCapability::Planning,
+            ProviderCapability::Milestones,
         ))
     })?;
 

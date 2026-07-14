@@ -322,6 +322,20 @@ enum ReviewCommand {
     },
 }
 
+fn requires_provider_context(command: &Commands) -> bool {
+    !matches!(
+        command,
+        Commands::Completion { .. }
+            | Commands::Config { .. }
+            | Commands::GitCredential { .. }
+            | Commands::Version
+            | Commands::Auth {
+                subcommand: commands::auth::AuthCommand::Login { .. }
+                    | commands::auth::AuthCommand::Logout { .. }
+            }
+    )
+}
+
 #[tokio::main]
 async fn main() {
     let banner = gitfleet_core::banner::banner();
@@ -345,23 +359,27 @@ async fn main() {
         .with_theme(theme)
         .with_yes(cli.yes);
 
-    let app = match App::from_config(renderer, cli.dry_run) {
-        Ok(app) => Arc::new(app),
-        Err(e) => {
-            let mode = if cli.json {
-                gitfleet_core::output_state::OutputMode::Json
-            } else {
-                gitfleet_core::output_state::OutputMode::Human
-            };
+    let app = if requires_provider_context(&cli.command) {
+        match App::from_config(renderer, cli.dry_run) {
+            Ok(app) => Arc::new(app),
+            Err(e) => {
+                let mode = if cli.json {
+                    gitfleet_core::output_state::OutputMode::Json
+                } else {
+                    gitfleet_core::output_state::OutputMode::Human
+                };
 
-            let theme = gitfleet_core::theme::Theme::parse(&cli.theme);
+                let theme = gitfleet_core::theme::Theme::parse(&cli.theme);
 
-            let fallback_renderer = gitfleet_core::output::Renderer::new(mode)
-                .with_theme(theme)
-                .with_yes(cli.yes);
-            fallback_renderer.write_error_for(&e);
-            std::process::exit(1);
+                let fallback_renderer = gitfleet_core::output::Renderer::new(mode)
+                    .with_theme(theme)
+                    .with_yes(cli.yes);
+                fallback_renderer.write_error_for(&e);
+                std::process::exit(1);
+            }
         }
+    } else {
+        Arc::new(App::without_config(renderer, cli.dry_run))
     };
 
     let result = match cli.command {

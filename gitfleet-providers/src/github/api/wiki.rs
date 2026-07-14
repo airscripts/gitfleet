@@ -8,16 +8,16 @@ use crate::github::client::ProviderClient;
 pub struct WikiApi;
 
 impl WikiApi {
-    pub async fn list(
-        client: &ProviderClient,
-        _repo: &str,
-    ) -> Result<Vec<WikiPage>, GitfleetError> {
-        ensure_public_wiki_reads(client)?;
+    pub async fn list(client: &ProviderClient, repo: &str) -> Result<Vec<WikiPage>, GitfleetError> {
+        let endpoint = repo_path(repo, &["wikis"]);
+        let response = client
+            .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
+            .await?;
+        let pages: Vec<serde_json::Value> = crate::parse_json(response)
+            .await
+            .map_err(|e| GitfleetError::new(format!("Failed to list wiki pages: {e}")))?;
 
-        Err(GitfleetError::from(UnsupportedCapabilityError::new(
-            ProviderId::GitHub,
-            ProviderCapability::Wiki,
-        )))
+        Ok(pages.iter().map(normalize_page).collect())
     }
 
     pub async fn get_page(
@@ -129,6 +129,39 @@ impl WikiApi {
     }
 }
 
+fn normalize_page(raw: &serde_json::Value) -> WikiPage {
+    let title = raw
+        .get("title")
+        .or_else(|| raw.get("name"))
+        .or_else(|| raw.get("path"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let path = raw
+        .get("path")
+        .or_else(|| raw.get("slug"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or(&title)
+        .to_string();
+    let format = raw
+        .get("format")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("markdown")
+        .to_string();
+    let filename = raw
+        .get("filename")
+        .and_then(serde_json::Value::as_str)
+        .map(ToString::to_string)
+        .unwrap_or_else(|| format!("{path}.md"));
+
+    WikiPage {
+        path,
+        title,
+        format,
+        filename,
+    }
+}
+
 fn ensure_public_wiki_reads(client: &ProviderClient) -> Result<(), GitfleetError> {
     if client.supports_public_wiki_reads() {
         return Ok(());
@@ -145,10 +178,10 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_wiki_reads_reject_non_public_host() {
+    async fn test_raw_wiki_reads_reject_non_public_host() {
         let client = ProviderClient::with_host("github.example.com");
 
-        let result = WikiApi::list(&client, "org/repo").await;
+        let result = WikiApi::get_page(&client, "org/repo", "Home").await;
 
         assert!(matches!(
             result,
@@ -156,16 +189,14 @@ mod tests {
         ));
     }
 
-    #[tokio::test]
-    async fn test_wiki_list_is_explicitly_unsupported() {
-        let client = ProviderClient::new();
+    #[test]
+    fn test_normalize_page_supplies_defaults() {
+        let page = normalize_page(&serde_json::json!({"title": "Getting Started"}));
 
-        let result = WikiApi::list(&client, "org/repo").await;
-
-        assert!(matches!(
-            result,
-            Err(GitfleetError::UnsupportedCapability(_))
-        ));
+        assert_eq!(page.title, "Getting Started");
+        assert_eq!(page.path, "Getting Started");
+        assert_eq!(page.format, "markdown");
+        assert_eq!(page.filename, "Getting Started.md");
     }
 
     #[test]

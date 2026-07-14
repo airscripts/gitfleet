@@ -97,6 +97,49 @@ pub fn write_credentials(creds: &CredentialsFile) -> Result<(), ConfigError> {
 }
 
 fn write_credentials_unlocked(creds: &CredentialsFile) -> Result<(), ConfigError> {
+    if uses_file_credential_store() {
+        let previous = read_credentials_unlocked()?;
+
+        write_credentials_file_unlocked(creds)?;
+
+        let profile_names: std::collections::HashSet<&String> = previous
+            .profiles
+            .keys()
+            .chain(creds.profiles.keys())
+            .collect();
+
+        for name in profile_names {
+            delete_profile_token(name)?;
+        }
+
+        return Ok(());
+    }
+
+    let previous = read_credentials_unlocked()?;
+
+    if let Err(error) = write_credentials_file_unlocked(creds) {
+        let _ = write_credentials_file_unlocked(&previous);
+
+        return Err(error);
+    }
+
+    if let Err(error) = sync_keyring(&previous, creds) {
+        let keyring_rollback = sync_keyring(creds, &previous);
+        let file_rollback = write_credentials_file_unlocked(&previous);
+
+        if keyring_rollback.is_err() || file_rollback.is_err() {
+            return Err(ConfigError::new(format!(
+                "{error} Credential rollback was incomplete; inspect the configured profiles before retrying."
+            )));
+        }
+
+        return Err(error);
+    }
+
+    Ok(())
+}
+
+fn write_credentials_file_unlocked(creds: &CredentialsFile) -> Result<(), ConfigError> {
     let folder = gitfleet_folder()?;
     std::fs::create_dir_all(&folder)
         .map_err(|e| ConfigError::new(format!("Failed to create config directory: {e}")))?;
@@ -107,14 +150,6 @@ fn write_credentials_unlocked(creds: &CredentialsFile) -> Result<(), ConfigError
 
         std::fs::set_permissions(&folder, std::fs::Permissions::from_mode(0o700))
             .map_err(|e| ConfigError::new(format!("Failed to secure config directory: {e}")))?;
-    }
-
-    if !uses_file_credential_store() {
-        for (name, profile) in &creds.profiles {
-            if let Some(token) = profile.token.as_deref() {
-                store_token(name, token)?;
-            }
-        }
     }
 
     let serializable_creds = if uses_file_credential_store() {
@@ -466,10 +501,7 @@ pub fn unset(key: &str) -> Result<(), ConfigError> {
             .ok_or_else(|| ConfigError::new(format!("Profile \"{profile_name}\" not found.")))?;
 
         match key {
-            "token" => {
-                profile.token = None;
-                delete_profile_token(&profile_name)?;
-            }
+            "token" => profile.token = None,
             "host" => profile.host = None,
             _ => {
                 if profile.extra.remove(key).is_none() {
@@ -509,8 +541,6 @@ pub fn remove_profile(name: &str) -> Result<(), ConfigError> {
             return Err(ConfigError::new(format!("Profile \"{name}\" not found.")));
         }
 
-        delete_profile_token(name)?;
-
         Ok(())
     })
 }
@@ -518,15 +548,39 @@ pub fn remove_profile(name: &str) -> Result<(), ConfigError> {
 pub fn clear_credentials() -> Result<(), ConfigError> {
     with_credentials_lock(true, || {
         let path = credentials_path()?;
-        let creds = read_credentials_unlocked()?;
+        let creds = match read_credentials_unlocked() {
+            Ok(creds) => creds,
+            Err(error) if path.exists() => {
+                tracing::warn!(%error, "Removing unreadable credentials metadata");
+                std::fs::remove_file(&path).map_err(|remove_error| {
+                    ConfigError::new(format!("Failed to remove credentials: {remove_error}"))
+                })?;
 
-        for name in creds.profiles.keys() {
-            delete_profile_token(name)?;
-        }
+                return Ok(());
+            }
+            Err(error) => return Err(error),
+        };
 
         if path.exists() {
             std::fs::remove_file(&path)
                 .map_err(|e| ConfigError::new(format!("Failed to remove credentials: {e}")))?;
+        }
+
+        if !uses_file_credential_store() {
+            let empty = default_credentials();
+
+            if let Err(error) = sync_keyring(&creds, &empty) {
+                let keyring_rollback = sync_keyring(&empty, &creds);
+                let file_rollback = write_credentials_file_unlocked(&creds);
+
+                if keyring_rollback.is_err() || file_rollback.is_err() {
+                    return Err(ConfigError::new(format!(
+                        "{error} Credential rollback was incomplete; inspect the configured profiles before retrying."
+                    )));
+                }
+
+                return Err(error);
+            }
         }
 
         Ok(())
@@ -625,6 +679,33 @@ fn delete_profile_token(profile: &str) -> Result<(), ConfigError> {
         }
         Err(error) => Err(error),
     }
+}
+
+fn sync_keyring(previous: &CredentialsFile, desired: &CredentialsFile) -> Result<(), ConfigError> {
+    for (name, profile) in &desired.profiles {
+        let previous_token = previous
+            .profiles
+            .get(name)
+            .and_then(|profile| profile.token.as_deref());
+        let desired_token = profile.token.as_deref();
+
+        if previous_token == desired_token {
+            continue;
+        }
+
+        match desired_token {
+            Some(token) => store_token(name, token)?,
+            None => delete_profile_token(name)?,
+        }
+    }
+
+    for name in previous.profiles.keys() {
+        if !desired.profiles.contains_key(name) {
+            delete_profile_token(name)?;
+        }
+    }
+
+    Ok(())
 }
 
 fn keyring_entry(profile: &str) -> Result<keyring::Entry, ConfigError> {
@@ -1249,6 +1330,29 @@ mod tests {
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn test_clear_credentials_recovers_from_malformed_metadata() {
+        let dir = tempfile::tempdir().unwrap();
+        let original_home = std::env::var("HOME").ok();
+        let folder = dir.path().join(GITFLEET_FOLDER);
+        let path = folder.join(CREDENTIALS_FILE);
+
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(&path, "not valid = [toml").unwrap();
+        std::env::set_var("HOME", dir.path());
+
+        clear_credentials().unwrap();
+
+        assert!(!path.exists());
+
+        if let Some(home) = original_home {
+            std::env::set_var("HOME", home);
+        } else {
+            std::env::remove_var("HOME");
+        }
     }
 
     #[test]

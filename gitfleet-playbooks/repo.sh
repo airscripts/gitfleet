@@ -2,8 +2,15 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
+TEST_REPO="gitfleet-test-repo-$PB_RESOURCE_SUFFIX"
+REPO_CREATED=false
 setup() { :; }
-teardown() { print_summary; }
+teardown() {
+  if [ "$REPO_CREATED" = true ]; then
+    gitfleet repo delete "$ORG/$TEST_REPO" --yes >/dev/null 2>&1 || true
+  fi
+  print_summary
+}
 trap teardown EXIT
 setup
 
@@ -14,9 +21,9 @@ step "Repo List"
 expect_exit_0 "repo list succeeds" gitfleet repo list --owner "$ORG" --owner-type org
 
 step "Repo Create"
-TEST_REPO="gitfleet-test-repo-crud-$$"
 if gitfleet repo create "$TEST_REPO" --owner "$ORG" --owner-type org --private --description "gitfleet repository CRUD playbook" --yes >/dev/null 2>&1; then
   pass "repo create succeeded"
+  REPO_CREATED=true
 
   step "Repo Edit"
   if gitfleet repo edit "$ORG/$TEST_REPO" --description "updated by gitfleet playbook" >/dev/null 2>&1; then
@@ -28,12 +35,12 @@ if gitfleet repo create "$TEST_REPO" --owner "$ORG" --owner-type org --private -
   step "Repo Delete"
   if gitfleet repo delete "$ORG/$TEST_REPO" --yes >/dev/null 2>&1; then
     pass "repo delete succeeded"
+    REPO_CREATED=false
   else
-    skip "repo delete (token may lack delete_repo scope)"
-    echo "[WARN] Repository $ORG/$TEST_REPO was created and needs manual deletion."
+    fail "repo delete failed"
   fi
 else
-  skip "repo create (may have failed)"
+  fail "repo create failed"
 fi
 
 step "Repo Invalid Inputs"

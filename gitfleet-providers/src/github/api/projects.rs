@@ -35,7 +35,7 @@ impl ProjectsApi {
             .request_token_required(reqwest::Method::POST, "/graphql", Some(payload), None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let data = crate::parse_graphql(response, "project listing")
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list projects: {e}")))?;
 
@@ -104,7 +104,7 @@ impl ProjectsApi {
             .request_token_required(reqwest::Method::POST, "/graphql", Some(payload), None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let data = crate::parse_graphql(response, "project lookup")
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get project: {e}")))?;
 
@@ -130,7 +130,7 @@ impl ProjectsApi {
             .request_token_required(reqwest::Method::POST, "/graphql", Some(payload), None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let data = crate::parse_graphql(response, "project creation")
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create project: {e}")))?;
 
@@ -138,7 +138,7 @@ impl ProjectsApi {
             .get("data")
             .and_then(|d| d.get("createProjectV2"))
             .and_then(|c| c.get("projectV2"))
-            .unwrap_or(&serde_json::Value::Null);
+            .ok_or_else(|| GitfleetError::new("GitHub did not return the created project."))?;
 
         Ok(normalize_project_summary(project))
     }
@@ -165,7 +165,7 @@ impl ProjectsApi {
             .request_token_required(reqwest::Method::POST, "/graphql", Some(payload), None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let data = crate::parse_graphql(response, "project lookup")
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get project: {e}")))?;
 
@@ -183,9 +183,11 @@ impl ProjectsApi {
             "variables": { "input": { "projectId": project_id } }
         });
 
-        client
+        let response = client
             .request_token_required(reqwest::Method::POST, "/graphql", Some(payload), None, None)
             .await?;
+
+        crate::parse_graphql(response, "project deletion").await?;
 
         Ok(())
     }

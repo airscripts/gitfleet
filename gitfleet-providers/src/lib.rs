@@ -44,6 +44,52 @@ pub(crate) async fn parse_json<T: serde::de::DeserializeOwned>(
         .map_err(|error| GitfleetError::new(format!("Failed to parse provider response: {error}")))
 }
 
+pub(crate) async fn parse_graphql(
+    response: reqwest::Response,
+    operation: &str,
+) -> Result<serde_json::Value, GitfleetError> {
+    let value: serde_json::Value = parse_json(response).await?;
+
+    validate_graphql_response(value, operation)
+}
+
+fn validate_graphql_response(
+    value: serde_json::Value,
+    operation: &str,
+) -> Result<serde_json::Value, GitfleetError> {
+    let Some(errors) = value.get("errors") else {
+        return Ok(value);
+    };
+
+    let messages = errors.as_array().ok_or_else(|| {
+        GitfleetError::new(format!(
+            "GitHub GraphQL {operation} returned an invalid errors payload."
+        ))
+    })?;
+
+    if messages.is_empty() {
+        return Ok(value);
+    }
+
+    let details = messages
+        .iter()
+        .take(5)
+        .filter_map(|error| error.get("message").and_then(serde_json::Value::as_str))
+        .map(|message| message.chars().take(500).collect::<String>())
+        .collect::<Vec<_>>()
+        .join("; ");
+
+    let details = if details.is_empty() {
+        "The provider did not include an error message.".to_string()
+    } else {
+        details
+    };
+
+    Err(GitfleetError::new(format!(
+        "GitHub GraphQL {operation} failed: {details}"
+    )))
+}
+
 pub(crate) async fn read_response_text(
     response: reqwest::Response,
 ) -> Result<String, GitfleetError> {
@@ -93,7 +139,7 @@ async fn read_response_bytes(mut response: reqwest::Response) -> Result<Vec<u8>,
 
 #[cfg(test)]
 mod tests {
-    use super::validate_relative_endpoint;
+    use super::{validate_graphql_response, validate_relative_endpoint};
 
     #[test]
     fn test_validate_relative_endpoint_accepts_provider_paths() {
@@ -105,5 +151,34 @@ mod tests {
     fn test_validate_relative_endpoint_rejects_path_traversal() {
         assert!(validate_relative_endpoint("/../admin").is_err());
         assert!(validate_relative_endpoint("/api/%2e%2e/admin").is_err());
+    }
+
+    #[test]
+    fn test_validate_graphql_response_accepts_data() {
+        let response = serde_json::json!({"data": {"viewer": {"login": "octocat"}}});
+
+        assert!(validate_graphql_response(response, "viewer query").is_ok());
+    }
+
+    #[test]
+    fn test_validate_graphql_response_rejects_errors() {
+        let response = serde_json::json!({
+            "data": null,
+            "errors": [{"message": "Resource not accessible"}]
+        });
+
+        let error = validate_graphql_response(response, "project deletion").unwrap_err();
+
+        assert!(error.to_string().contains("project deletion failed"));
+        assert!(error.to_string().contains("Resource not accessible"));
+    }
+
+    #[test]
+    fn test_validate_graphql_response_rejects_malformed_errors() {
+        let response = serde_json::json!({"errors": "invalid"});
+
+        let error = validate_graphql_response(response, "query").unwrap_err();
+
+        assert!(error.to_string().contains("invalid errors payload"));
     }
 }

@@ -3,15 +3,24 @@ set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
 TEST_ISSUE_NUMBER=""
+TEST_REPO_NAME="gitfleet-test-comment-$PB_RESOURCE_SUFFIX"
+TEST_REPO="$ORG/$TEST_REPO_NAME"
+REPO_CREATED=false
 
 setup() {
-  output=$(gitfleet issue create --repo "$REPO" "[noop] gitfleet review comment test" --body "Auto-created by the comment playbook." --json 2>&1) || true
+  if ! gitfleet repo create "$TEST_REPO_NAME" --owner "$ORG" --owner-type org --private --yes >/dev/null 2>&1; then
+    fail "comment test repository creation failed"
+    return
+  fi
+  REPO_CREATED=true
+
+  output=$(gitfleet issue create --repo "$TEST_REPO" "[noop] gitfleet review comment test" --body "Auto-created by the comment playbook." --json 2>&1) || true
   TEST_ISSUE_NUMBER=$(echo "$output" | python3 -c "import sys,json; print(json.load(sys.stdin).get('number',''))" 2>/dev/null || echo "")
 }
 
 teardown() {
-  if [ -n "$TEST_ISSUE_NUMBER" ]; then
-    gitfleet api delete --endpoint "/repos/$REPO/issues/$TEST_ISSUE_NUMBER" --json >/dev/null 2>&1 || true
+  if [ "$REPO_CREATED" = true ]; then
+    gitfleet repo delete "$TEST_REPO" --yes >/dev/null 2>&1 || true
   fi
   print_summary
 }
@@ -25,14 +34,14 @@ if [ -z "$TEST_ISSUE_NUMBER" ]; then
 fi
 
 step "Comment List"
-if gitfleet review comment list "$TEST_ISSUE_NUMBER" --repo "$REPO" >/dev/null 2>&1; then
+if gitfleet review comment list "$TEST_ISSUE_NUMBER" --repo "$TEST_REPO" >/dev/null 2>&1; then
   pass "comment list succeeds"
 else
   skip "comment list (issue may not exist)"
 fi
 
 step "Comment Create"
-if gitfleet review comment create "$TEST_ISSUE_NUMBER" --body "gitfleet playbook test comment" --repo "$REPO" >/dev/null 2>&1; then
+if gitfleet review comment create "$TEST_ISSUE_NUMBER" --body "gitfleet playbook test comment" --repo "$TEST_REPO" >/dev/null 2>&1; then
   pass "comment create succeeds"
 else
   skip "comment create (issue may not exist)"

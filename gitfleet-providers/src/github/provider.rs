@@ -14,7 +14,8 @@ static CAPABILITIES: &[ProviderCapability] = &[
     ProviderCapability::Issues,
     ProviderCapability::Pipelines,
     ProviderCapability::Releases,
-    ProviderCapability::Planning,
+    ProviderCapability::Milestones,
+    ProviderCapability::Projects,
     ProviderCapability::Wiki,
     ProviderCapability::Site,
     ProviderCapability::Discussions,
@@ -290,6 +291,8 @@ mod tests {
 
         assert!(caps.contains(&ProviderCapability::Pipelines));
         assert!(caps.contains(&ProviderCapability::Releases));
+        assert!(caps.contains(&ProviderCapability::Milestones));
+        assert!(caps.contains(&ProviderCapability::Projects));
 
         assert!(caps.contains(&ProviderCapability::Search));
     }

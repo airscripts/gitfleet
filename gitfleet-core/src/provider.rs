@@ -58,7 +58,8 @@ pub enum ProviderCapability {
     Issues,
     Pipelines,
     Releases,
-    Planning,
+    Milestones,
+    Projects,
     Wiki,
     Site,
     Discussions,
@@ -100,7 +101,8 @@ impl fmt::Display for ProviderCapability {
             ProviderCapability::Issues => "issues",
             ProviderCapability::Pipelines => "pipelines",
             ProviderCapability::Releases => "releases",
-            ProviderCapability::Planning => "planning",
+            ProviderCapability::Milestones => "milestones",
+            ProviderCapability::Projects => "projects",
             ProviderCapability::Wiki => "wiki",
             ProviderCapability::Site => "site",
             ProviderCapability::Discussions => "discussions",
@@ -991,7 +993,8 @@ mod tests {
         assert_eq!(format!("{}", ProviderCapability::Pipelines), "pipelines");
         assert_eq!(format!("{}", ProviderCapability::Releases), "releases");
 
-        assert_eq!(format!("{}", ProviderCapability::Planning), "planning");
+        assert_eq!(format!("{}", ProviderCapability::Milestones), "milestones");
+        assert_eq!(format!("{}", ProviderCapability::Projects), "projects");
         assert_eq!(format!("{}", ProviderCapability::Wiki), "wiki");
 
         assert_eq!(format!("{}", ProviderCapability::Site), "site");

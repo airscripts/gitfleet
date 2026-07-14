@@ -20,6 +20,7 @@ PLAYBOOKS=(
   alias
   api
   version
+  completion
   search
   inbox
   policy
@@ -37,8 +38,10 @@ PLAYBOOKS=(
   repo
   dependency
   advisory
+  security
   attestation
   code
+  template
   analytics
   access
   identity
@@ -77,30 +80,25 @@ should_skip() {
   return 1
 }
 
-run_playbook() {
+record_playbook_result() {
   local name="$1"
-  local playbook="$SCRIPT_DIR/${name}.sh"
-
-  if [ ! -f "$playbook" ]; then
-    echo "[ERROR] Playbook not found: $playbook"
-    RESULTS+=("$name: MISSING")
-    TOTAL_SKIP=$((TOTAL_SKIP + 1))
-    return
-  fi
-
-  echo ""
-  echo "[INFO] Running playbook: $name"
-
+  local output_file="$2"
+  local exit_code="$3"
   local output
-  local exit_code=0
-  output=$(bash "$playbook" 2>&1) || exit_code=$?
+  output=$(<"$output_file")
 
   echo "$output"
 
-  local p f s
-  p=$(echo "$output" | grep -c '^\[OK\]' || true)
-  f=$(echo "$output" | grep -c '^\[ERROR\]' || true)
-  s=$(echo "$output" | grep -c '^\[WARN\].*(skipped)' || true)
+  local p=0 f=0 s=0 summary
+  summary=$(echo "$output" | grep '^  Passed:' | tail -1 || true)
+
+  if [[ "$summary" =~ Passed:\ ([0-9]+).*Failed:\ ([0-9]+).*Skipped:\ ([0-9]+) ]]; then
+    p="${BASH_REMATCH[1]}"
+    f="${BASH_REMATCH[2]}"
+    s="${BASH_REMATCH[3]}"
+  else
+    f=$(echo "$output" | grep -c '^\[ERROR\]' || true)
+  fi
 
   TOTAL_PASS=$((TOTAL_PASS + p))
   TOTAL_FAIL=$((TOTAL_FAIL + f))
@@ -110,10 +108,35 @@ run_playbook() {
     RESULTS+=("$name: PASSED (pass:$p fail:$f skip:$s)")
   elif [ "$exit_code" -ne 0 ]; then
     RESULTS+=("$name: ERRORED (exit $exit_code)")
-    TOTAL_FAIL=$((TOTAL_FAIL + 1))
+    if [ "$f" -eq 0 ]; then
+      TOTAL_FAIL=$((TOTAL_FAIL + 1))
+    fi
   else
     RESULTS+=("$name: FAILED (pass:$p fail:$f skip:$s)")
   fi
+}
+
+run_playbook() {
+  local name="$1"
+  local playbook="$SCRIPT_DIR/${name}.sh"
+
+  if [ ! -f "$playbook" ]; then
+    echo "[ERROR] Playbook not found: $playbook"
+    RESULTS+=("$name: MISSING")
+    TOTAL_FAIL=$((TOTAL_FAIL + 1))
+    return
+  fi
+
+  echo ""
+  echo "[INFO] Running playbook: $name"
+
+  local output_file
+  output_file=$(mktemp "$TMPDIR/gitfleet-playbook-${name}.XXXXXX")
+  local exit_code=0
+  bash "$playbook" >"$output_file" 2>&1 || exit_code=$?
+
+  record_playbook_result "$name" "$output_file" "$exit_code"
+  rm -f "$output_file"
 }
 
 echo "[INFO] gitfleet playbook pipeline"
@@ -125,18 +148,45 @@ if [ "$PARALLEL" -eq 1 ]; then
   echo "[WARN] Teardown order is not guaranteed in parallel mode."
   echo ""
 
+  PARALLEL_DIR=$(mktemp -d "$TMPDIR/gitfleet-all.XXXXXX")
+  PARALLEL_NAMES=()
+  PARALLEL_PIDS=()
+  PARALLEL_OUTPUTS=()
+
   for playbook in "${PLAYBOOKS[@]}"; do
     if should_skip "$playbook"; then
       RESULTS+=("$playbook: SKIPPED (in SKIP list)")
+      TOTAL_SKIP=$((TOTAL_SKIP + 1))
       continue
     fi
-    run_playbook "$playbook" &
+    if [ ! -f "$SCRIPT_DIR/$playbook.sh" ]; then
+      echo "[ERROR] Playbook not found: $SCRIPT_DIR/$playbook.sh"
+      RESULTS+=("$playbook: MISSING")
+      TOTAL_FAIL=$((TOTAL_FAIL + 1))
+      continue
+    fi
+    output_file="$PARALLEL_DIR/$playbook.log"
+    bash "$SCRIPT_DIR/$playbook.sh" >"$output_file" 2>&1 &
+    PARALLEL_NAMES+=("$playbook")
+    PARALLEL_PIDS+=("$!")
+    PARALLEL_OUTPUTS+=("$output_file")
   done
-  wait
+
+  for index in "${!PARALLEL_PIDS[@]}"; do
+    exit_code=0
+    wait "${PARALLEL_PIDS[$index]}" || exit_code=$?
+    record_playbook_result \
+      "${PARALLEL_NAMES[$index]}" \
+      "${PARALLEL_OUTPUTS[$index]}" \
+      "$exit_code"
+  done
+
+  rm -rf "$PARALLEL_DIR"
 else
   for playbook in "${PLAYBOOKS[@]}"; do
     if should_skip "$playbook"; then
       RESULTS+=("$playbook: SKIPPED (in SKIP list)")
+      TOTAL_SKIP=$((TOTAL_SKIP + 1))
       continue
     fi
     run_playbook "$playbook"

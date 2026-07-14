@@ -28,3 +28,6 @@ jobs:
 
       - run: cargo check --workspace
         name: Check Compilation
+
+      - run: find gitfleet-playbooks -maxdepth 1 -name '*.sh' -exec bash -n {} +
+        name: Check Playbook Syntax

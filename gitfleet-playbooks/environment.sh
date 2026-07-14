@@ -2,15 +2,14 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
-ENV_NAME="gitfleet-test-env"
+ENV_NAME="gitfleet-test-env-$PB_RESOURCE_SUFFIX"
 ENV_CREATED=false
 
 setup() { :; }
 
 teardown() {
   if [ "$ENV_CREATED" = true ]; then
-    echo "[WARN] Environment '$ENV_NAME' was created on $REPO and needs manual deletion."
-    echo "       Delete it at: https://github.com/$REPO/settings/environments"
+    gitfleet environment delete "$ENV_NAME" --repo "$REPO" --yes >/dev/null 2>&1 || true
   fi
   print_summary
 }
@@ -22,13 +21,18 @@ step "List Environments"
 expect_exit_0 "environment list succeeds" gitfleet environment list --repo "$REPO"
 
 step "Create Environment"
-if gitfleet environment create --name "$ENV_NAME" --repo "$REPO" >/dev/null 2>&1; then
+if gitfleet environment create "$ENV_NAME" --repo "$REPO" >/dev/null 2>&1; then
   pass "environment create succeeded"
   ENV_CREATED=true
 else
-  skip "environment create (may already exist)"
-  ENV_CREATED=true
+  fail "environment create failed"
 fi
 
 step "Create Environment Without --name"
 expect_exit_non0 "environment create without name fails" gitfleet environment create --repo "$REPO"
+
+if [ "$ENV_CREATED" = true ]; then
+  step "Delete Environment"
+  expect_exit_0 "environment delete succeeds" gitfleet environment delete "$ENV_NAME" --repo "$REPO" --yes
+  ENV_CREATED=false
+fi

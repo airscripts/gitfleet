@@ -10,7 +10,7 @@ fn mask_token(token: &str) -> String {
     let characters: Vec<char> = token.chars().collect();
 
     if characters.len() <= 12 {
-        return token.to_string();
+        return "*".repeat(characters.len());
     }
 
     let prefix: String = characters.iter().take(8).collect();
@@ -68,6 +68,9 @@ pub enum AuthCommand {
     Logout {
         #[arg(long)]
         yes: bool,
+
+        #[arg(long)]
+        profile: Option<String>,
     },
 
     #[command(about = "Show authentication status.")]
@@ -152,16 +155,25 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
             Ok(())
         }
 
-        AuthCommand::Logout { yes } => {
+        AuthCommand::Logout { yes, profile } => {
+            let target = profile
+                .as_deref()
+                .map(|name| format!("profile '{name}'"))
+                .unwrap_or_else(|| "all stored credentials".to_string());
+
             gitfleet_core::prompt::confirm_destructive(
-                "Remove stored credentials?",
+                &format!("Remove {target}?"),
                 app.renderer().mode(),
                 app.renderer().yes() || yes,
             )?;
 
-            gitfleet_core::config::clear_credentials()?;
+            if let Some(profile) = profile {
+                gitfleet_core::config::remove_profile(&profile)?;
+            } else {
+                gitfleet_core::config::clear_credentials()?;
+            }
 
-            app.renderer().write_value("Logged out successfully.");
+            app.renderer().write_value(&format!("Removed {target}."));
 
             Ok(())
         }
@@ -399,6 +411,12 @@ mod tests {
         assert!(masked.starts_with("токен-с-") || masked.starts_with("токен-с"));
         assert!(masked.ends_with("одом"));
         assert!(masked.contains("..."));
+    }
+
+    #[test]
+    fn mask_token_redacts_short_tokens_completely() {
+        assert_eq!(mask_token("short"), "*****");
+        assert_eq!(mask_token(""), "");
     }
 
     #[test]

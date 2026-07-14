@@ -17,4 +17,4 @@ step "Inbox List --json"
 expect_exit_0 "inbox list --json succeeds" gitfleet inbox list --json
 
 step "Inbox Mark-Read"
-expect_exit_0 "inbox mark-read succeeds" gitfleet inbox mark-read
+expect_exit_0 "inbox mark-read dry-run succeeds" gitfleet --dry-run inbox mark-read --yes

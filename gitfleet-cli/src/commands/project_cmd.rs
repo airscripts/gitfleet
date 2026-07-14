@@ -40,7 +40,7 @@ pub async fn run(cmd: ProjectCmdCommand, app: &App) -> Result<(), GitfleetError>
     let ops = p.planning_ops().ok_or_else(|| {
         GitfleetError::UnsupportedCapability(UnsupportedCapabilityError::new(
             app.provider_id(),
-            ProviderCapability::Planning,
+            ProviderCapability::Projects,
         ))
     })?;
 

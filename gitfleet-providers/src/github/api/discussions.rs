@@ -90,7 +90,7 @@ impl DiscussionsApi {
             .request_token_required(reqwest::Method::POST, "/graphql", Some(payload), None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let data = crate::parse_graphql(response, "discussion listing")
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to list discussions: {e}")))?;
 
@@ -130,7 +130,7 @@ impl DiscussionsApi {
             .request_token_required(reqwest::Method::POST, "/graphql", Some(payload), None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let data = crate::parse_graphql(response, "discussion lookup")
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to get discussion: {e}")))?;
 
@@ -138,7 +138,7 @@ impl DiscussionsApi {
             .get("data")
             .and_then(|d| d.get("repository"))
             .and_then(|r| r.get("discussion"))
-            .unwrap_or(&serde_json::Value::Null);
+            .ok_or_else(|| GitfleetError::from(NotFoundError::new("Discussion not found.")))?;
 
         Ok(normalize_discussion(raw))
     }
@@ -171,7 +171,7 @@ impl DiscussionsApi {
             )
             .await?;
 
-        let id_data: serde_json::Value = crate::parse_json(id_response)
+        let id_data = crate::parse_graphql(id_response, "repository lookup")
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to fetch repository id: {e}")))?;
 
@@ -214,7 +214,7 @@ impl DiscussionsApi {
             .request_token_required(reqwest::Method::POST, "/graphql", Some(payload), None, None)
             .await?;
 
-        let data: serde_json::Value = crate::parse_json(response)
+        let data = crate::parse_graphql(response, "discussion creation")
             .await
             .map_err(|e| GitfleetError::new(format!("Failed to create discussion: {e}")))?;
 
@@ -222,7 +222,11 @@ impl DiscussionsApi {
             .get("data")
             .and_then(|d| d.get("createDiscussion"))
             .and_then(|c| c.get("discussion"))
-            .unwrap_or(&serde_json::Value::Null);
+            .ok_or_else(|| {
+                GitfleetError::from(NotFoundError::new(
+                    "GitHub did not return the created discussion.",
+                ))
+            })?;
 
         Ok(normalize_discussion(raw))
     }

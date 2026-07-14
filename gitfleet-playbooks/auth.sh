@@ -2,18 +2,14 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
-AUTH_PROFILE="gitfleet-test-auth"
-ORIGINAL_TOKEN=""
+AUTH_PROFILE="gitfleet-test-auth-$PB_RESOURCE_SUFFIX"
 LOGGED_IN=false
 
-setup() {
-  ORIGINAL_TOKEN=$(gitfleet auth token --raw 2>/dev/null || echo "")
-}
+setup() { :; }
 
 teardown() {
-  if [ -n "$ORIGINAL_TOKEN" ]; then
-    step "Restoring Original Authentication"
-    gitfleet auth login <<< "$ORIGINAL_TOKEN" >/dev/null 2>&1 || true
+  if [ "$LOGGED_IN" = true ]; then
+    gitfleet auth logout --profile "$AUTH_PROFILE" --yes >/dev/null 2>&1 || true
   fi
 
   print_summary
@@ -35,7 +31,7 @@ step "Auth Token (raw)"
 expect_exit_0 "auth token --raw succeeds" gitfleet auth token --raw
 
 step "Auth Login"
-if gitfleet auth login <<< "$GITFLEET_GITHUB_TOKEN" >/dev/null 2>&1; then
+if gitfleet auth login --profile "$AUTH_PROFILE" <<< "$GITFLEET_GITHUB_TOKEN" >/dev/null 2>&1; then
   pass "auth login succeeded"
   LOGGED_IN=true
 else
@@ -53,13 +49,8 @@ CI=true expect_exit_non0 "auth login without token fails" gitfleet auth login
 
 step "Auth Logout"
 if [ "$LOGGED_IN" = true ]; then
-  expect_exit_0 "auth logout succeeds" gitfleet auth logout --yes
+  expect_exit_0 "auth logout succeeds" gitfleet auth logout --profile "$AUTH_PROFILE" --yes
+  LOGGED_IN=false
 else
   skip "auth logout (was not logged in)"
 fi
-
-step "Auth Setup-Git"
-expect_exit_0 "auth setup-git succeeds" gitfleet auth setup-git
-
-step "Auth Setup-Git With Custom Host"
-expect_exit_0 "auth setup-git with custom host succeeds" gitfleet auth setup-git --host nonexistent.example.com

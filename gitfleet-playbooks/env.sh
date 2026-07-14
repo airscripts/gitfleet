@@ -2,17 +2,26 @@
 # env.sh — Centralized configuration and helpers for gitfleet playbooks.
 #
 # Override defaults with environment variables:
-#   REPO=owner/repo  — Repository for repo-scoped commands (default: clawdeeo/gitfleet-test)
-#   ORG=orgname      — Organization for org-scoped commands (default: clawdeeo)
+#   REPO=owner/repo  — Disposable repository for repo-scoped commands (required)
+#   ORG=orgname      — Organization for org-scoped commands (derived from REPO)
 #   TMPDIR=/path     — Scratch directory (default: /tmp/gitfleet-playbooks)
 #
 # Every playbook sources this file. Change pointings here or via env vars.
 set -euo pipefail
 
-export REPO="${REPO:-clawdeeorg/gitfleet}"
-export ORG="${ORG:-clawdeeorg}"
+if [ -z "${REPO:-}" ]; then
+  echo "[ERROR] REPO is not set. Use a disposable test repository."
+  echo "        REPO=owner/gitfleet-test bash gitfleet-playbooks/all.sh"
+  exit 1
+fi
+
+export REPO
+export ORG="${ORG:-${REPO%%/*}}"
 export TMPDIR="${TMPDIR:-/tmp/gitfleet-playbooks}"
 mkdir -p "$TMPDIR"
+
+export PB_RUN_ID="${PB_RUN_ID:-$(date +%s)-$$}"
+export PB_RESOURCE_SUFFIX="${PB_RUN_ID//[^a-zA-Z0-9]/-}"
 
 export OWNER="${REPO%%/*}"
 export REPO_NAME="${REPO#*/}"
@@ -136,6 +145,7 @@ print_summary() {
     echo "[OK] All checks passed."
   else
     echo "[ERROR] Some checks failed."
+    exit 1
   fi
 }
 

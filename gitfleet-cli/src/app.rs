@@ -66,6 +66,20 @@ impl App {
         Ok(Self::new_with_context(registry, renderer, context, dry_run))
     }
 
+    pub fn without_config(renderer: Renderer, dry_run: bool) -> Self {
+        let registry = ProviderRegistry::new();
+        let context = ProviderContext {
+            profile_name: gitfleet_core::constants::DEFAULT_PROFILE_NAME.to_string(),
+            provider: ProviderId::GitHub,
+            host: "github.com".to_string(),
+            token: None,
+            token_source: gitfleet_core::provider::TokenSource::None,
+            capabilities: Vec::new(),
+        };
+
+        Self::new_with_context(registry, renderer, context, dry_run)
+    }
+
     #[allow(dead_code)]
     pub fn registry(&self) -> &ProviderRegistry {
         &self.registry

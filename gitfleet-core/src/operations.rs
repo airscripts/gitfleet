@@ -54,7 +54,7 @@ static OPERATION_DEFINITIONS: &[(&str, &str, Option<ProviderCapability>)] = &[
     (
         "planning",
         "Manage boards, milestones, and iterations.",
-        Some(ProviderCapability::Planning),
+        None,
     ),
     (
         "wiki",

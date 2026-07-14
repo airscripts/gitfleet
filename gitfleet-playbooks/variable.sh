@@ -2,7 +2,7 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
-VAR_KEY="GITFLEET_PLAYBOOK_TEST_VAR"
+VAR_KEY="GITFLEET_TEST_${PB_RESOURCE_SUFFIX//-/_}"
 VAR_VALUE="gitfleet-playbook-test-value"
 VAR_SET=false
 

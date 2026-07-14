@@ -10,6 +10,7 @@ teardown() {
   if [ -n "$SNIPPET_ID" ]; then
     gitfleet snippet delete "$SNIPPET_ID" --yes >/dev/null 2>&1 || true
   fi
+  rm -f "$TMPDIR/snippet-$PB_RESOURCE_SUFFIX.txt"
   print_summary
 }
 
@@ -24,8 +25,8 @@ else
 fi
 
 step "Snippet Create"
-echo "gitfleet test snippet content" > "$TMPDIR/snippet_test.txt"
-output=$(gitfleet snippet create --description "gitfleet-test-snippet" --public --file "$TMPDIR/snippet_test.txt" --json 2>&1) || true
+echo "gitfleet test snippet content" > "$TMPDIR/snippet-$PB_RESOURCE_SUFFIX.txt"
+output=$(gitfleet snippet create --description "gitfleet-test-snippet-$PB_RESOURCE_SUFFIX" --public --file "$TMPDIR/snippet-$PB_RESOURCE_SUFFIX.txt" --json 2>&1) || true
 SNIPPET_ID=$(echo "$output" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
 
 if [ -n "$SNIPPET_ID" ]; then

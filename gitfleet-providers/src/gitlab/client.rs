@@ -1583,7 +1583,7 @@ impl gitfleet_core::provider::PlanningOps for ProviderClient {
     {
         Err(GitfleetError::from(UnsupportedCapabilityError::new(
             ProviderId::GitLab,
-            ProviderCapability::Planning,
+            ProviderCapability::Projects,
         )))
     }
 
@@ -1593,7 +1593,7 @@ impl gitfleet_core::provider::PlanningOps for ProviderClient {
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
         Err(GitfleetError::from(UnsupportedCapabilityError::new(
             ProviderId::GitLab,
-            ProviderCapability::Planning,
+            ProviderCapability::Projects,
         )))
     }
 
@@ -1605,7 +1605,7 @@ impl gitfleet_core::provider::PlanningOps for ProviderClient {
     ) -> Result<gitfleet_core::types::ProjectSummary, gitfleet_core::errors::GitfleetError> {
         Err(GitfleetError::from(UnsupportedCapabilityError::new(
             ProviderId::GitLab,
-            ProviderCapability::Planning,
+            ProviderCapability::Projects,
         )))
     }
 
@@ -1615,7 +1615,7 @@ impl gitfleet_core::provider::PlanningOps for ProviderClient {
     ) -> Result<(), gitfleet_core::errors::GitfleetError> {
         Err(GitfleetError::from(UnsupportedCapabilityError::new(
             ProviderId::GitLab,
-            ProviderCapability::Planning,
+            ProviderCapability::Projects,
         )))
     }
 }

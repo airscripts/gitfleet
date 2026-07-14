@@ -55,7 +55,7 @@ fn test_get_operation_family_known() {
 
     assert_eq!(planning.name, "planning");
 
-    assert_eq!(planning.capability, Some(ProviderCapability::Planning));
+    assert_eq!(planning.capability, None);
 
     let registry = get_operation_family("registry").unwrap();
 

@@ -46,6 +46,71 @@ fn test_version_subcommand() {
 }
 
 #[test]
+fn test_version_subcommand_ignores_malformed_credentials() {
+    let home = tempfile::tempdir().unwrap();
+    let folder = home.path().join(".config/gitfleet");
+    std::fs::create_dir_all(&folder).unwrap();
+    std::fs::write(folder.join("credentials.toml"), "invalid = [toml").unwrap();
+
+    Command::cargo_bin("gitfleet")
+        .unwrap()
+        .env("HOME", home.path())
+        .arg("version")
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_completion_ignores_malformed_credentials() {
+    let home = tempfile::tempdir().unwrap();
+    let folder = home.path().join(".config/gitfleet");
+    std::fs::create_dir_all(&folder).unwrap();
+    std::fs::write(folder.join("credentials.toml"), "invalid = [toml").unwrap();
+
+    Command::cargo_bin("gitfleet")
+        .unwrap()
+        .env("HOME", home.path())
+        .args(["completion", "generate", "bash"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_auth_logout_recovers_from_malformed_credentials() {
+    let home = tempfile::tempdir().unwrap();
+    let folder = home.path().join(".config/gitfleet");
+    let credentials = folder.join("credentials.toml");
+    std::fs::create_dir_all(&folder).unwrap();
+    std::fs::write(&credentials, "invalid = [toml").unwrap();
+
+    Command::cargo_bin("gitfleet")
+        .unwrap()
+        .env("HOME", home.path())
+        .args(["auth", "logout", "--yes"])
+        .assert()
+        .success();
+
+    assert!(!credentials.exists());
+}
+
+#[test]
+fn test_repo_rejects_removed_noop_flags() {
+    Command::cargo_bin("gitfleet")
+        .unwrap()
+        .args(["repo", "create", "example", "--template", "source"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("unexpected argument '--template'"));
+
+    Command::cargo_bin("gitfleet")
+        .unwrap()
+        .args(["repo", "list", "--type", "private"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("unexpected argument '--type'"));
+}
+
+#[test]
 fn test_repo_help() {
     Command::cargo_bin("gitfleet")
         .unwrap()

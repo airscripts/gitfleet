@@ -2,7 +2,7 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
-SECRET_KEY="GITFLEET_PLAYBOOK_TEST_KEY"
+SECRET_KEY="GITFLEET_TEST_${PB_RESOURCE_SUFFIX//-/_}"
 SECRET_VALUE="gitfleet-playbook-test-value"
 SECRET_SET=false
 

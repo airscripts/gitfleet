@@ -2,12 +2,15 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
-WIKI_TEST_PAGE="Gitfleet-Test-Page"
+WIKI_TEST_PAGE="Gitfleet-Test-Page-$PB_RESOURCE_SUFFIX"
+WIKI_CREATED=false
 
 setup() { :; }
 
 teardown() {
-  gitfleet wiki delete "$WIKI_TEST_PAGE" --yes --repo "$REPO" >/dev/null 2>&1 || true
+  if [ "$WIKI_CREATED" = true ]; then
+    gitfleet wiki delete "$WIKI_TEST_PAGE" --yes --repo "$REPO" >/dev/null 2>&1 || true
+  fi
   print_summary
 }
 
@@ -27,8 +30,9 @@ fi
 step "Create Wiki Page"
 if gitfleet wiki create --title "$WIKI_TEST_PAGE" --content "Test content from gitfleet playbook" --repo "$REPO" >/dev/null 2>&1; then
   pass "wiki create succeeded"
+  WIKI_CREATED=true
 else
-  skip "wiki create (may already exist or wiki not enabled)"
+  fail "wiki create failed"
 fi
 
 step "View Created Page"
@@ -48,6 +52,7 @@ fi
 step "Delete Wiki Page"
 if gitfleet wiki delete "$WIKI_TEST_PAGE" --yes --repo "$REPO" >/dev/null 2>&1; then
   pass "wiki delete succeeded"
+  WIKI_CREATED=false
 else
-  skip "wiki delete (page may not exist)"
+  fail "wiki delete failed"
 fi

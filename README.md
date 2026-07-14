@@ -245,10 +245,13 @@ gitfleet auth login --profile work
 gitfleet auth list
 gitfleet auth switch work
 gitfleet auth detect
+gitfleet auth logout --profile personal
 ```
 
 The active profile supplies the provider, host, and token for subsequent
 operations. `auth detect` selects a profile from the current repository.
+`auth logout --profile NAME` removes only that profile; omitting `--profile`
+removes all stored credentials after confirmation.
 
 ## Commands
 
@@ -441,8 +444,8 @@ Run them only against a dedicated test repository:
 
 ```bash
 REPO=owner/test-repository ORG=example bash gitfleet-playbooks/all.sh
-SKIP="pipeline,milestone,project" bash gitfleet-playbooks/all.sh
-PARALLEL=1 bash gitfleet-playbooks/all.sh
+REPO=owner/test-repository SKIP="pipeline,milestone,project" bash gitfleet-playbooks/all.sh
+REPO=owner/test-repository PARALLEL=1 bash gitfleet-playbooks/all.sh
 ```
 
 See `gitfleet-playbooks/env.sh` for configuration. Automated tests use mocks

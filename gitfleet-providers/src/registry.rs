@@ -121,7 +121,9 @@ pub fn validate_provider_capabilities(provider: &dyn GitProvider) -> Result<(), 
             ProviderCapability::Issues => provider.issue_ops().is_some(),
             ProviderCapability::Pipelines => provider.pipeline_ops().is_some(),
             ProviderCapability::Releases => provider.release_ops().is_some(),
-            ProviderCapability::Planning => provider.planning_ops().is_some(),
+            ProviderCapability::Milestones | ProviderCapability::Projects => {
+                provider.planning_ops().is_some()
+            }
             ProviderCapability::Wiki => provider.wiki_ops().is_some(),
             ProviderCapability::Site => provider.site_ops().is_some(),
             ProviderCapability::Discussions => provider.discussion_ops().is_some(),

@@ -13,6 +13,7 @@ pub enum RepoCommand {
         #[arg(long)]
         owner: Option<String>,
         #[arg(long, default_value = "user")]
+        #[arg(value_parser = ["user", "org"])]
         owner_type: String,
         #[arg(long)]
         public: bool,
@@ -22,8 +23,6 @@ pub enum RepoCommand {
         internal: bool,
         #[arg(long)]
         description: Option<String>,
-        #[arg(long)]
-        template: Option<String>,
     },
 
     #[command(about = "List repositories.")]
@@ -31,9 +30,8 @@ pub enum RepoCommand {
         #[arg(long)]
         owner: Option<String>,
         #[arg(long, default_value = "user")]
+        #[arg(value_parser = ["user", "org"])]
         owner_type: String,
-        #[arg(long, default_value = "all")]
-        r#type: String,
     },
 
     #[command(about = "View repository details.")]
@@ -105,7 +103,6 @@ pub async fn run(cmd: RepoCommand, app: &App) -> Result<(), GitfleetError> {
             private,
             internal,
             description,
-            template: _template,
         } => {
             if [public, private, internal].iter().filter(|&&f| f).count() > 1 {
                 return Err(GitfleetError::from(UnprocessableError::new(
@@ -136,9 +133,7 @@ pub async fn run(cmd: RepoCommand, app: &App) -> Result<(), GitfleetError> {
             .await
         }
 
-        RepoCommand::List {
-            owner, owner_type, ..
-        } => {
+        RepoCommand::List { owner, owner_type } => {
             let (org, username) = match (owner.as_deref(), owner_type.as_str()) {
                 (Some(o), "org") => (Some(o), None),
                 (Some(o), _) => (None, Some(o)),
@@ -343,7 +338,6 @@ mod tests {
                 private: false,
                 internal: false,
                 description: None,
-                template: None,
             },
             &app,
         )
@@ -364,7 +358,6 @@ mod tests {
                 private: true,
                 internal: false,
                 description: Some("Test".into()),
-                template: None,
             },
             &app,
         )
@@ -385,7 +378,6 @@ mod tests {
                 private: true,
                 internal: false,
                 description: None,
-                template: None,
             },
             &app,
         )
@@ -402,7 +394,6 @@ mod tests {
             RepoCommand::List {
                 owner: None,
                 owner_type: "user".into(),
-                r#type: "all".into(),
             },
             &app,
         )
@@ -418,7 +409,6 @@ mod tests {
             RepoCommand::List {
                 owner: Some("org".into()),
                 owner_type: "org".into(),
-                r#type: "all".into(),
             },
             &app,
         )

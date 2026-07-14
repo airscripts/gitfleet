@@ -3567,6 +3567,36 @@ async fn test_delete_milestone() {
 
 #[tokio::test]
 #[serial]
+async fn test_list_wiki_pages() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/repos/testorg/repo/wikis"))
+        .and(header("authorization", "Bearer testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            {"path": "Home", "title": "Home", "format": "markdown", "filename": "Home.md"}
+        ])))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitHubProvider::with_base_url(&server.uri());
+    let pages = provider
+        .wiki_ops()
+        .unwrap()
+        .list_wiki_pages("testorg/repo")
+        .await
+        .unwrap();
+
+    teardown_token();
+
+    assert_eq!(pages.len(), 1);
+    assert_eq!(pages[0].title, "Home");
+}
+
+#[tokio::test]
+#[serial]
 async fn test_list_projects() {
     let server = MockServer::start().await;
 
@@ -3697,6 +3727,36 @@ async fn test_delete_project() {
     ops.delete_project("P_1").await.unwrap();
 
     teardown_token();
+}
+
+#[tokio::test]
+#[serial]
+async fn test_delete_project_rejects_graphql_errors() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/graphql"))
+        .and(header("authorization", "Bearer testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": {"deleteProjectV2": null},
+            "errors": [{"message": "Resource not accessible"}]
+        })))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitHubProvider::with_base_url(&server.uri());
+    let ops = provider.planning_ops().unwrap();
+    let result = ops.delete_project("P_1").await;
+
+    teardown_token();
+
+    assert!(result.is_err());
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Resource not accessible"));
 }
 
 // ===== ReleaseOps (update/delete) =====

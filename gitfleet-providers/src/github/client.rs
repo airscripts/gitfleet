@@ -139,6 +139,15 @@ impl ProviderClient {
         }
     }
 
+    fn graphql_base_url(&self, host: Option<&str>) -> String {
+        let api_base = self.api_base_url(host);
+
+        api_base
+            .strip_suffix("/api/v3")
+            .map(|base| format!("{base}/api"))
+            .unwrap_or(api_base)
+    }
+
     pub async fn request(
         &self,
         method: reqwest::Method,
@@ -149,7 +158,12 @@ impl ProviderClient {
     ) -> Result<reqwest::Response, GitfleetError> {
         crate::validate_relative_endpoint(endpoint)?;
 
-        let url = format!("{}{endpoint}", self.api_base_url(host));
+        let base_url = if endpoint == "/graphql" {
+            self.graphql_base_url(host)
+        } else {
+            self.api_base_url(host)
+        };
+        let url = format!("{base_url}{endpoint}");
 
         self.request_url(method, &url, body, token, None, None)
             .await
@@ -2100,6 +2114,23 @@ mod tests {
         let url = client.api_base_url(Some("github.com"));
 
         assert_eq!(url, GITHUB_API_BASE_URL);
+    }
+
+    #[test]
+    fn test_graphql_base_url_uses_enterprise_api_root() {
+        let client = ProviderClient::with_host("github.example.com");
+
+        assert_eq!(
+            client.graphql_base_url(None),
+            "https://github.example.com/api"
+        );
+    }
+
+    #[test]
+    fn test_graphql_base_url_preserves_test_override() {
+        let client = ProviderClient::with_base_url("http://localhost:8080");
+
+        assert_eq!(client.graphql_base_url(None), "http://localhost:8080");
     }
 
     #[test]

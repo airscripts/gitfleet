@@ -20,7 +20,7 @@ step "Project List"
 expect_exit_0 "project list succeeds" gitfleet planning project list --owner "$OWNER"
 
 step "Project Create"
-output=$(gitfleet planning project create "gitfleet-test-project" --owner "$OWNER" --json 2>&1) || true
+output=$(gitfleet planning project create "gitfleet-test-project-$PB_RESOURCE_SUFFIX" --owner "$OWNER" --json 2>&1) || true
 PROJECT_ID=$(echo "$output" | python3 -c "import sys,json; print(json.load(sys.stdin).get('number',''))" 2>/dev/null || echo "")
 
 if [ -n "$PROJECT_ID" ]; then

@@ -20,7 +20,7 @@ step "Milestone List"
 expect_exit_0 "milestone list succeeds" gitfleet planning milestone list --repo "$REPO"
 
 step "Milestone Create"
-output=$(gitfleet planning milestone create "gitfleet-test-milestone" --repo "$REPO" --json 2>&1) || true
+output=$(gitfleet planning milestone create "gitfleet-test-milestone-$PB_RESOURCE_SUFFIX" --repo "$REPO" --json 2>&1) || true
 MILESTONE_NUMBER=$(echo "$output" | python3 -c "import sys,json; print(json.load(sys.stdin).get('number',''))" 2>/dev/null || echo "")
 
 if [ -n "$MILESTONE_NUMBER" ]; then
