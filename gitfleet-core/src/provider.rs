@@ -327,10 +327,10 @@ pub trait ReleaseOps: Send + Sync {
     async fn update_release(
         &self,
         repo: &str,
-        release_id: u64,
+        release: &str,
         body: serde_json::Value,
     ) -> Result<serde_json::Value, GitfleetError>;
-    async fn delete_release(&self, repo: &str, release_id: u64) -> Result<(), GitfleetError>;
+    async fn delete_release(&self, repo: &str, release: &str) -> Result<(), GitfleetError>;
 }
 
 #[async_trait::async_trait]

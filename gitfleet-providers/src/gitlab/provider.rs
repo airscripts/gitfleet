@@ -2,8 +2,8 @@ use gitfleet_core::provider::{
     AccessOps, AnalyticsOps, BrowseOps, ChangeOps, CodeOps, DeployOps, EnvironmentOps, GitProvider,
     GovernanceOps, IdentityOps, IssueOps, LabelOps, LicenseOps, NotificationOps, PipelineOps,
     PlanningOps, PolicyOps, ProviderCapability, ProviderId, RawApiOps, RegistryOps, ReleaseOps,
-    RepoOps, ReviewOps, RunnerOps, SearchOps, SecretOps, SiteOps, SnippetOps, TemplateOps,
-    VariableOps, WebhookOps, WikiOps,
+    RepoOps, ReviewOps, RunnerOps, SearchOps, SiteOps, SnippetOps, TemplateOps, VariableOps,
+    WebhookOps, WikiOps,
 };
 
 static CAPABILITIES: &[ProviderCapability] = &[
@@ -32,7 +32,6 @@ static CAPABILITIES: &[ProviderCapability] = &[
     ProviderCapability::Deployments,
     ProviderCapability::Analytics,
     ProviderCapability::Governance,
-    ProviderCapability::Secrets,
     ProviderCapability::Licenses,
     ProviderCapability::Snippets,
     ProviderCapability::RepositoryPolicies,
@@ -191,10 +190,6 @@ impl GitProvider for GitLabProvider {
         Some(&self.client)
     }
 
-    fn secret_ops(&self) -> Option<&dyn SecretOps> {
-        Some(&self.client)
-    }
-
     fn license_ops(&self) -> Option<&dyn LicenseOps> {
         Some(&self.client)
     }
@@ -261,7 +256,8 @@ mod tests {
         assert!(caps.contains(&ProviderCapability::Analytics));
 
         assert!(caps.contains(&ProviderCapability::Governance));
-        assert!(caps.contains(&ProviderCapability::Secrets));
+        assert!(!caps.contains(&ProviderCapability::Secrets));
+        assert!(provider.secret_ops().is_none());
 
         assert!(caps.contains(&ProviderCapability::Licenses));
         assert!(!caps.contains(&ProviderCapability::Dependencies));

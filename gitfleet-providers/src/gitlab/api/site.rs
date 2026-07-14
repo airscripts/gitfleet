@@ -1,4 +1,5 @@
-use gitfleet_core::errors::GitfleetError;
+use gitfleet_core::errors::{GitfleetError, UnsupportedCapabilityError};
+use gitfleet_core::provider::{ProviderCapability, ProviderId};
 
 use crate::gitlab::client::ProviderClient;
 
@@ -29,24 +30,15 @@ impl SiteApi {
     }
 
     pub async fn create_pages(
-        client: &ProviderClient,
-        project: &str,
+        _client: &ProviderClient,
+        _project: &str,
         _source: &str,
         _build_type: Option<&str>,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let encoded = encode_path(project);
-
-        let endpoint = format!("/projects/{encoded}/pages");
-
-        let response = client
-            .request_token_required(reqwest::Method::POST, &endpoint, None, None, None)
-            .await?;
-
-        let data: serde_json::Value = crate::parse_json(response)
-            .await
-            .map_err(|e| GitfleetError::new(format!("Failed to create pages: {e}")))?;
-
-        Ok(data)
+        Err(GitfleetError::from(UnsupportedCapabilityError::new(
+            ProviderId::GitLab,
+            ProviderCapability::Site,
+        )))
     }
 
     pub async fn remove_pages(client: &ProviderClient, project: &str) -> Result<(), GitfleetError> {

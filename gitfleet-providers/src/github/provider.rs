@@ -4,7 +4,7 @@ use gitfleet_core::provider::{
     IdentityOps, IssueOps, LabelOps, LicenseOps, MergeAutomationOps, NotificationOps, PipelineOps,
     PlanningOps, PolicyOps, ProviderCapability, ProviderId, RawApiOps, RegistryOps, ReleaseOps,
     RepoOps, ReviewOps, RunnerOps, SearchOps, SecretOps, SecurityOps, SiteOps, SnippetOps,
-    TemplateOps, VariableOps, WebhookOps, WikiOps,
+    TemplateOps, VariableOps, WebhookOps,
 };
 
 static CAPABILITIES: &[ProviderCapability] = &[
@@ -16,7 +16,6 @@ static CAPABILITIES: &[ProviderCapability] = &[
     ProviderCapability::Releases,
     ProviderCapability::Milestones,
     ProviderCapability::Projects,
-    ProviderCapability::Wiki,
     ProviderCapability::Site,
     ProviderCapability::Discussions,
     ProviderCapability::Security,
@@ -125,10 +124,6 @@ impl GitProvider for GitHubProvider {
     }
 
     fn planning_ops(&self) -> Option<&dyn PlanningOps> {
-        Some(&self.client)
-    }
-
-    fn wiki_ops(&self) -> Option<&dyn WikiOps> {
         Some(&self.client)
     }
 
@@ -293,6 +288,8 @@ mod tests {
         assert!(caps.contains(&ProviderCapability::Releases));
         assert!(caps.contains(&ProviderCapability::Milestones));
         assert!(caps.contains(&ProviderCapability::Projects));
+        assert!(!caps.contains(&ProviderCapability::Wiki));
+        assert!(provider.wiki_ops().is_none());
 
         assert!(caps.contains(&ProviderCapability::Search));
     }

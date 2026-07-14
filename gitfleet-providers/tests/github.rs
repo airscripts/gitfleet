@@ -1,4 +1,4 @@
-use gitfleet_core::provider::GitProvider;
+use gitfleet_core::provider::{GitProvider, ProviderCapability};
 use gitfleet_core::types::MilestoneState;
 use gitfleet_providers::GitHubProvider;
 use serial_test::serial;
@@ -3565,34 +3565,12 @@ async fn test_delete_milestone() {
 
 // ===== PlanningOps (Projects - GraphQL) =====
 
-#[tokio::test]
-#[serial]
-async fn test_list_wiki_pages() {
-    let server = MockServer::start().await;
+#[test]
+fn test_github_wiki_is_not_advertised() {
+    let provider = GitHubProvider::new();
 
-    Mock::given(method("GET"))
-        .and(path("/repos/testorg/repo/wikis"))
-        .and(header("authorization", "Bearer testtoken"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
-            {"path": "Home", "title": "Home", "format": "markdown", "filename": "Home.md"}
-        ])))
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitHubProvider::with_base_url(&server.uri());
-    let pages = provider
-        .wiki_ops()
-        .unwrap()
-        .list_wiki_pages("testorg/repo")
-        .await
-        .unwrap();
-
-    teardown_token();
-
-    assert_eq!(pages.len(), 1);
-    assert_eq!(pages[0].title, "Home");
+    assert!(provider.wiki_ops().is_none());
+    assert!(!provider.capabilities().contains(&ProviderCapability::Wiki));
 }
 
 #[tokio::test]
@@ -3786,7 +3764,7 @@ async fn test_update_release() {
     let ops = provider.release_ops().unwrap();
 
     let release = ops
-        .update_release("testorg/repo", 1, serde_json::json!({"body": "Updated"}))
+        .update_release("testorg/repo", "1", serde_json::json!({"body": "Updated"}))
         .await
         .unwrap();
 
@@ -3812,7 +3790,7 @@ async fn test_delete_release() {
     let provider = GitHubProvider::with_base_url(&server.uri());
     let ops = provider.release_ops().unwrap();
 
-    ops.delete_release("testorg/repo", 1).await.unwrap();
+    ops.delete_release("testorg/repo", "1").await.unwrap();
 
     teardown_token();
 }

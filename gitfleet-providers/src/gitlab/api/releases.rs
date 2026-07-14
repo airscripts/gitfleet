@@ -53,11 +53,13 @@ impl ReleasesApi {
     pub async fn create(
         client: &ProviderClient,
         project: &str,
-        body: serde_json::Value,
+        mut body: serde_json::Value,
     ) -> Result<serde_json::Value, GitfleetError> {
         let encoded = encode_path(project);
 
         let endpoint = format!("/projects/{encoded}/releases");
+
+        normalize_release_body(&mut body)?;
 
         let response = client
             .request_token_required(reqwest::Method::POST, &endpoint, Some(body), None, None)
@@ -73,12 +75,15 @@ impl ReleasesApi {
     pub async fn update(
         client: &ProviderClient,
         project: &str,
-        release_id: u64,
-        body: serde_json::Value,
+        release: &str,
+        mut body: serde_json::Value,
     ) -> Result<serde_json::Value, GitfleetError> {
         let encoded = encode_path(project);
+        let release = urlencoding::encode(release);
 
-        let endpoint = format!("/projects/{encoded}/releases/{release_id}");
+        let endpoint = format!("/projects/{encoded}/releases/{release}");
+
+        normalize_release_body(&mut body)?;
 
         let response = client
             .request_token_required(reqwest::Method::PUT, &endpoint, Some(body), None, None)
@@ -94,11 +99,12 @@ impl ReleasesApi {
     pub async fn delete(
         client: &ProviderClient,
         project: &str,
-        release_id: u64,
+        release: &str,
     ) -> Result<(), GitfleetError> {
         let encoded = encode_path(project);
+        let release = urlencoding::encode(release);
 
-        let endpoint = format!("/projects/{encoded}/releases/{release_id}");
+        let endpoint = format!("/projects/{encoded}/releases/{release}");
 
         client
             .request_token_required(reqwest::Method::DELETE, &endpoint, None, None, None)
@@ -106,6 +112,32 @@ impl ReleasesApi {
 
         Ok(())
     }
+}
+
+fn normalize_release_body(body: &mut serde_json::Value) -> Result<(), GitfleetError> {
+    if body.get("draft").and_then(serde_json::Value::as_bool) == Some(true)
+        || body.get("prerelease").and_then(serde_json::Value::as_bool) == Some(true)
+    {
+        return Err(GitfleetError::from(
+            gitfleet_core::errors::UnsupportedCapabilityError::new(
+                gitfleet_core::provider::ProviderId::GitLab,
+                gitfleet_core::provider::ProviderCapability::Releases,
+            ),
+        ));
+    }
+
+    let object = body
+        .as_object_mut()
+        .ok_or_else(|| GitfleetError::new("Release request body must be a JSON object."))?;
+
+    if let Some(description) = object.remove("body") {
+        object.insert("description".to_string(), description);
+    }
+
+    object.remove("draft");
+    object.remove("prerelease");
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -127,5 +159,29 @@ mod tests {
         let endpoint = format!("/projects/{encoded}/releases?per_page=20");
 
         assert_eq!(endpoint, "/projects/org%2Frepo/releases?per_page=20");
+    }
+
+    #[test]
+    fn test_normalize_release_body_maps_description() {
+        let mut body = serde_json::json!({
+            "tag_name": "v1.0.0",
+            "body": "Release notes",
+            "draft": false,
+            "prerelease": false
+        });
+
+        normalize_release_body(&mut body).unwrap();
+
+        assert_eq!(body["description"], "Release notes");
+        assert!(body.get("body").is_none());
+        assert!(body.get("draft").is_none());
+        assert!(body.get("prerelease").is_none());
+    }
+
+    #[test]
+    fn test_normalize_release_body_rejects_github_only_states() {
+        let mut body = serde_json::json!({"tag_name": "v1.0.0", "draft": true});
+
+        assert!(normalize_release_body(&mut body).is_err());
     }
 }

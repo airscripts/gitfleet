@@ -236,7 +236,6 @@ mod tests {
             ProviderCapability::Issues,
             ProviderCapability::Pipelines,
             ProviderCapability::Releases,
-            ProviderCapability::Wiki,
             ProviderCapability::Discussions,
             ProviderCapability::Webhooks,
             ProviderCapability::Search,
@@ -376,7 +375,7 @@ mod tests {
         assert!(provider.analytics_ops().is_some());
         assert!(provider.governance_ops().is_some());
 
-        assert!(provider.secret_ops().is_some());
+        assert!(provider.secret_ops().is_none());
         assert!(provider.license_ops().is_some());
 
         assert!(provider.discussion_ops().is_none());

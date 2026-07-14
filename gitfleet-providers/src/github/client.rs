@@ -68,18 +68,6 @@ impl ProviderClient {
         client
     }
 
-    pub fn supports_public_wiki_reads(&self) -> bool {
-        let Some(base_url) = self.base_url_override.as_deref() else {
-            return true;
-        };
-
-        let Ok(url) = url::Url::parse(base_url) else {
-            return false;
-        };
-
-        matches!(url.host_str(), Some("api.github.com" | "github.com"))
-    }
-
     fn effective_optional_token(&self, token: Option<&str>) -> Option<String> {
         token
             .map(|token| token.to_string())
@@ -246,28 +234,6 @@ impl ProviderClient {
                     .is_some(),
             ));
         }
-    }
-
-    pub(crate) async fn request_url_optional_token(
-        &self,
-        method: reqwest::Method,
-        url: &str,
-        body: Option<serde_json::Value>,
-        token: Option<&str>,
-        accept: Option<&str>,
-        content_type: Option<&str>,
-    ) -> Result<reqwest::Response, GitfleetError> {
-        let effective_token = self.effective_optional_token(token);
-
-        self.request_url(
-            method,
-            url,
-            body,
-            effective_token.as_deref(),
-            accept,
-            content_type,
-        )
-        .await
     }
 
     pub async fn request_token_required(
@@ -904,17 +870,29 @@ impl gitfleet_core::provider::ReleaseOps for ProviderClient {
     async fn update_release(
         &self,
         repo: &str,
-        release_id: u64,
+        release: &str,
         body: serde_json::Value,
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
+        let release_id = release.parse::<u64>().map_err(|_| {
+            GitfleetError::from(UnprocessableError::new(
+                "GitHub releases must be identified by their numeric release ID.",
+            ))
+        })?;
+
         crate::github::api::ReleasesApi::update(self, repo, release_id, body).await
     }
 
     async fn delete_release(
         &self,
         repo: &str,
-        release_id: u64,
+        release: &str,
     ) -> Result<(), gitfleet_core::errors::GitfleetError> {
+        let release_id = release.parse::<u64>().map_err(|_| {
+            GitfleetError::from(UnprocessableError::new(
+                "GitHub releases must be identified by their numeric release ID.",
+            ))
+        })?;
+
         crate::github::api::ReleasesApi::delete(self, repo, release_id).await
     }
 }
@@ -2131,16 +2109,6 @@ mod tests {
         let client = ProviderClient::with_base_url("http://localhost:8080");
 
         assert_eq!(client.graphql_base_url(None), "http://localhost:8080");
-    }
-
-    #[test]
-    fn test_public_wiki_reads_are_limited_to_github_hosts() {
-        assert!(ProviderClient::new().supports_public_wiki_reads());
-        assert!(ProviderClient::with_host("github.com").supports_public_wiki_reads());
-        assert!(!ProviderClient::with_host("github.example.com").supports_public_wiki_reads());
-        assert!(
-            !ProviderClient::with_base_url("http://localhost:8080").supports_public_wiki_reads()
-        );
     }
 
     #[test]

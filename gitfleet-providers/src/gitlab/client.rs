@@ -858,18 +858,18 @@ impl gitfleet_core::provider::ReleaseOps for ProviderClient {
     async fn update_release(
         &self,
         repo: &str,
-        release_id: u64,
+        release: &str,
         body: serde_json::Value,
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::ReleasesApi::update(self, repo, release_id, body).await
+        crate::gitlab::api::ReleasesApi::update(self, repo, release, body).await
     }
 
     async fn delete_release(
         &self,
         repo: &str,
-        release_id: u64,
+        release: &str,
     ) -> Result<(), gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::ReleasesApi::delete(self, repo, release_id).await
+        crate::gitlab::api::ReleasesApi::delete(self, repo, release).await
     }
 }
 

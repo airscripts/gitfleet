@@ -80,13 +80,33 @@ impl ProjectsApi {
             body["description"] = serde_json::Value::String(d.to_string());
         }
 
-        let endpoint = match owner_type {
-            Some("group") => format!("/groups/{}", urlencoding::encode(owner.unwrap_or(""))),
-            _ => "/projects".to_string(),
-        };
+        if matches!(owner_type, Some("org" | "group")) {
+            let owner = owner.ok_or_else(|| {
+                GitfleetError::new("A GitLab group is required for group-owned projects.")
+            })?;
+            let group_endpoint = format!("/groups/{}", urlencoding::encode(owner));
+
+            let response = client
+                .request_token_required(reqwest::Method::GET, &group_endpoint, None, None, None)
+                .await?;
+
+            let group: serde_json::Value = crate::parse_json(response)
+                .await
+                .map_err(|e| GitfleetError::new(format!("Failed to resolve group: {e}")))?;
+            let namespace_id = group
+                .get("id")
+                .and_then(serde_json::Value::as_u64)
+                .ok_or_else(|| {
+                    GitfleetError::new("GitLab group response did not include an ID.")
+                })?;
+
+            body["namespace_id"] = serde_json::json!(namespace_id);
+        }
+
+        let endpoint = "/projects";
 
         let response = client
-            .request_token_required(reqwest::Method::POST, &endpoint, Some(body), None, None)
+            .request_token_required(reqwest::Method::POST, endpoint, Some(body), None, None)
             .await?;
 
         let data: serde_json::Value = crate::parse_json(response)

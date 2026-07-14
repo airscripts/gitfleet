@@ -772,13 +772,13 @@ impl ReleaseOps for MockProvider {
     async fn update_release(
         &self,
         _repo: &str,
-        _release_id: u64,
+        _release: &str,
         _body: serde_json::Value,
     ) -> Result<serde_json::Value, GitfleetError> {
         Ok(serde_json::json!({}))
     }
 
-    async fn delete_release(&self, _repo: &str, _release_id: u64) -> Result<(), GitfleetError> {
+    async fn delete_release(&self, _repo: &str, _release: &str) -> Result<(), GitfleetError> {
         Ok(())
     }
 }

@@ -620,13 +620,13 @@ mod tests {
         async fn update_release(
             &self,
             _repo: &str,
-            _release_id: u64,
+            _release: &str,
             _body: serde_json::Value,
         ) -> Result<serde_json::Value, GitfleetError> {
             Ok(serde_json::json!({}))
         }
 
-        async fn delete_release(&self, _repo: &str, _release_id: u64) -> Result<(), GitfleetError> {
+        async fn delete_release(&self, _repo: &str, _release: &str) -> Result<(), GitfleetError> {
             Ok(())
         }
     }
@@ -1514,7 +1514,7 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Human);
-        releases::delete(&p, &r, "org/repo", 1).await.unwrap();
+        releases::delete(&p, &r, "org/repo", "1").await.unwrap();
     }
 
     #[tokio::test]

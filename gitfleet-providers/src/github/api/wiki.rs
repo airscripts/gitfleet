@@ -2,133 +2,54 @@ use gitfleet_core::errors::{GitfleetError, UnsupportedCapabilityError};
 use gitfleet_core::provider::{ProviderCapability, ProviderId};
 use gitfleet_core::types::{WikiPage, WikiPageContent};
 
-use crate::github::api::path::{encode_path, repo_path};
 use crate::github::client::ProviderClient;
 
 pub struct WikiApi;
 
 impl WikiApi {
-    pub async fn list(client: &ProviderClient, repo: &str) -> Result<Vec<WikiPage>, GitfleetError> {
-        let endpoint = repo_path(repo, &["wikis"]);
-        let response = client
-            .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
-            .await?;
-        let pages: Vec<serde_json::Value> = crate::parse_json(response)
-            .await
-            .map_err(|e| GitfleetError::new(format!("Failed to list wiki pages: {e}")))?;
-
-        Ok(pages.iter().map(normalize_page).collect())
+    pub async fn list(
+        _client: &ProviderClient,
+        _repo: &str,
+    ) -> Result<Vec<WikiPage>, GitfleetError> {
+        Err(unsupported())
     }
 
     pub async fn get_page(
-        client: &ProviderClient,
-        repo: &str,
-        page: &str,
+        _client: &ProviderClient,
+        _repo: &str,
+        _page: &str,
     ) -> Result<WikiPageContent, GitfleetError> {
-        ensure_public_wiki_reads(client)?;
-
-        let url = format!(
-            "https://raw.githubusercontent.com/wiki/{}/{}.md",
-            encode_path(repo),
-            encode_path(page)
-        );
-
-        let response = client
-            .request_url_optional_token(
-                reqwest::Method::GET,
-                &url,
-                None,
-                None,
-                Some("text/plain"),
-                Some("text/plain"),
-            )
-            .await?;
-
-        let content = crate::read_response_text(response)
-            .await
-            .map_err(|e| GitfleetError::new(format!("Failed to read wiki page: {e}")))?;
-
-        Ok(WikiPageContent {
-            page: WikiPage {
-                path: page.to_string(),
-                title: page.to_string(),
-                format: "markdown".to_string(),
-                filename: format!("{page}.md"),
-            },
-            content,
-        })
+        Err(unsupported())
     }
 
     pub async fn create_page(
-        client: &ProviderClient,
-        repo: &str,
-        title: &str,
-        content: &str,
+        _client: &ProviderClient,
+        _repo: &str,
+        _title: &str,
+        _content: &str,
     ) -> Result<WikiPageContent, GitfleetError> {
-        let endpoint = repo_path(repo, &["wikis"]);
-
-        let payload = serde_json::json!({
-            "title": title,
-            "content": content,
-        });
-
-        client
-            .request_token_required(reqwest::Method::POST, &endpoint, Some(payload), None, None)
-            .await?;
-
-        Ok(WikiPageContent {
-            page: WikiPage {
-                path: title.to_string(),
-                title: title.to_string(),
-                format: "markdown".to_string(),
-                filename: format!("{title}.md"),
-            },
-            content: content.to_string(),
-        })
+        Err(unsupported())
     }
 
     pub async fn update_page(
-        client: &ProviderClient,
-        repo: &str,
-        page: &str,
-        content: &str,
+        _client: &ProviderClient,
+        _repo: &str,
+        _page: &str,
+        _content: &str,
     ) -> Result<WikiPageContent, GitfleetError> {
-        let endpoint = repo_path(repo, &["wikis", page]);
-
-        let payload = serde_json::json!({
-            "content": content,
-        });
-
-        client
-            .request_token_required(reqwest::Method::PATCH, &endpoint, Some(payload), None, None)
-            .await?;
-
-        Ok(WikiPageContent {
-            page: WikiPage {
-                path: page.to_string(),
-                title: page.to_string(),
-                format: "markdown".to_string(),
-                filename: format!("{page}.md"),
-            },
-            content: content.to_string(),
-        })
+        Err(unsupported())
     }
 
     pub async fn delete_page(
-        client: &ProviderClient,
-        repo: &str,
-        page: &str,
+        _client: &ProviderClient,
+        _repo: &str,
+        _page: &str,
     ) -> Result<(), GitfleetError> {
-        let endpoint = repo_path(repo, &["wikis", page]);
-
-        client
-            .request_token_required(reqwest::Method::DELETE, &endpoint, None, None, None)
-            .await?;
-
-        Ok(())
+        Err(unsupported())
     }
 }
 
+#[cfg(test)]
 fn normalize_page(raw: &serde_json::Value) -> WikiPage {
     let title = raw
         .get("title")
@@ -162,15 +83,11 @@ fn normalize_page(raw: &serde_json::Value) -> WikiPage {
     }
 }
 
-fn ensure_public_wiki_reads(client: &ProviderClient) -> Result<(), GitfleetError> {
-    if client.supports_public_wiki_reads() {
-        return Ok(());
-    }
-
-    Err(GitfleetError::from(UnsupportedCapabilityError::new(
+fn unsupported() -> GitfleetError {
+    GitfleetError::from(UnsupportedCapabilityError::new(
         ProviderId::GitHub,
         ProviderCapability::Wiki,
-    )))
+    ))
 }
 
 #[cfg(test)]

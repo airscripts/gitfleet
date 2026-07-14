@@ -39,7 +39,7 @@ pub enum ReleaseCommand {
 
     #[command(about = "Delete a release.")]
     Delete {
-        release_id: u64,
+        release: String,
         #[arg(long)]
         repo: Option<String>,
         #[arg(long)]
@@ -96,11 +96,7 @@ pub async fn run(cmd: ReleaseCommand, app: &App) -> Result<(), GitfleetError> {
             service::releases::create(p, app.renderer(), &repo_str, create_body).await
         }
 
-        ReleaseCommand::Delete {
-            release_id,
-            repo,
-            yes,
-        } => {
+        ReleaseCommand::Delete { release, repo, yes } => {
             let repo_str = crate::repo_util::resolve_repo(&repo)?;
 
             if app.dry_run() {
@@ -108,11 +104,11 @@ pub async fn run(cmd: ReleaseCommand, app: &App) -> Result<(), GitfleetError> {
                     app.renderer().write_result(&serde_json::json!({
                         "dry_run": true,
                         "action": "delete",
-                        "target": format!("{repo_str} release {release_id}"),
+                        "target": format!("{repo_str} release {release}"),
                     }));
                 } else {
                     app.renderer().render_box(
-                        &format!("Would delete release {release_id} from {repo_str}"),
+                        &format!("Would delete release {release} from {repo_str}"),
                         "warning",
                     );
                 }
@@ -121,12 +117,12 @@ pub async fn run(cmd: ReleaseCommand, app: &App) -> Result<(), GitfleetError> {
             }
 
             gitfleet_core::prompt::confirm_destructive(
-                &format!("Delete release {release_id} permanently?"),
+                &format!("Delete release {release} permanently?"),
                 app.renderer().mode(),
                 app.renderer().yes() || yes,
             )?;
 
-            service::releases::delete(p, app.renderer(), &repo_str, release_id).await
+            service::releases::delete(p, app.renderer(), &repo_str, &release).await
         }
     }
 }
@@ -294,7 +290,7 @@ mod tests {
 
         run(
             ReleaseCommand::Delete {
-                release_id: 1,
+                release: "1".into(),
                 repo: Some("org/repo".into()),
                 yes: true,
             },
@@ -310,7 +306,7 @@ mod tests {
 
         run(
             ReleaseCommand::Delete {
-                release_id: 1,
+                release: "1".into(),
                 repo: Some("org/repo".into()),
                 yes: true,
             },
@@ -326,7 +322,7 @@ mod tests {
 
         let result = run(
             ReleaseCommand::Delete {
-                release_id: 1,
+                release: "1".into(),
                 repo: Some("org/repo".into()),
                 yes: true,
             },

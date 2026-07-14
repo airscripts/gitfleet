@@ -90,16 +90,6 @@ fn validate_graphql_response(
     )))
 }
 
-pub(crate) async fn read_response_text(
-    response: reqwest::Response,
-) -> Result<String, GitfleetError> {
-    let body = read_response_bytes(response).await?;
-
-    String::from_utf8(body).map_err(|error| {
-        GitfleetError::new(format!("Provider response was not valid UTF-8: {error}"))
-    })
-}
-
 async fn read_response_bytes(mut response: reqwest::Response) -> Result<Vec<u8>, GitfleetError> {
     if response
         .content_length()

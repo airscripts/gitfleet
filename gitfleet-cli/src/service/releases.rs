@@ -146,7 +146,7 @@ pub async fn delete(
     provider: &dyn GitProvider,
     renderer: &Renderer,
     repo: &str,
-    release_id: u64,
+    release: &str,
 ) -> Result<(), GitfleetError> {
     let ops = provider.release_ops().ok_or_else(|| {
         GitfleetError::from(UnsupportedCapabilityError::new(
@@ -155,9 +155,9 @@ pub async fn delete(
         ))
     })?;
 
-    ops.delete_release(repo, release_id).await?;
+    ops.delete_release(repo, release).await?;
 
-    renderer.render_success_box("Release deleted", &release_id.to_string());
+    renderer.render_success_box("Release deleted", release);
 
     Ok(())
 }

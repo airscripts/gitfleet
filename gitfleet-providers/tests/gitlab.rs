@@ -1,7 +1,8 @@
-use gitfleet_core::provider::GitProvider;
+use gitfleet_core::errors::GitfleetError;
+use gitfleet_core::provider::{GitProvider, ProviderCapability};
 use gitfleet_providers::GitLabProvider;
 use serial_test::serial;
-use wiremock::matchers::{header, method, path, query_param};
+use wiremock::matchers::{body_json, header, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn setup_token() {
@@ -162,19 +163,16 @@ fn gitlab_notification_json() -> serde_json::Value {
 }
 
 fn gitlab_environment_json() -> serde_json::Value {
-    serde_json::json!({
-        "total_count": 1,
-        "environments": [
-            {
-                "id": 1,
-                "name": "production",
-                "url": "https://example.com",
-                "html_url": "https://gitlab.com/testgroup/my-project/-/environments/1",
-                "created_at": "2024-01-01T00:00:00Z",
-                "updated_at": "2024-01-01T00:00:00Z"
-            }
-        ]
-    })
+    serde_json::json!([
+        {
+            "id": 1,
+            "name": "production",
+            "external_url": "https://example.com",
+            "state": "stopped",
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z"
+        }
+    ])
 }
 
 fn gitlab_discussion_json() -> serde_json::Value {
@@ -825,6 +823,11 @@ async fn test_gitlab_create_release() {
     Mock::given(method("POST"))
         .and(path("/projects/testgroup%2Fmy-project/releases"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
+        .and(body_json(serde_json::json!({
+            "tag_name": "v2.0.0",
+            "name": "Release 2.0.0",
+            "description": "Second release"
+        })))
         .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
             "tag_name": "v2.0.0",
             "name": "Release 2.0.0",
@@ -844,7 +847,9 @@ async fn test_gitlab_create_release() {
             serde_json::json!({
                 "tag_name": "v2.0.0",
                 "name": "Release 2.0.0",
-                "description": "Second release"
+                "body": "Second release",
+                "draft": false,
+                "prerelease": false
             }),
         )
         .await;
@@ -1153,6 +1158,40 @@ async fn test_gitlab_create_environment() {
 
 #[tokio::test]
 #[serial]
+async fn test_gitlab_delete_environment_resolves_numeric_id() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/projects/testgroup%2Fmy-project/environments"))
+        .and(query_param("name", "production"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(gitlab_environment_json()))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("DELETE"))
+        .and(path("/projects/testgroup%2Fmy-project/environments/1"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitLabProvider::with_base_url(&server.uri());
+    let ops = provider.environment_ops().expect("environment ops");
+
+    let result = ops
+        .delete_environment("testgroup", "my-project", "production")
+        .await;
+
+    teardown_token();
+
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+#[serial]
 async fn test_gitlab_list_discussions() {
     let server = MockServer::start().await;
 
@@ -1378,21 +1417,22 @@ async fn test_gitlab_create_wiki_page() {
 #[tokio::test]
 #[serial]
 async fn test_gitlab_list_variables() {
-    let variables_json = serde_json::json!({
-        "total_count": 1,
-        "variables": [
-            {
-                "name": "MY_VAR",
-                "value": "hello",
-                "created_at": "2024-01-01T00:00:00Z",
-                "updated_at": "2024-01-01T00:00:00Z"
-            }
-        ]
-    });
+    let variables_json = serde_json::json!([
+        {
+            "key": "MY_VAR",
+            "value": "hello",
+            "variable_type": "env_var",
+            "protected": false,
+            "masked": false,
+            "raw": true,
+            "environment_scope": "*"
+        }
+    ]);
 
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
+        .and(path("/projects/testgroup%2Fmy-project/variables"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
         .respond_with(ResponseTemplate::new(200).set_body_json(variables_json))
         .mount(&server)
@@ -1422,6 +1462,13 @@ async fn test_gitlab_list_variables() {
 async fn test_gitlab_set_variable() {
     let server = MockServer::start().await;
 
+    Mock::given(method("GET"))
+        .and(path("/projects/testgroup%2Fmy-project/variables/MY_VAR"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .respond_with(ResponseTemplate::new(404))
+        .mount(&server)
+        .await;
+
     Mock::given(method("POST"))
         .and(path("/projects/testgroup%2Fmy-project/variables"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
@@ -1439,6 +1486,48 @@ async fn test_gitlab_set_variable() {
 
     let result = ops
         .set_repo_variable("testgroup", "my-project", "MY_VAR", "hello")
+        .await;
+
+    teardown_token();
+
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+#[serial]
+async fn test_gitlab_set_existing_variable_updates_it() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/projects/testgroup%2Fmy-project/variables/MY_VAR"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "key": "MY_VAR",
+            "value": "old"
+        })))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("PUT"))
+        .and(path("/projects/testgroup%2Fmy-project/variables/MY_VAR"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .and(body_json(
+            serde_json::json!({"key": "MY_VAR", "value": "new"}),
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "key": "MY_VAR",
+            "value": "new"
+        })))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitLabProvider::with_base_url(&server.uri());
+    let ops = provider.variable_ops().expect("variable ops");
+
+    let result = ops
+        .set_repo_variable("testgroup", "my-project", "MY_VAR", "new")
         .await;
 
     teardown_token();
@@ -1949,9 +2038,22 @@ async fn test_gitlab_list_notifications_with_repo() {
 async fn test_gitlab_create_repo_in_group() {
     let server = MockServer::start().await;
 
-    Mock::given(method("POST"))
+    Mock::given(method("GET"))
         .and(path("/groups/testgroup"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"id": 77})))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path("/projects"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .and(body_json(serde_json::json!({
+            "name": "group-project",
+            "visibility": "private",
+            "description": "A group project",
+            "namespace_id": 77
+        })))
         .respond_with(ResponseTemplate::new(201).set_body_json(single_project_json()))
         .mount(&server)
         .await;
@@ -1966,7 +2068,7 @@ async fn test_gitlab_create_repo_in_group() {
             "group-project",
             "private",
             Some("testgroup"),
-            Some("group"),
+            Some("org"),
             Some("A group project"),
         )
         .await;
@@ -2453,7 +2555,7 @@ async fn test_gitlab_delete_release() {
     let server = MockServer::start().await;
 
     Mock::given(method("DELETE"))
-        .and(path("/projects/testgroup%2Fmy-project/releases/1"))
+        .and(path("/projects/testgroup%2Fmy-project/releases/v1.0.0"))
         .and(header("PRIVATE-TOKEN", "testtoken"))
         .respond_with(ResponseTemplate::new(204))
         .mount(&server)
@@ -2464,7 +2566,43 @@ async fn test_gitlab_delete_release() {
     let provider = GitLabProvider::with_base_url(&server.uri());
     let ops = provider.release_ops().expect("release ops");
 
-    let result = ops.delete_release("testgroup/my-project", 1).await;
+    let result = ops.delete_release("testgroup/my-project", "v1.0.0").await;
+
+    teardown_token();
+
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+#[serial]
+async fn test_gitlab_update_release_uses_tag() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("PUT"))
+        .and(path("/projects/testgroup%2Fmy-project/releases/v1.0.0"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .and(body_json(
+            serde_json::json!({"description": "Updated notes"}),
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "tag_name": "v1.0.0",
+            "description": "Updated notes"
+        })))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitLabProvider::with_base_url(&server.uri());
+    let ops = provider.release_ops().expect("release ops");
+
+    let result = ops
+        .update_release(
+            "testgroup/my-project",
+            "v1.0.0",
+            serde_json::json!({"body": "Updated notes"}),
+        )
+        .await;
 
     teardown_token();
 
@@ -2853,93 +2991,14 @@ async fn test_gitlab_delete_ruleset() {
     assert!(result.is_ok());
 }
 
-#[tokio::test]
-#[serial]
-async fn test_gitlab_list_repo_secrets() {
-    let server = MockServer::start().await;
+#[test]
+fn test_gitlab_secrets_are_not_advertised() {
+    let provider = GitLabProvider::new();
 
-    Mock::given(method("GET"))
-        .and(header("PRIVATE-TOKEN", "testtoken"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
-            {
-                "key": "MY_SECRET",
-                "created_at": "2024-01-01T00:00:00Z",
-                "updated_at": "2024-01-02T00:00:00Z"
-            }
-        ])))
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.secret_ops().expect("secret ops");
-
-    let result = ops.list_repo_secrets("testgroup", "my-project").await;
-
-    teardown_token();
-
-    assert!(result.is_ok());
-
-    let secrets = result.unwrap();
-
-    assert_eq!(secrets.total_count, 1);
-
-    assert_eq!(secrets.secrets[0].name, "MY_SECRET");
-}
-
-#[tokio::test]
-#[serial]
-async fn test_gitlab_set_repo_secret() {
-    let server = MockServer::start().await;
-
-    Mock::given(method("POST"))
-        .and(header("PRIVATE-TOKEN", "testtoken"))
-        .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
-            "key": "NEW_SECRET",
-            "value": "***",
-            "masked": true
-        })))
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.secret_ops().expect("secret ops");
-
-    let result = ops
-        .set_repo_secret("testgroup", "my-project", "NEW_SECRET", "encrypted", "key1")
-        .await;
-
-    teardown_token();
-
-    assert!(result.is_ok());
-}
-
-#[tokio::test]
-#[serial]
-async fn test_gitlab_delete_repo_secret() {
-    let server = MockServer::start().await;
-
-    Mock::given(method("DELETE"))
-        .and(header("PRIVATE-TOKEN", "testtoken"))
-        .respond_with(ResponseTemplate::new(204))
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitLabProvider::with_base_url(&server.uri());
-    let ops = provider.secret_ops().expect("secret ops");
-
-    let result = ops
-        .delete_repo_secret("testgroup", "my-project", "MY_SECRET")
-        .await;
-
-    teardown_token();
-
-    assert!(result.is_ok());
+    assert!(provider.secret_ops().is_none());
+    assert!(!provider
+        .capabilities()
+        .contains(&ProviderCapability::Secrets));
 }
 
 #[tokio::test]
@@ -4032,28 +4091,15 @@ async fn test_gitlab_get_pages() {
 #[tokio::test]
 #[serial]
 async fn test_gitlab_create_pages() {
-    let server = MockServer::start().await;
-
-    Mock::given(method("POST"))
-        .and(path("/projects/org%2Frepo/pages"))
-        .and(header(TOKEN_HEADER, "testtoken"))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .set_body_json(serde_json::json!({"url": "https://org.gitlab.io/repo"})),
-        )
-        .mount(&server)
-        .await;
-
-    setup_token();
-
-    let provider = GitLabProvider::with_base_url(&server.uri());
+    let provider = GitLabProvider::new();
     let ops = provider.site_ops().unwrap();
 
-    let result = ops.create_pages("org/repo", "main", None).await.unwrap();
+    let result = ops.create_pages("org/repo", "main", None).await;
 
-    teardown_token();
-
-    assert_eq!(result["url"], "https://org.gitlab.io/repo");
+    assert!(matches!(
+        result,
+        Err(GitfleetError::UnsupportedCapability(_))
+    ));
 }
 
 #[tokio::test]
