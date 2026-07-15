@@ -20,7 +20,7 @@ inquire = "0.9"
 indicatif = "0.18"
 owo-colors = { version = "4", features = ["supports-colors"] }
 dirs = "6"
-fs4 = { version = "0.13", features = ["sync"] }
+fs4 = { version = "1.0", features = ["sync"] }
 time = { version = "0.3", features = ["formatting", "serde"] }
 sha2 = "0.11"
 hex = "0.4"
