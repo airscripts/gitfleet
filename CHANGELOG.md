@@ -3,13 +3,6 @@
 All notable Gitfleet changes are documented here using Keep a Changelog and
 Semantic Versioning.
 
-## [Unreleased]
-
-- Default to operating-system credential storage for provider tokens, with an
-  explicit `GITFLEET_CREDENTIAL_STORE=file` compatibility option for plaintext
-  storage.
-- Harden credential, configuration, provider-client, and workspace handling.
-
 ## [0.1.0] - 2026-07-01
 
 ### Added
@@ -43,21 +36,64 @@ Semantic Versioning.
   with the `auth`, `workspace`, `alias`, `completion`, `config`,
   `help`, and `version` commands.
 - GitLab provider capabilities including reviews, milestones, snippets,
-  protected branches and tags, Pages, and package registry operations.
+  protected branches and tags, environments, and package registry operations.
 - Insta snapshot tests for CLI help text and provider wire payload
   normalization.
 - Lefthook pre-commit checks for formatting, clippy, workspace compilation, and
   the coverage gate.
+- Reversible GitHub and GitLab live API playbooks covering every retained
+  command family, including positive, negative, and cleanup paths.
+- Raw API support for GET, POST, PUT, PATCH, and DELETE requests.
+- A documented `.env.example` covering supported Gitfleet and live-playbook
+  environment variables.
+- Transparent provider pagination, retry handling, and rate-limit reporting
+  for read operations.
+- Provider capability introspection and contract validation for reliable
+  cross-provider command discovery.
+- Workspace archive operations and idempotent repository state changes.
 
 ### Changed
 
 - Replaced the old GitHub-only identity with Gitfleet's own product name,
   configuration paths, environment variables, and release line.
-- Moved all GitHub HTTP and REST integrations behind the GitHub provider so
+- Moved all provider HTTP and REST integrations behind the provider clients so
   no provider details leak into shared code.
 - Renamed provider-specific command names to portable Gitfleet terms,
   including `change` for pull requests, `pipeline` for CI, `planning` for
   projects, `site` for pages, `snippet` for gists, and `dev` for codespaces.
+- Defaulted provider tokens to operating-system credential storage, with an
+  explicit `GITFLEET_CREDENTIAL_STORE=file` compatibility option for
+  permission-protected plaintext storage.
+- Standardized every Gitfleet environment variable on the `GITFLEET_` prefix.
+- Routed provider clients through the resolved profile host and credentials,
+  including GitHub public API routing and GitLab filter handling.
+- Made unsupported provider behavior explicit through capability errors,
+  including GitHub wikis and protected tags; protected-tag operations remain
+  available on GitLab.
+- Hardened credential, configuration, provider-client, repository, prompt,
+  output, and workspace behavior for interactive and automated use.
+
+### Fixed
+
+- Corrected GitHub and GitLab repository creation, initialization, forking,
+  editing, archival, and deletion behavior.
+- Corrected issue and change comment routing, provider project identifiers,
+  raw API mutation methods, and structured mutation output.
+- Corrected GitHub package enumeration, project operations, repository
+  rulesets, Pages lifecycle handling, and capability reporting.
+- Corrected GitLab code browsing and search, including defaulting file reads to
+  `HEAD`, plus label, variable, pipeline, release, environment, package, and
+  repository policy operations.
+- Corrected confirmation and non-interactive safeguards for destructive
+  commands, including JSON and dry-run workflows.
+- Corrected profile resolution, repository detection, credential handling,
+  workspace partial-failure reporting, and provider-specific remote parsing.
+- Corrected provider URL and path encoding, enterprise wiki safeguards,
+  response cleanup, credential persistence, workspace routing, and provider
+  contract handling.
+- Expanded provider integration coverage and normalization checks for both
+  providers; the workspace now exceeds the required 80 percent line-coverage
+  gate.
 
 ### Removed
 
@@ -68,3 +104,5 @@ Semantic Versioning.
   previous CLI.
 - Removed the `gitfleet-tui` crate and the `gitfleet tui` command. Gitfleet
   is now a CLI-only product.
+- Removed unreachable GitHub wiki endpoint code because GitHub does not expose
+  a supported wiki API.

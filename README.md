@@ -61,9 +61,9 @@ Gitfleet currently includes these providers:
 | GitHub   | `github.com` | GitHub repositories and GitHub Enterprise hosts configured with `--host` |
 | GitLab   | `gitlab.com` | GitLab repositories through the same provider-neutral command families |
 
-GitHub supports viewing and mutating individual wiki pages. GitHub does not
-provide a supported API for enumerating wiki pages, so `wiki list` reports the
-capability as unavailable instead of returning an incomplete page list.
+GitLab supports repository wiki operations. GitHub does not provide a supported
+wiki API, so Gitfleet reports the wiki capability as unavailable instead of
+emulating it through Git operations.
 
 GitLab supports protected-tag operations through `policy tag`. GitHub reports
 that capability as unavailable; use GitHub repository rulesets through

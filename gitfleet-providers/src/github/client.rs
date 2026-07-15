@@ -1010,50 +1010,6 @@ impl gitfleet_core::provider::PlanningOps for ProviderClient {
 }
 
 #[async_trait::async_trait]
-impl gitfleet_core::provider::WikiOps for ProviderClient {
-    async fn list_wiki_pages(
-        &self,
-        repo: &str,
-    ) -> Result<Vec<gitfleet_core::types::WikiPage>, gitfleet_core::errors::GitfleetError> {
-        crate::github::api::WikiApi::list(self, repo).await
-    }
-
-    async fn get_wiki_page(
-        &self,
-        repo: &str,
-        page: &str,
-    ) -> Result<gitfleet_core::types::WikiPageContent, gitfleet_core::errors::GitfleetError> {
-        crate::github::api::WikiApi::get_page(self, repo, page).await
-    }
-
-    async fn create_wiki_page(
-        &self,
-        repo: &str,
-        title: &str,
-        content: &str,
-    ) -> Result<gitfleet_core::types::WikiPageContent, gitfleet_core::errors::GitfleetError> {
-        crate::github::api::WikiApi::create_page(self, repo, title, content).await
-    }
-
-    async fn update_wiki_page(
-        &self,
-        repo: &str,
-        page: &str,
-        content: &str,
-    ) -> Result<gitfleet_core::types::WikiPageContent, gitfleet_core::errors::GitfleetError> {
-        crate::github::api::WikiApi::update_page(self, repo, page, content).await
-    }
-
-    async fn delete_wiki_page(
-        &self,
-        repo: &str,
-        page: &str,
-    ) -> Result<(), gitfleet_core::errors::GitfleetError> {
-        crate::github::api::WikiApi::delete_page(self, repo, page).await
-    }
-}
-
-#[async_trait::async_trait]
 impl gitfleet_core::provider::SiteOps for ProviderClient {
     async fn get_pages(
         &self,

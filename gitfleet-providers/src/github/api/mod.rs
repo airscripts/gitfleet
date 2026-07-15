@@ -35,7 +35,6 @@ mod status;
 mod teams;
 mod variables;
 mod webhooks;
-mod wiki;
 mod workflows;
 
 pub use access::AccessApi;
@@ -76,5 +75,4 @@ pub use status::StatusApi;
 pub use teams::TeamsApi;
 pub use variables::VariablesApi;
 pub use webhooks::WebhooksApi;
-pub use wiki::WikiApi;
 pub use workflows::WorkflowsApi;
