@@ -6,9 +6,18 @@ license.workspace = true
 authors.workspace = true
 description = "CLI for Gitfleet"
 
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(coverage)"] }
+
 [[bin]]
 name = "gitfleet"
 path = "src/main.rs"
+
+[[bin]]
+name = "gf"
+path = "src/bin/gf.rs"
+test = false
+bench = false
 
 [dependencies]
 gitfleet-core = { workspace = true }

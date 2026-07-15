@@ -119,6 +119,13 @@ CARGO_BUILD_JOBS=4 cargo llvm-cov --fail-under-lines 80 --workspace
 CARGO_BUILD_JOBS=4 cargo build --release
 ```
 
+After every implementation or test change, refresh the repository metrics as
+part of the same workflow: run `gitfleet-scripts/loc.sh` and
+`gitfleet-scripts/tests.sh`, update the LOC and tests shields in
+`README.md`, and update the coverage percentage shield from the resulting
+`cargo llvm-cov` report. Keep all three values current with the checked-out
+source and tests.
+
 ## Playbooks
 
 Playbooks live under `gitfleet-playbooks/`, source `gitfleet-playbooks/env.sh`,
