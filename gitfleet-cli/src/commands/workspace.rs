@@ -166,9 +166,11 @@ mod tests {
     impl Drop for TestEnvironment {
         fn drop(&mut self) {
             if let Some(home) = &self.original_home {
-                std::env::set_var("GITFLEET_HOME", home);
+                // SAFETY: This test serializes process-environment mutation with `serial_test`.
+                unsafe { std::env::set_var("GITFLEET_HOME", home) };
             } else {
-                std::env::remove_var("GITFLEET_HOME");
+                // SAFETY: This test serializes process-environment mutation with `serial_test`.
+                unsafe { std::env::remove_var("GITFLEET_HOME") };
             }
         }
     }
@@ -181,7 +183,8 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string());
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string()) };
 
         TestEnvironment {
             _directory: dir,
@@ -373,7 +376,8 @@ mod tests {
     #[serial_test::serial]
     async fn test_workspace_archive_reports_partial_provider_failure() {
         let _dir = setup_test_env();
-        std::env::set_var("GITFLEET_GITHUB_TOKEN", "test-token");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_GITHUB_TOKEN", "test-token") };
 
         let server = MockServer::start().await;
 
@@ -414,7 +418,8 @@ mod tests {
         )
         .await;
 
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
 
         assert!(matches!(result, Err(GitfleetError::PartialFailure(_))));
     }

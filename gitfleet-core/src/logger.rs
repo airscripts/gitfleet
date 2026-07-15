@@ -1,4 +1,4 @@
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt};
 
 use crate::constants::GITFLEET_LOG_ENV;
 

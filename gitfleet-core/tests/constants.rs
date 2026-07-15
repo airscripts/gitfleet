@@ -71,12 +71,16 @@ fn test_search_limits() {
 
 #[test]
 fn test_host_providers() {
-    assert!(HOST_PROVIDERS
-        .iter()
-        .any(|(h, p)| *h == "github.com" && *p == ProviderId::GitHub));
-    assert!(HOST_PROVIDERS
-        .iter()
-        .any(|(h, p)| *h == "gitlab.com" && *p == ProviderId::GitLab));
+    assert!(
+        HOST_PROVIDERS
+            .iter()
+            .any(|(h, p)| *h == "github.com" && *p == ProviderId::GitHub)
+    );
+    assert!(
+        HOST_PROVIDERS
+            .iter()
+            .any(|(h, p)| *h == "gitlab.com" && *p == ProviderId::GitLab)
+    );
 }
 
 #[test]

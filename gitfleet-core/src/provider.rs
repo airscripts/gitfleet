@@ -386,7 +386,7 @@ pub trait PlanningOps: Send + Sync {
 pub trait WikiOps: Send + Sync {
     async fn list_wiki_pages(&self, repo: &str) -> Result<Vec<WikiPage>, GitfleetError>;
     async fn get_wiki_page(&self, repo: &str, page: &str)
-        -> Result<WikiPageContent, GitfleetError>;
+    -> Result<WikiPageContent, GitfleetError>;
     async fn create_wiki_page(
         &self,
         repo: &str,
@@ -466,7 +466,7 @@ pub trait DevEnvOps: Send + Sync {
         branch: Option<&str>,
     ) -> Result<CodespaceSummary, GitfleetError>;
     async fn delete_codespace(&self, repo: &str, codespace_name: &str)
-        -> Result<(), GitfleetError>;
+    -> Result<(), GitfleetError>;
 }
 
 #[async_trait::async_trait]

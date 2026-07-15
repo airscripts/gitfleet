@@ -79,22 +79,31 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var("GITFLEET_PROFILE");
-        std::env::remove_var("GITFLEET_CREDENTIAL_STORE");
-        std::env::set_var("GITFLEET_TEST_CREDENTIAL_STORE", "1");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_PROFILE") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_CREDENTIAL_STORE") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_TEST_CREDENTIAL_STORE", "1") };
         (dir, original_home)
     }
 
     fn cleanup_test_env(_dir: tempfile::TempDir, original_home: Option<String>) {
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         } else {
-            std::env::remove_var("GITFLEET_HOME");
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::remove_var("GITFLEET_HOME") };
         }
-        std::env::remove_var("GITFLEET_CREDENTIAL_STORE");
-        std::env::remove_var("GITFLEET_TEST_CREDENTIAL_STORE");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_CREDENTIAL_STORE") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_TEST_CREDENTIAL_STORE") };
     }
 
     #[tokio::test]

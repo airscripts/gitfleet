@@ -8,19 +8,28 @@ fn setup_tmp_home() -> tempfile::TempDir {
     let gitfleet_dir = dir.path().join(".config").join("gitfleet");
     std::fs::create_dir_all(&gitfleet_dir).unwrap();
 
-    std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string());
-    std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-    std::env::remove_var("GITFLEET_PROFILE");
-    std::env::remove_var("GITFLEET_CREDENTIAL_STORE");
-    std::env::set_var("GITFLEET_TEST_CREDENTIAL_STORE", "1");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string()) };
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_PROFILE") };
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_CREDENTIAL_STORE") };
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::set_var("GITFLEET_TEST_CREDENTIAL_STORE", "1") };
     dir
 }
 
 fn teardown_tmp_home(_dir: tempfile::TempDir) {
-    std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-    std::env::remove_var("GITFLEET_PROFILE");
-    std::env::remove_var("GITFLEET_CREDENTIAL_STORE");
-    std::env::remove_var("GITFLEET_TEST_CREDENTIAL_STORE");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_PROFILE") };
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_CREDENTIAL_STORE") };
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_TEST_CREDENTIAL_STORE") };
 }
 
 #[test]
@@ -28,8 +37,10 @@ fn teardown_tmp_home(_dir: tempfile::TempDir) {
 fn test_explicit_file_credential_store_persists_token() {
     let dir = setup_tmp_home();
 
-    std::env::remove_var("GITFLEET_TEST_CREDENTIAL_STORE");
-    std::env::set_var("GITFLEET_CREDENTIAL_STORE", "file");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_TEST_CREDENTIAL_STORE") };
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::set_var("GITFLEET_CREDENTIAL_STORE", "file") };
 
     let profile = Profile {
         token: Some("ghp_file_store_test".into()),
@@ -196,13 +207,15 @@ fn test_config_clear_credentials() {
 fn test_config_get_token_from_env() {
     let dir = setup_tmp_home();
 
-    std::env::set_var("GITFLEET_GITHUB_TOKEN", "env-token-xyz");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::set_var("GITFLEET_GITHUB_TOKEN", "env-token-xyz") };
 
     let token = gitfleet_core::config::get_token_optional();
 
     assert_eq!(token, Some("env-token-xyz".to_string()));
 
-    std::env::remove_var("GITFLEET_GITHUB_TOKEN");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
     teardown_tmp_home(dir);
 }
 
@@ -211,13 +224,15 @@ fn test_config_get_token_from_env() {
 fn test_config_get_token_empty_env_falls_through() {
     let dir = setup_tmp_home();
 
-    std::env::set_var("GITFLEET_GITHUB_TOKEN", "");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::set_var("GITFLEET_GITHUB_TOKEN", "") };
 
     let token = gitfleet_core::config::get_token_optional();
 
     assert!(token.is_none() || token != Some(String::new()));
 
-    std::env::remove_var("GITFLEET_GITHUB_TOKEN");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
     teardown_tmp_home(dir);
 }
 
@@ -226,7 +241,8 @@ fn test_config_get_token_empty_env_falls_through() {
 fn test_config_get_token_errors_when_none() {
     let dir = setup_tmp_home();
 
-    std::env::remove_var("GITFLEET_GITHUB_TOKEN");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
 
     let result = gitfleet_core::config::get_token();
 

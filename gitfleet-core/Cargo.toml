@@ -2,41 +2,38 @@
 name = "gitfleet-core"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 description = "Domain types, provider trait, operations, and infrastructure for Gitfleet"
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde = { workspace = true }
+serde_json = { workspace = true }
 toml = "1.0"
 thiserror = "2"
-tokio = { version = "1", features = ["full"] }
+tokio = { workspace = true, features = ["rt", "sync"] }
 tokio-util = { version = "0.7", features = ["rt"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-clap = { version = "4", features = ["derive"] }
-inquire = "0.9"
+inquire = { version = "0.9", default-features = false, features = ["crossterm", "fuzzy"] }
 indicatif = "0.18"
 owo-colors = { version = "4", features = ["supports-colors"] }
 dirs = "6"
-fs4 = { version = "0.13", features = ["sync"] }
-time = { version = "0.3", features = ["formatting", "serde"] }
-sha2 = "0.11"
-hex = "0.4"
+time = { workspace = true }
 regex = "1"
 url = "2"
-base64 = "0.22"
-async-trait = "0.1"
+base64 = { workspace = true }
+async-trait = { workspace = true }
 
-dryoc = "0.9"
+dryoc = { version = "0.9", default-features = false }
 keyring = "4.1"
 
 [dev-dependencies]
-serial_test = "3"
+serial_test = { workspace = true }
 tempfile = "3"
-insta = "1"
-tokio = { version = "1", features = ["test-util", "macros"] }
+insta = { workspace = true }
+tokio = { workspace = true, features = ["macros"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }

@@ -222,7 +222,7 @@ fn parse_repository_with_defaults(
             _ => {
                 return Err(GitfleetError::new(format!(
                     "Unsupported repository provider \"{provider_str}\"."
-                )))
+                )));
             }
         };
 
@@ -348,7 +348,8 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string());
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string()) };
 
         TestEnvironment {
             _directory: dir,
@@ -358,9 +359,11 @@ mod tests {
 
     fn cleanup_test_env(environment: TestEnvironment) {
         if let Some(home) = environment.original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         } else {
-            std::env::remove_var("GITFLEET_HOME");
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::remove_var("GITFLEET_HOME") };
         }
     }
 

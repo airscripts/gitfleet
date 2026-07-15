@@ -6,13 +6,17 @@ use wiremock::matchers::{body_json, header, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn setup_token() {
-    std::env::set_var("GITFLEET_GITLAB_TOKEN", "testtoken");
-    std::env::set_var("GITFLEET_PROFILE", "__gitfleet_integration_test__");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::set_var("GITFLEET_GITLAB_TOKEN", "testtoken") };
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::set_var("GITFLEET_PROFILE", "__gitfleet_integration_test__") };
 }
 
 fn teardown_token() {
-    std::env::remove_var("GITFLEET_GITLAB_TOKEN");
-    std::env::remove_var("GITFLEET_PROFILE");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_GITLAB_TOKEN") };
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_PROFILE") };
 }
 
 fn project_json() -> serde_json::Value {
@@ -3178,12 +3182,16 @@ fn test_gitlab_analytics_and_governance_are_not_advertised() {
 
     assert!(provider.analytics_ops().is_none());
     assert!(provider.governance_ops().is_none());
-    assert!(!provider
-        .capabilities()
-        .contains(&ProviderCapability::Analytics));
-    assert!(!provider
-        .capabilities()
-        .contains(&ProviderCapability::Governance));
+    assert!(
+        !provider
+            .capabilities()
+            .contains(&ProviderCapability::Analytics)
+    );
+    assert!(
+        !provider
+            .capabilities()
+            .contains(&ProviderCapability::Governance)
+    );
 }
 
 #[test]
@@ -3191,9 +3199,11 @@ fn test_gitlab_secrets_are_not_advertised() {
     let provider = GitLabProvider::new();
 
     assert!(provider.secret_ops().is_none());
-    assert!(!provider
-        .capabilities()
-        .contains(&ProviderCapability::Secrets));
+    assert!(
+        !provider
+            .capabilities()
+            .contains(&ProviderCapability::Secrets)
+    );
 }
 
 #[tokio::test]

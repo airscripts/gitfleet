@@ -59,25 +59,24 @@ fn detect_terminal_background() -> Theme {
     if let Ok(val) = std::env::var(GITFLEET_COLORFGBG_ENV) {
         let parts: Vec<&str> = val.split(';').collect();
 
-        if parts.len() >= 2 {
-            if let Ok(bg) = parts[1].parse::<u8>() {
-                if (7..=15).contains(&bg) {
-                    return Theme::Light;
-                }
-            }
-        }
-    }
-
-    if let Ok(ct) = std::env::var(GITFLEET_COLORTERM_ENV) {
-        if ct.contains("light") {
+        if parts.len() >= 2
+            && let Ok(bg) = parts[1].parse::<u8>()
+            && (7..=15).contains(&bg)
+        {
             return Theme::Light;
         }
     }
 
-    if let Ok(term) = std::env::var(GITFLEET_TERM_ENV) {
-        if term.contains("light") {
-            return Theme::Light;
-        }
+    if let Ok(ct) = std::env::var(GITFLEET_COLORTERM_ENV)
+        && ct.contains("light")
+    {
+        return Theme::Light;
+    }
+
+    if let Ok(term) = std::env::var(GITFLEET_TERM_ENV)
+        && term.contains("light")
+    {
+        return Theme::Light;
     }
 
     Theme::Dark

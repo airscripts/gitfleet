@@ -250,7 +250,7 @@ pub fn resolve_provider_context() -> Result<ProviderContext, ConfigError> {
         Some(provider) => {
             return Err(ConfigError::new(format!(
                 "Unsupported provider '{provider}' in profile '{profile_name}'."
-            )))
+            )));
         }
     };
 
@@ -283,10 +283,10 @@ pub fn resolve_provider_context() -> Result<ProviderContext, ConfigError> {
 }
 
 pub fn get_provider_token_optional(provider: ProviderId) -> Option<String> {
-    if let Ok(context) = resolve_provider_context() {
-        if context.provider == provider {
-            return context.token;
-        }
+    if let Ok(context) = resolve_provider_context()
+        && context.provider == provider
+    {
+        return context.token;
     }
 
     let environment_token = match provider {
@@ -300,10 +300,10 @@ pub fn get_provider_token_optional(provider: ProviderId) -> Option<String> {
 pub fn get_token_for_host(host: &str) -> Option<String> {
     let normalized_host = normalize_host(host).ok()?;
 
-    if let Ok(context) = resolve_provider_context() {
-        if context.host.eq_ignore_ascii_case(&normalized_host) {
-            return context.token;
-        }
+    if let Ok(context) = resolve_provider_context()
+        && context.host.eq_ignore_ascii_case(&normalized_host)
+    {
+        return context.token;
     }
 
     let profile_name = find_profile_by_host(&normalized_host).ok().flatten()?;
@@ -358,12 +358,11 @@ fn resolve_profile_from(creds: &CredentialsFile) -> Result<String, ConfigError> 
         .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
 
-    if trust_repo_config {
-        if let Some(repo_profile) = get_repo_local_profile() {
-            if creds.profiles.contains_key(&repo_profile) {
-                return Ok(repo_profile);
-            }
-        }
+    if trust_repo_config
+        && let Some(repo_profile) = get_repo_local_profile()
+        && creds.profiles.contains_key(&repo_profile)
+    {
+        return Ok(repo_profile);
     }
 
     if creds.profiles.contains_key(&creds.active_profile) {
@@ -908,16 +907,20 @@ mod tests {
     fn test_read_credentials_returns_default_when_file_missing() {
         let dir = tempfile::tempdir().unwrap();
 
-        std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var("GITFLEET_PROFILE");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_PROFILE") };
 
         let creds = read_credentials().unwrap();
 
         assert_eq!(creds.active_profile, DEFAULT_PROFILE_NAME);
 
         assert!(creds.profiles.is_empty());
-        std::env::remove_var("GITFLEET_HOME");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_HOME") };
     }
 
     #[test]
@@ -934,7 +937,8 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
 
         let mut profiles = HashMap::new();
         profiles.insert(
@@ -966,33 +970,39 @@ mod tests {
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
     }
 
     #[test]
     #[serial_test::serial]
     fn test_get_token_optional_reads_env_var() {
-        std::env::set_var("GITFLEET_GITHUB_TOKEN", "test-token-123");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_GITHUB_TOKEN", "test-token-123") };
 
         let token = get_token_optional();
 
         assert_eq!(token, Some("test-token-123".into()));
 
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
     }
 
     #[test]
     #[serial_test::serial]
     fn test_get_provider_token_optional_reads_gitlab_env_var() {
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::set_var("GITFLEET_GITLAB_TOKEN", "gl-token-123");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_GITLAB_TOKEN", "gl-token-123") };
 
         let token = get_provider_token_optional(ProviderId::GitLab);
 
         assert_eq!(token, Some("gl-token-123".into()));
 
-        std::env::remove_var("GITFLEET_GITLAB_TOKEN");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITLAB_TOKEN") };
     }
 
     #[test]
@@ -1001,12 +1011,17 @@ mod tests {
         let tmp_dir = tempfile::tempdir().unwrap();
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var(
-            "GITFLEET_HOME",
-            tmp_dir.path().to_string_lossy().to_string(),
-        );
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var("GITFLEET_GITLAB_TOKEN");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe {
+            std::env::set_var(
+                "GITFLEET_HOME",
+                tmp_dir.path().to_string_lossy().to_string(),
+            )
+        };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITLAB_TOKEN") };
 
         add_profile(
             "github-work",
@@ -1034,20 +1049,24 @@ mod tests {
             Some("gitlab-token")
         );
 
-        std::env::set_var("GITFLEET_GITLAB_TOKEN", "environment-token");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_GITLAB_TOKEN", "environment-token") };
 
         assert_eq!(
             get_token_for_host("gitlab.example.com").as_deref(),
             Some("gitlab-token")
         );
 
-        std::env::remove_var("GITFLEET_GITLAB_TOKEN");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITLAB_TOKEN") };
         assert_eq!(get_token_for_host("unknown.example.com"), None);
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         } else {
-            std::env::remove_var("GITFLEET_HOME");
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::remove_var("GITFLEET_HOME") };
         }
     }
 
@@ -1059,10 +1078,14 @@ mod tests {
         std::fs::create_dir_all(&tmp_dir).unwrap();
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var("GITFLEET_GITLAB_TOKEN");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITLAB_TOKEN") };
 
         add_profile(
             "gitlab-work",
@@ -1084,31 +1107,36 @@ mod tests {
         assert_eq!(profile_context.token, Some("profile-token".to_string()));
         assert_eq!(profile_context.token_source, TokenSource::Profile);
 
-        std::env::set_var("GITFLEET_GITLAB_TOKEN", "environment-token");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_GITLAB_TOKEN", "environment-token") };
 
         let environment_context = resolve_provider_context().unwrap();
 
         assert_eq!(environment_context.token, Some("profile-token".to_string()));
         assert_eq!(environment_context.token_source, TokenSource::Profile);
 
-        std::env::remove_var("GITFLEET_GITLAB_TOKEN");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITLAB_TOKEN") };
         let _ = std::fs::remove_dir_all(&tmp_dir);
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
     }
 
     #[test]
     #[serial_test::serial]
     fn test_get_token_optional_empty_env_var() {
-        std::env::set_var("GITFLEET_GITHUB_TOKEN", "");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_GITHUB_TOKEN", "") };
 
         let token = get_token_optional();
 
         assert!(token.is_none() || token != Some(String::new()));
 
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
     }
 
     #[test]
@@ -1125,14 +1153,18 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
 
         let result = get_token();
 
         match original_home {
-            Some(home) => std::env::set_var("GITFLEET_HOME", home),
-            None => std::env::remove_var("GITFLEET_HOME"),
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            Some(home) => unsafe { std::env::set_var("GITFLEET_HOME", home) },
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            None => unsafe { std::env::remove_var("GITFLEET_HOME") },
         }
 
         assert!(result.is_err());
@@ -1152,9 +1184,12 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         let profile = Profile {
             token: Some("ghp_new".into()),
@@ -1170,7 +1205,8 @@ mod tests {
         assert!(entries.iter().any(|e| e.name == "test-add"));
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1190,9 +1226,12 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         let profile = Profile {
             token: Some("ghp_test".into()),
@@ -1209,7 +1248,8 @@ mod tests {
         assert_eq!(creds.active_profile, "active-profile");
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1229,16 +1269,20 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         let result = set_active_profile("nonexistent");
 
         assert!(result.is_err());
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1258,9 +1302,12 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         let profile = Profile {
             token: Some("ghp_test".into()),
@@ -1277,7 +1324,8 @@ mod tests {
         assert!(!entries.iter().any(|e| e.name == "to-remove"));
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1291,16 +1339,20 @@ mod tests {
         let _ = std::fs::create_dir_all(&tmp_dir);
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         let result = remove_profile("nonexistent");
 
         assert!(result.is_err());
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1314,9 +1366,12 @@ mod tests {
         let _ = std::fs::create_dir_all(&tmp_dir);
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         let profile = Profile {
             token: Some("ghp_test".into()),
@@ -1333,7 +1388,8 @@ mod tests {
         assert!(creds.profiles.is_empty());
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1349,23 +1405,27 @@ mod tests {
 
         std::fs::create_dir_all(&folder).unwrap();
         std::fs::write(&path, "not valid = [toml").unwrap();
-        std::env::set_var("GITFLEET_HOME", dir.path());
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", dir.path()) };
 
         clear_credentials().unwrap();
 
         assert!(!path.exists());
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         } else {
-            std::env::remove_var("GITFLEET_HOME");
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::remove_var("GITFLEET_HOME") };
         }
     }
 
     #[test]
     #[serial_test::serial]
     fn test_get_host_default() {
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
 
         let host = get_host();
 
@@ -1395,9 +1455,12 @@ mod tests {
         let _ = std::fs::create_dir_all(&tmp_dir);
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         let profile = Profile {
             token: Some("ghp_test".into()),
@@ -1415,7 +1478,8 @@ mod tests {
         assert_eq!(found.unwrap().token, Some("ghp_test".into()));
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1429,16 +1493,20 @@ mod tests {
         let _ = std::fs::create_dir_all(&tmp_dir);
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         let found = get_profile("nonexistent").unwrap();
 
         assert!(found.is_none());
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1452,9 +1520,12 @@ mod tests {
         let _ = std::fs::create_dir_all(&tmp_dir);
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         let profile = Profile {
             token: Some("ghp_test".into()),
@@ -1468,7 +1539,8 @@ mod tests {
         write("host", "gitlab.com").unwrap();
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1482,9 +1554,12 @@ mod tests {
         let _ = std::fs::create_dir_all(&tmp_dir);
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         let profile = Profile {
             token: Some("ghp_test".into()),
@@ -1498,7 +1573,8 @@ mod tests {
         unset("token").unwrap();
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1533,9 +1609,12 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         set_alias("ll", "repo list", false).unwrap();
 
@@ -1544,7 +1623,8 @@ mod tests {
         assert_eq!(expansion, Some("repo list".to_string()));
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1564,9 +1644,12 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         set_alias("co", "checkout", false).unwrap();
 
@@ -1575,7 +1658,8 @@ mod tests {
         assert!(result.is_err());
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1595,9 +1679,12 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         set_alias("co", "checkout", false).unwrap();
         set_alias("co", "checkout -b", true).unwrap();
@@ -1607,7 +1694,8 @@ mod tests {
         assert_eq!(expansion, Some("checkout -b".to_string()));
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1621,16 +1709,20 @@ mod tests {
         let _ = std::fs::create_dir_all(&tmp_dir);
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         let result = get_alias("nonexistent");
 
         assert_eq!(result, None);
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1650,16 +1742,20 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         let entries = list_aliases().unwrap();
 
         assert!(entries.is_empty());
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1679,9 +1775,12 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         set_alias("zebra", "repo list", false).unwrap();
         set_alias("alpha", "repo view", false).unwrap();
@@ -1697,7 +1796,8 @@ mod tests {
         assert_eq!(entries[2].name, "zebra");
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1717,9 +1817,12 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         set_alias("temp", "repo list", false).unwrap();
         delete_alias("temp").unwrap();
@@ -1727,7 +1830,8 @@ mod tests {
         assert_eq!(get_alias("temp"), None);
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1741,16 +1845,20 @@ mod tests {
         let _ = std::fs::create_dir_all(&tmp_dir);
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         let result = delete_alias("nonexistent");
 
         assert!(result.is_err());
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1770,9 +1878,12 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         set_alias("ll", "repo list", false).unwrap();
         set_alias("co", "checkout", false).unwrap();
@@ -1790,7 +1901,8 @@ mod tests {
         assert_eq!(entries[0].name, "co");
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1810,9 +1922,12 @@ mod tests {
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         set_alias("ll", "repo list", false).unwrap();
 
@@ -1830,7 +1945,8 @@ mod tests {
         assert_eq!(expansion, Some("repo list".to_string()));
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1892,9 +2008,12 @@ token = "ghp_test"
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         let profile = Profile {
             token: Some("ghp_test".into()),
@@ -1912,7 +2031,8 @@ token = "ghp_test"
         assert_eq!(value, Some("myorg".to_string()));
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1932,9 +2052,12 @@ token = "ghp_test"
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         let profile = Profile {
             token: Some("ghp_test".into()),
@@ -1951,7 +2074,8 @@ token = "ghp_test"
         assert!(read("custom_key").is_none());
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));
@@ -1971,9 +2095,12 @@ token = "ghp_test"
 
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string());
-        std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-        std::env::remove_var(GITFLEET_PROFILE_ENV);
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", tmp_dir.to_string_lossy().to_string()) };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var(GITFLEET_PROFILE_ENV) };
 
         let profile = Profile {
             token: Some("ghp_test".into()),
@@ -1989,7 +2116,8 @@ token = "ghp_test"
         assert!(result.is_err());
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         }
 
         let _ = std::fs::remove_dir_all(tmp_dir.join(GITFLEET_FOLDER));

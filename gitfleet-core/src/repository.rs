@@ -178,7 +178,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let original_home = std::env::var("GITFLEET_HOME").ok();
 
-        std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string());
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_HOME", dir.path().to_string_lossy().to_string()) };
 
         crate::config::add_profile(
             "enterprise",
@@ -200,9 +201,11 @@ mod tests {
         assert_eq!(result.full_name(), "enterprise/project");
 
         if let Some(home) = original_home {
-            std::env::set_var("GITFLEET_HOME", home);
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::set_var("GITFLEET_HOME", home) };
         } else {
-            std::env::remove_var("GITFLEET_HOME");
+            // SAFETY: This test serializes process-environment mutation with `serial_test`.
+            unsafe { std::env::remove_var("GITFLEET_HOME") };
         }
     }
 }

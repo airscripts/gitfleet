@@ -1,4 +1,4 @@
-use gitfleet_core::theme::{get_effective_theme, Theme};
+use gitfleet_core::theme::{Theme, get_effective_theme};
 
 #[test]
 fn test_theme_dark() {

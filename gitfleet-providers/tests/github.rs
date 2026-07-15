@@ -6,13 +6,17 @@ use wiremock::matchers::{body_json, body_string_contains, header, method, path, 
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn setup_token() {
-    std::env::set_var("GITFLEET_GITHUB_TOKEN", "testtoken");
-    std::env::set_var("GITFLEET_PROFILE", "__gitfleet_integration_test__");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::set_var("GITFLEET_GITHUB_TOKEN", "testtoken") };
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::set_var("GITFLEET_PROFILE", "__gitfleet_integration_test__") };
 }
 
 fn teardown_token() {
-    std::env::remove_var("GITFLEET_GITHUB_TOKEN");
-    std::env::remove_var("GITFLEET_PROFILE");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_GITHUB_TOKEN") };
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_PROFILE") };
 }
 
 fn repo_json() -> serde_json::Value {
@@ -3837,10 +3841,12 @@ async fn test_delete_project_rejects_graphql_errors() {
     teardown_token();
 
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("Resource not accessible"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Resource not accessible")
+    );
 }
 
 // ===== ReleaseOps (update/delete) =====

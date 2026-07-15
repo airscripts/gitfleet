@@ -1,5 +1,5 @@
 use base64::Engine;
-use dryoc::classic::crypto_box::{crypto_box_seal, crypto_box_seal_open, PublicKey, SecretKey};
+use dryoc::classic::crypto_box::{PublicKey, SecretKey, crypto_box_seal, crypto_box_seal_open};
 use dryoc::constants::CRYPTO_BOX_SEALBYTES;
 
 use crate::errors::SecretEncryptionError;

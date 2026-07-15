@@ -33,10 +33,10 @@ pub fn get_remote_url(remote: Option<&str>) -> Result<String, ConfigError> {
 pub fn get_remote_host(url: &str) -> Result<String, ConfigError> {
     let url = url.trim();
 
-    if let Some(rest) = url.strip_prefix("git@") {
-        if let Some((host, _)) = rest.split_once(':') {
-            return Ok(host.to_string());
-        }
+    if let Some(rest) = url.strip_prefix("git@")
+        && let Some((host, _)) = rest.split_once(':')
+    {
+        return Ok(host.to_string());
     }
 
     let parsed = url::Url::parse(url)
@@ -103,13 +103,13 @@ pub fn get_default_branch() -> Result<String, ConfigError> {
     let text = String::from_utf8_lossy(&output.stdout);
 
     for line in text.lines() {
-        if line.contains("HEAD branch:") {
-            if let Some(branch) = line.split(':').next_back() {
-                let branch = branch.trim().to_string();
+        if line.contains("HEAD branch:")
+            && let Some(branch) = line.split(':').next_back()
+        {
+            let branch = branch.trim().to_string();
 
-                if !branch.is_empty() {
-                    return Ok(branch);
-                }
+            if !branch.is_empty() {
+                return Ok(branch);
             }
         }
     }

@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use reqwest::{header::HeaderMap, Method};
+use reqwest::{Method, header::HeaderMap};
 
 pub const MAX_ATTEMPTS: usize = 3;
 const MAX_DELAY: Duration = Duration::from_secs(30);
@@ -16,10 +16,10 @@ pub fn delay_for(
         return None;
     }
 
-    if let Some(status) = status {
-        if !matches!(status, 429 | 502 | 503 | 504) {
-            return None;
-        }
+    if let Some(status) = status
+        && !matches!(status, 429 | 502 | 503 | 504)
+    {
+        return None;
     }
 
     let retry_after = headers

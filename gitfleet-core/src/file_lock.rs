@@ -2,8 +2,6 @@ use std::fs::{File, OpenOptions};
 use std::io;
 use std::path::Path;
 
-use fs4::fs_std::FileExt;
-
 pub(crate) struct FileLock {
     file: File,
 }
@@ -33,7 +31,7 @@ impl FileLock {
         }
 
         if exclusive {
-            file.lock_exclusive()?;
+            file.lock()?;
         } else {
             file.lock_shared()?;
         }

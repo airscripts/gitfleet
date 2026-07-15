@@ -25,7 +25,8 @@ fn test_guard_non_interactive_silent_mode() {
 #[test]
 #[serial_test::serial]
 fn test_guard_non_interactive_human_mode_without_ci() {
-    std::env::remove_var("GITFLEET_CI");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_CI") };
 
     let result = guard_non_interactive("test", OutputMode::Human);
 
@@ -35,13 +36,15 @@ fn test_guard_non_interactive_human_mode_without_ci() {
 #[test]
 #[serial_test::serial]
 fn test_guard_non_interactive_human_mode_with_ci() {
-    std::env::set_var("GITFLEET_CI", "true");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::set_var("GITFLEET_CI", "true") };
 
     let result = guard_non_interactive("test", OutputMode::Human);
 
     assert!(result.is_err());
 
-    std::env::remove_var("GITFLEET_CI");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_CI") };
 }
 
 #[test]
@@ -87,19 +90,22 @@ fn test_confirm_destructive_silent_mode_with_yes() {
 #[test]
 #[serial_test::serial]
 fn test_confirm_destructive_ci_env_fails() {
-    std::env::set_var("GITFLEET_CI", "true");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::set_var("GITFLEET_CI", "true") };
 
     let result = confirm_destructive("Delete?", OutputMode::Human, false);
 
     assert!(result.is_err());
 
-    std::env::remove_var("GITFLEET_CI");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_CI") };
 }
 
 #[test]
 #[serial_test::serial]
 fn test_prompt_if_missing_returns_value() {
-    std::env::remove_var("GITFLEET_CI");
+    // SAFETY: This test serializes process-environment mutation with `serial_test`.
+    unsafe { std::env::remove_var("GITFLEET_CI") };
 
     let result =
         gitfleet_core::prompt::prompt_if_missing(Some("hello"), "Enter value:", OutputMode::Json);
@@ -119,7 +125,8 @@ fn test_prompt_if_missing_errors_json() {
 fn test_prompt_error_message_format() {
     let err = GitfleetError::new("Required option not provided: repo");
 
-    assert!(err
-        .to_string()
-        .contains("Required option not provided: repo"));
+    assert!(
+        err.to_string()
+            .contains("Required option not provided: repo")
+    );
 }

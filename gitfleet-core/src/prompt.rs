@@ -134,7 +134,8 @@ mod tests {
     #[test]
     #[serial_test::serial]
     fn test_guard_non_interactive_human_mode_ok_without_ci() {
-        std::env::remove_var("GITFLEET_CI");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_CI") };
 
         let result = guard_non_interactive("test", OutputMode::Human);
 
@@ -144,19 +145,22 @@ mod tests {
     #[test]
     #[serial_test::serial]
     fn test_guard_non_interactive_human_mode_fails_with_ci() {
-        std::env::set_var("GITFLEET_CI", "true");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_CI", "true") };
 
         let result = guard_non_interactive("test", OutputMode::Human);
 
         assert!(result.is_err());
 
-        std::env::remove_var("GITFLEET_CI");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_CI") };
     }
 
     #[test]
     #[serial_test::serial]
     fn test_prompt_if_missing_returns_value_when_present() {
-        std::env::remove_var("GITFLEET_CI");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_CI") };
 
         let result = prompt_if_missing(Some("hello"), "prompt", OutputMode::Json);
 
@@ -222,12 +226,14 @@ mod tests {
     #[test]
     #[serial_test::serial]
     fn test_confirm_destructive_ci_env_fails() {
-        std::env::set_var("GITFLEET_CI", "true");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::set_var("GITFLEET_CI", "true") };
 
         let result = confirm_destructive("Delete?", OutputMode::Human, false);
 
         assert!(result.is_err());
 
-        std::env::remove_var("GITFLEET_CI");
+        // SAFETY: This test serializes process-environment mutation with `serial_test`.
+        unsafe { std::env::remove_var("GITFLEET_CI") };
     }
 }
