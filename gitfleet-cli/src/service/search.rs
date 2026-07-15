@@ -45,6 +45,8 @@ pub async fn search_issues(
             Some(&["NUMBER", "TITLE", "STATE", "URL"]),
         );
 
+        renderer.write_value("");
+
         renderer.render_summary(
             "Search Results",
             &[
@@ -99,6 +101,8 @@ pub async fn search_repos(
             Some("Repositories"),
             Some(&["NAME", "VISIBILITY", "STARS", "LANGUAGE"]),
         );
+
+        renderer.write_value("");
 
         renderer.render_summary(
             "Search Results",
@@ -157,6 +161,8 @@ pub async fn search_code(
             Some("Code"),
             Some(&["FILE", "REPO"]),
         );
+
+        renderer.write_value("");
 
         renderer.render_summary(
             "Search Results",

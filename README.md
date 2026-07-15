@@ -3,7 +3,7 @@
 [![Main](https://github.com/airscripts/gitfleet/actions/workflows/main.yml/badge.svg)](https://github.com/airscripts/gitfleet/actions/workflows/main.yml)
 [![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen)](https://github.com/airscripts/gitfleet/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![LOC](https://img.shields.io/badge/loc-52398-blue)](gitfleet-scripts/loc.sh)
+[![LOC](https://img.shields.io/badge/loc-52401-blue)](gitfleet-scripts/loc.sh)
 [![Tests](https://img.shields.io/badge/tests-1766-blue)](gitfleet-scripts/tests.sh)
 
 Command every repository as one fleet.
