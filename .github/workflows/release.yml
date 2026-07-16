@@ -4,19 +4,276 @@ on:
   workflow_dispatch:
 
   push:
-    tags: ["*"]
+    tags: ["v*"]
 
 jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout Code
+
+      - id: version
+        run: |
+          set -euo pipefail
+
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+
+          bash gitfleet-scripts/changelog.sh "$tag" release-notes.md
+
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+          } >> "$GITHUB_OUTPUT"
+
+        name: Validate Release Version
+
+      - uses: actions/upload-artifact@v7
+        name: Upload Release Notes
+
+        with:
+          name: gitfleet-release-notes-${{ steps.version.outputs.version }}
+          path: release-notes.md
+          if-no-files-found: error
+
   verify:
     name: Verify
+    needs: prepare
     uses: ./.github/workflows/verify.yml
-
-  build:
-    name: Build
-    needs: verify
-    uses: ./.github/workflows/build.yml
 
   test:
     name: Test
-    needs: build
+    needs: verify
     uses: ./.github/workflows/test.yml
+
+  package:
+    name: Package
+    needs: [prepare, test]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            archive: tar.gz
+
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            archive: tar.gz
+
+          - os: macos-15
+            target: aarch64-apple-darwin
+            archive: tar.gz
+
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+            archive: zip
+
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            archive: zip
+
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout Code
+
+      - uses: dtolnay/rust-toolchain@stable
+        name: Install Rust Toolchain
+
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        name: Cache Cargo
+
+      - run: cargo build --release --locked --target ${{ matrix.target }}
+        name: Build Release Binaries
+
+        env:
+          CARGO_BUILD_JOBS: 4
+
+      - if: matrix.target == 'x86_64-unknown-linux-gnu' || matrix.target == 'aarch64-unknown-linux-gnu' || matrix.target == 'x86_64-apple-darwin' || matrix.target == 'aarch64-apple-darwin'
+
+        run: |
+          set -euo pipefail
+
+          ./target/${{ matrix.target }}/release/gitfleet version
+          ./target/${{ matrix.target }}/release/gf version
+
+        name: Smoke Test Unix Binaries
+
+      - if: matrix.target == 'x86_64-pc-windows-msvc' || matrix.target == 'aarch64-pc-windows-msvc'
+        shell: pwsh
+
+        run: |
+          ./target/${{ matrix.target }}/release/gitfleet.exe version
+          ./target/${{ matrix.target }}/release/gf.exe version
+
+        name: Smoke Test Windows Binaries
+
+      - if: matrix.archive == 'tar.gz'
+
+        run: |
+          set -euo pipefail
+
+          version="${{ needs.prepare.outputs.version }}"
+          target="${{ matrix.target }}"
+          package_dir="gitfleet-v${version}-${target}"
+          archive="gitfleet-v${version}-${target}.tar.gz"
+
+          mkdir -p "$package_dir"
+          cp "target/${target}/release/gitfleet" "$package_dir/"
+          cp "target/${target}/release/gf" "$package_dir/"
+          cp LICENSE "$package_dir/"
+
+          tar -czf "$archive" "$package_dir"
+          bash gitfleet-scripts/verify-release-archive.sh "$archive" "$target"
+
+        name: Package Unix Archive
+
+      - if: matrix.archive == 'zip'
+        shell: pwsh
+
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $version = "${{ needs.prepare.outputs.version }}"
+          $target = "${{ matrix.target }}"
+          $packageDir = "gitfleet-v$version-$target"
+          $archive = "gitfleet-v$version-$target.zip"
+
+          New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
+          Copy-Item "target/$target/release/gitfleet.exe" "$packageDir/"
+          Copy-Item "target/$target/release/gf.exe" "$packageDir/"
+          Copy-Item "LICENSE" "$packageDir/"
+
+          Compress-Archive -Path $packageDir -DestinationPath $archive
+
+          $verifyDir = Join-Path $env:RUNNER_TEMP "gitfleet-release-verify-$target"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $verifyDir
+          Expand-Archive -LiteralPath $archive -DestinationPath $verifyDir
+
+          foreach ($required in @("gitfleet.exe", "gf.exe", "LICENSE")) {
+            $found = Get-ChildItem -Path $verifyDir -Recurse -File -Filter $required
+
+            if (-not $found) {
+              throw "archive $archive is missing $required"
+            }
+          }
+
+        name: Package Windows Archive
+
+      - uses: actions/upload-artifact@v7
+        name: Upload Release Archive
+
+        with:
+          name: gitfleet-v${{ needs.prepare.outputs.version }}-${{ matrix.target }}
+          path: gitfleet-v${{ needs.prepare.outputs.version }}-${{ matrix.target }}.${{ matrix.archive }}
+          if-no-files-found: error
+
+  checksums:
+    name: Checksums
+    needs: [prepare, package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/download-artifact@v7
+        name: Download Release Archives
+
+        with:
+          pattern: gitfleet-v${{ needs.prepare.outputs.version }}-*
+          path: dist
+          merge-multiple: true
+
+      - run: |
+          set -euo pipefail
+
+          find dist -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.zip' \) | sort > archives.txt
+
+          if [ "$(wc -l < archives.txt)" -ne 6 ]; then
+            echo "expected 6 release archives" >&2
+            cat archives.txt >&2
+            exit 1
+          fi
+
+          (
+            cd dist
+
+            while read -r archive; do
+              sha256sum "$(basename "$archive")"
+            done < ../archives.txt > SHA256SUMS
+          )
+        name: Generate Checksums
+
+      - uses: actions/upload-artifact@v7
+        name: Upload Checksums
+        with:
+          name: gitfleet-v${{ needs.prepare.outputs.version }}-checksums
+          path: dist/SHA256SUMS
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: [prepare, checksums]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v7
+        name: Download Release Notes
+
+        with:
+          name: gitfleet-release-notes-${{ needs.prepare.outputs.version }}
+          path: release
+
+      - uses: actions/download-artifact@v7
+        name: Download Release Assets
+
+        with:
+          pattern: gitfleet-v${{ needs.prepare.outputs.version }}-*
+          path: release/assets
+          merge-multiple: true
+
+      - run: |
+          set -euo pipefail
+          find release/assets -maxdepth 1 -type f | sort
+
+        name: List Release Assets
+
+      - uses: softprops/action-gh-release@v3
+        name: Publish Release
+
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: Gitfleet ${{ needs.prepare.outputs.version }}
+          body_path: release/release-notes.md
+          files: release/assets/*

@@ -120,7 +120,26 @@ active provider and its declared capabilities.
 
 ## Installation
 
-Gitfleet is a Rust CLI. Install the CLI package from this checkout with Cargo:
+Download a prebuilt archive for your operating system and architecture from
+[GitHub Releases](https://github.com/airscripts/gitfleet/releases). Each
+archive includes both executable names, `gitfleet` and `gf`, plus the project
+license.
+
+Use the matching archive for your platform:
+
+| Platform | Architecture | Target |
+| -------- | ------------ | ------ |
+| Linux    | x64          | `x86_64-unknown-linux-gnu` |
+| Linux    | ARM64        | `aarch64-unknown-linux-gnu` |
+| macOS    | x64          | `x86_64-apple-darwin` |
+| macOS    | ARM64        | `aarch64-apple-darwin` |
+| Windows  | x64          | `x86_64-pc-windows-msvc` |
+| Windows  | ARM64        | `aarch64-pc-windows-msvc` |
+
+Verify downloads with the published `SHA256SUMS` file when installing from a
+release archive.
+
+Gitfleet is also installable from this checkout with Cargo:
 
 ```bash
 cargo install --path gitfleet
