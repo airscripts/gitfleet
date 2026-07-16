@@ -11,8 +11,8 @@ permissions:
   contents: read
 
 jobs:
-  release:
-    name: Release
+  cli:
+    name: CLI
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
 

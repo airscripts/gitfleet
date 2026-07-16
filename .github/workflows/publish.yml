@@ -19,8 +19,8 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    name: Release
+  cli:
+    name: CLI
     runs-on: ubuntu-latest
     timeout-minutes: 10
 

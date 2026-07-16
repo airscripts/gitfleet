@@ -16,8 +16,8 @@ permissions:
   contents: read
 
 jobs:
-  release:
-    name: Release
+  cli:
+    name: CLI
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -34,7 +34,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          tag="${GITHUB_REF_NAME}"
+          tag="${GITHUB_REF#refs/tags/}"
           version="${tag#v}"
 
           bash gitfleet-scripts/release-notes.sh "$tag" release-notes.md
@@ -49,6 +49,8 @@ jobs:
             echo "version=$version"
             echo "prerelease=$prerelease"
           } >> "$GITHUB_OUTPUT"
+
+          echo "Prepared release $tag"
 
         name: Validate Release Version
 
