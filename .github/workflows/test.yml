@@ -34,7 +34,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         name: Upload Coverage Report
         with:
-          name: coverage-report
+          name: gitfleet-coverage-${{ github.run_id }}
           path: target/llvm-cov/
 
   portability:

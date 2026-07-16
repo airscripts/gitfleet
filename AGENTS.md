@@ -3,13 +3,7 @@
 ## Overview
 
 Gitfleet is a Rust CLI for provider-neutral repository
-management. GitHub and GitLab are built-in providers. The dependency direction
-is:
-
-```text
-gitfleet-cli ->	gitfleet-core
-             -> gitfleet-providers -> gitfleet-core
-```
+management. GitHub and GitLab are built-in providers.
 
 `PLAN.md` and `ROADMAP.md` are reserved for implementation planning and
 deferred milestones.
