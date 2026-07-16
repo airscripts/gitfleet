@@ -3,6 +3,10 @@ name: Package
 on:
   workflow_call:
     inputs:
+      ref:
+        required: true
+        type: string
+
       version:
         required: true
         type: string
@@ -48,6 +52,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         name: Checkout Code
+
+        with:
+          ref: ${{ inputs.ref }}
 
       - uses: dtolnay/rust-toolchain@stable
         name: Install Rust Toolchain

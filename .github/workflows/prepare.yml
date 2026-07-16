@@ -2,15 +2,20 @@ name: Prepare
 
 on:
   workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+
     outputs:
       version:
-        value: ${{ jobs.release.outputs.version }}
+        value: ${{ jobs.cli.outputs.version }}
 
       prerelease:
-        value: ${{ jobs.release.outputs.prerelease }}
+        value: ${{ jobs.cli.outputs.prerelease }}
 
       tag:
-        value: ${{ jobs.release.outputs.tag }}
+        value: ${{ jobs.cli.outputs.tag }}
 
 permissions:
   contents: read
@@ -30,11 +35,14 @@ jobs:
       - uses: actions/checkout@v7
         name: Checkout Code
 
+        with:
+          ref: ${{ inputs.tag }}
+
       - id: version
         run: |
           set -euo pipefail
 
-          tag="${GITHUB_REF#refs/tags/}"
+          tag="${{ inputs.tag }}"
           version="${tag#v}"
 
           bash gitfleet-scripts/release-notes.sh "$tag" release-notes.md

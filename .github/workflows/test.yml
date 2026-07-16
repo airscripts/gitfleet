@@ -2,65 +2,67 @@ name: Test
 
 on:
   workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
 
 jobs:
-  coverage:
-    name: Coverage
-    runs-on: ubuntu-latest
+  cli:
+    name: CLI
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
-
-    steps:
-      - uses: actions/checkout@v7
-        name: Checkout Code
-
-      - uses: dtolnay/rust-toolchain@stable
-        name: Install Rust Toolchain
-
-        with:
-          components: llvm-tools-preview
-
-      - uses: Swatinem/rust-cache@v2
-        name: Cache Cargo
-
-      - run: cargo install cargo-llvm-cov
-        name: Install cargo-llvm-cov
-
-      - run: CARGO_BUILD_JOBS=4 cargo llvm-cov --fail-under-lines 80 --workspace --html
-        name: Run Tests and Coverage
-
-      - uses: actions/upload-artifact@v7
-        name: Upload Coverage Report
-        with:
-          name: gitfleet-coverage-${{ github.run_id }}
-          path: target/llvm-cov/
-
-  portability:
-    name: Portability
 
     strategy:
       fail-fast: false
 
       matrix:
-        os: [macos-latest, windows-latest]
-
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
       - uses: actions/checkout@v7
         name: Checkout Code
 
-      - uses: dtolnay/rust-toolchain@stable
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - if: matrix.os == 'ubuntu-latest'
+        uses: dtolnay/rust-toolchain@stable
+        name: Install Rust Toolchain With Coverage Tools
+
+        with:
+          components: llvm-tools-preview
+
+      - if: matrix.os != 'ubuntu-latest'
+        uses: dtolnay/rust-toolchain@stable
         name: Install Rust Toolchain
 
       - uses: Swatinem/rust-cache@v2
         name: Cache Cargo
 
-      - run: cargo test --workspace --locked
+      - if: matrix.os == 'ubuntu-latest'
+        run: cargo install cargo-llvm-cov
+        name: Install cargo-llvm-cov
+
+      - if: matrix.os == 'ubuntu-latest'
+        run: CARGO_BUILD_JOBS=4 cargo llvm-cov --fail-under-lines 80 --workspace --html
+        name: Run Tests and Coverage
+
+      - if: matrix.os != 'ubuntu-latest'
+        run: cargo test --workspace --locked
         name: Run Workspace Tests
 
         env:
           CARGO_BUILD_JOBS: 4
+
+      - if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v7
+        name: Upload Coverage Report
+
+        with:
+          name: gitfleet-coverage-${{ github.run_id }}
+          path: target/llvm-cov/

@@ -2,6 +2,11 @@ name: Verify
 
 on:
   workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -15,6 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         name: Checkout Code
+
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - uses: dtolnay/rust-toolchain@stable
         name: Install Rust Toolchain
@@ -45,6 +53,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         name: Checkout Code
+
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - uses: dtolnay/rust-toolchain@1.89
         name: Install MSRV Toolchain
