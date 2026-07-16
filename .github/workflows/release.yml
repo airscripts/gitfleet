@@ -40,11 +40,12 @@ jobs:
   publish:
     name: Publish
     needs: [prepare, checksum]
-    permissions:
-      contents: write
     uses: ./.github/workflows/publish.yml
 
+    permissions:
+      contents: write
+
     with:
-      version: ${{ needs.prepare.outputs.version }}
       tag: ${{ needs.prepare.outputs.tag }}
+      version: ${{ needs.prepare.outputs.version }}
       prerelease: ${{ needs.prepare.outputs.prerelease }}
