@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-CRATES=(gitfleet-core gitfleet-cli gitfleet-providers)
+CRATES=(gitfleet-core gitfleet gitfleet-providers)
 SELECTED_CRATE=""
 
 usage() {
@@ -29,7 +29,7 @@ while (($# > 0)); do
             fi
             case "$2" in
                 core|gitfleet-core) SELECTED_CRATE=gitfleet-core ;;
-                cli|gitfleet-cli) SELECTED_CRATE=gitfleet-cli ;;
+                cli|gitfleet) SELECTED_CRATE=gitfleet ;;
                 provider|providers|gitfleet-providers) SELECTED_CRATE=gitfleet-providers ;;
                 *)
                     printf 'Error: unknown crate: %s\n' "$2" >&2
@@ -42,7 +42,7 @@ while (($# > 0)); do
             crate_arg="${1#*=}"
             case "$crate_arg" in
                 core|gitfleet-core) SELECTED_CRATE=gitfleet-core ;;
-                cli|gitfleet-cli) SELECTED_CRATE=gitfleet-cli ;;
+                cli|gitfleet) SELECTED_CRATE=gitfleet ;;
                 provider|providers|gitfleet-providers) SELECTED_CRATE=gitfleet-providers ;;
                 *)
                     printf 'Error: unknown crate: %s\n' "$crate_arg" >&2

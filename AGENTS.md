@@ -16,7 +16,7 @@ deferred milestones.
 - `gitfleet-providers` owns provider clients, wire types, endpoint wrappers,
   normalization, and capability implementations for GitHub and GitLab. This is
   the only crate that calls reqwest.
-- `gitfleet-cli` is a thin surface over shared operations.
+- `gitfleet` is the product CLI crate and a thin surface over shared operations.
 - `gitfleet-playbooks` contains live API test scripts (bash, not Rust).
 
 ## Boundaries
@@ -26,7 +26,7 @@ deferred milestones.
 - `gitfleet-providers` is the only crate that calls reqwest. Normalize provider
   payloads before they leave the crate. Unsupported behavior must use
   `UnsupportedCapabilityError` instead of emulating another provider.
-- `gitfleet-cli/commands/` is a thin surface
+- `gitfleet/commands/` is a thin surface
   over shared operations. No business logic in command handlers.
 - `gitfleet-core/types.rs` are the canonical DTOs. Provider wire types live
   inside `gitfleet-providers` and must be normalized to domain types before
@@ -85,7 +85,7 @@ deferred milestones.
 - Cargo.toml crate names use kebab-case. Module imports use snake_case.
 - Flat module layout in `gitfleet-core`: one file per concept at `src/` root.
 - Nested subsystem layout in `gitfleet-providers`: each provider is a folder.
-- Technical group layout in `gitfleet-cli`: `commands/` then topic files.
+- Technical group layout in `gitfleet`: `commands/` then topic files.
 
 ## Testing
 
@@ -95,7 +95,7 @@ at or above 80 percent.
 
 - `gitfleet-core/tests/` — integration tests + fixtures
 - `gitfleet-providers/tests/` — provider integration tests + fixtures
-- `gitfleet-cli/tests/` — CLI integration tests (assert_cmd)
+- `gitfleet/tests/` — CLI integration tests (assert_cmd)
 - `gitfleet-playbooks/` — live API playbooks (Bash, not Cargo)
 
 Do not make real HTTP requests in automated tests. Mock provider clients with
@@ -142,7 +142,7 @@ decorative lines.
 ## Red Lines
 
 - Never call `reqwest` outside a provider client module.
-- Never add provider wire types to gitfleet-core or gitfleet-cli.
+- Never add provider wire types to gitfleet-core or gitfleet.
 - Never bypass the shared output layer for structured rendering.
 - Never use bare `Error` or `anyhow` for expected failures.
 - Never add a public command family outside the operation registry.

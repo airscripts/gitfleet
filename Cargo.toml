@@ -2,7 +2,7 @@
 members = [
     "gitfleet-core",
     "gitfleet-providers",
-    "gitfleet-cli",
+    "gitfleet",
 ]
 resolver = "3"
 

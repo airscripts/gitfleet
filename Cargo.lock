@@ -1091,7 +1091,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gitfleet-cli"
+name = "gitfleet"
 version = "0.1.0"
 dependencies = [
  "assert_cmd",

@@ -1,5 +1,5 @@
 ---
-source: gitfleet-cli/tests/cli.rs
+source: gitfleet/tests/cli.rs
 expression: output
 ---
 Configuration management

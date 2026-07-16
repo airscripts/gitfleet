@@ -123,7 +123,7 @@ active provider and its declared capabilities.
 Gitfleet is a Rust CLI. Install the CLI package from this checkout with Cargo:
 
 ```bash
-cargo install --path gitfleet-cli
+cargo install --path gitfleet
 
 gitfleet version
 gf version
@@ -139,7 +139,7 @@ After pulling new source changes, reinstall the local package to refresh the
 commands:
 
 ```bash
-cargo install --path gitfleet-cli --force
+cargo install --path gitfleet --force
 ```
 
 ## Quick Start
@@ -548,7 +548,7 @@ provider API.
 | -------------------- | ------------------------------------------------------------------- |
 | `gitfleet-core`      | Provider-neutral entities, capabilities, operations, infrastructure |
 | `gitfleet-providers` | GitHub and GitLab provider clients, wire types, normalization       |
-| `gitfleet-cli`       | Thin CLI surface over shared operations                             |
+| `gitfleet`           | Product CLI crate and thin surface over shared operations           |
 
 Only `gitfleet-providers` performs HTTP requests. Provider wire types are
 normalized before crossing the crate boundary, and unsupported operations
@@ -564,7 +564,7 @@ boundaries, code style, testing strategy, and release requirements.
 gitfleet-core/        provider-neutral entities, capabilities, errors, operations,
                       infrastructure (config, git, output, prompts, secrets, workspace)
 gitfleet-providers/   GitHub and GitLab provider clients, wire types, normalization
-gitfleet-cli/         thin CLI surface over shared operations
+gitfleet/             product CLI crate and thin surface over shared operations
 gitfleet-playbooks/   live API test scripts (Bash)
 ```
 

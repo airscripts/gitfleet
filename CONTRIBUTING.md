@@ -36,7 +36,7 @@ boundaries, code style, testing strategy, and release rules. Key points:
 
 - `gitfleet-core` holds provider-neutral types, traits, and infrastructure.
 - `gitfleet-providers` is the only crate that calls `reqwest`.
-- `gitfleet-cli` is a thin surface over shared operations.
+- `gitfleet` is the product CLI crate and a thin surface over shared operations.
 - Provider wire types must be normalized before crossing the crate boundary.
 - Never add raw `println!` or `eprintln!` outside the output layer.
 - Use `GitfleetError` enum variants for expected failures.
