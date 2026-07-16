@@ -42,7 +42,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          tag="${{ inputs.tag }}"
+          raw_tag="${{ inputs.tag }}"
+          tag="${raw_tag#refs/tags/}"
           version="${tag#v}"
 
           bash gitfleet-scripts/release-notes.sh "$tag" release-notes.md
