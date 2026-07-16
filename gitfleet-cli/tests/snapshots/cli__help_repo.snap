@@ -1,9 +1,8 @@
 ---
 source: gitfleet-cli/tests/cli.rs
-assertion_line: 1820
 expression: output
 ---
-Repository lifecycle, forks, and synchronization
+Repository lifecycle and forks
 
 Usage: gitfleet repo [OPTIONS] <COMMAND>
 

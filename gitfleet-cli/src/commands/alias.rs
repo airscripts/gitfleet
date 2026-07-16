@@ -1,6 +1,7 @@
-use clap::Subcommand;
-use gitfleet_core::errors::{GitfleetError, NotFoundError};
+use clap::{CommandFactory, Subcommand};
+use gitfleet_core::errors::{GitfleetError, NotFoundError, UnprocessableError};
 
+use crate::Cli;
 use crate::app::App;
 
 #[derive(Subcommand, Debug)]
@@ -34,6 +35,12 @@ pub async fn run(cmd: AliasCommand, app: &App) -> Result<(), GitfleetError> {
             expansion,
             force,
         } => {
+            if Cli::command().find_subcommand(&name).is_some() {
+                return Err(GitfleetError::from(UnprocessableError::new(format!(
+                    "Alias '{name}' conflicts with a Gitfleet command."
+                ))));
+            }
+
             gitfleet_core::config::set_alias(&name, &expansion, force)?;
 
             if app.renderer().is_json() {

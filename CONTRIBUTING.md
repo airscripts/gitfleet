@@ -49,9 +49,9 @@ Integration tests live in each crate's `tests/` directory. Provider tests use
 tests must never make real HTTP requests.
 
 Live playbooks under `gitfleet-playbooks/` validate command families against
-the real GitHub API. They require an explicit GitHub token and test repository,
-and clean up mutations during teardown. Run them only against a dedicated test
-repository.
+the real GitHub and GitLab APIs. They require an explicit token and test
+repository for the active provider, and clean up mutations during teardown.
+Run them only against a dedicated test repository.
 
 ## Commit Convention
 

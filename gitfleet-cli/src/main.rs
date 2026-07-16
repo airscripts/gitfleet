@@ -1,3 +1,4 @@
+mod alias_expansion;
 mod app;
 mod commands;
 mod repo_util;
@@ -84,7 +85,7 @@ enum Commands {
         subcommand: commands::browse::BrowseCommand,
     },
 
-    #[command(about = "Proposed changes, stacks, and merge automation")]
+    #[command(about = "Proposed changes and merge operations")]
     Change {
         #[command(subcommand)]
         subcommand: commands::change::ChangeCommand,
@@ -144,7 +145,7 @@ enum Commands {
         subcommand: commands::git_credential::GitCredentialCommand,
     },
 
-    #[command(about = "Fleet governance")]
+    #[command(about = "Repository ruleset governance")]
     Govern {
         #[command(subcommand)]
         subcommand: commands::govern::GovernCommand,
@@ -186,7 +187,7 @@ enum Commands {
         subcommand: PlanningCommand,
     },
 
-    #[command(about = "CI/CD pipeline definitions, runs, and caches")]
+    #[command(about = "CI/CD pipeline definitions and runs")]
     Pipeline {
         #[command(subcommand)]
         subcommand: commands::pipeline::PipelineCommand,
@@ -210,7 +211,7 @@ enum Commands {
         subcommand: commands::release::ReleaseCommand,
     },
 
-    #[command(about = "Repository lifecycle, forks, and synchronization")]
+    #[command(about = "Repository lifecycle and forks")]
     Repo {
         #[command(subcommand)]
         subcommand: commands::repo::RepoCommand,
@@ -240,7 +241,7 @@ enum Commands {
         subcommand: commands::secret_cmd::SecretCmdCommand,
     },
 
-    #[command(about = "Security audit, leaks, and compliance")]
+    #[command(about = "Security advisories and scanning")]
     Security {
         #[command(subcommand)]
         subcommand: commands::security::SecurityCommand,
@@ -325,7 +326,8 @@ enum ReviewCommand {
 fn requires_provider_context(command: &Commands) -> bool {
     !matches!(
         command,
-        Commands::Completion { .. }
+        Commands::Alias { .. }
+            | Commands::Completion { .. }
             | Commands::Config { .. }
             | Commands::GitCredential { .. }
             | Commands::Version
@@ -341,7 +343,23 @@ async fn main() {
     let banner = gitfleet_core::banner::banner();
 
     let cmd = Cli::command().before_help(&banner);
-    let matches = cmd.get_matches();
+    let canonical_commands: std::collections::HashSet<String> = cmd
+        .get_subcommands()
+        .map(|subcommand| subcommand.get_name().to_string())
+        .collect();
+
+    let args = alias_expansion::expand_args(
+        std::env::args_os().collect(),
+        gitfleet_core::config::get_alias,
+        |name| canonical_commands.contains(name),
+    )
+    .unwrap_or_else(|error| {
+        cmd.clone()
+            .error(clap::error::ErrorKind::InvalidValue, error)
+            .exit()
+    });
+
+    let matches = cmd.get_matches_from(args);
 
     let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
 

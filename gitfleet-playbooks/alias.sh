@@ -18,7 +18,7 @@ step "Alias List (empty)"
 expect_exit_0 "alias list succeeds when empty" gitfleet alias list
 
 step "Alias Set"
-if gitfleet alias set "$ALIAS_NAME" "checkout" >/dev/null 2>&1; then
+if gitfleet alias set "$ALIAS_NAME" "version" >/dev/null 2>&1; then
   pass "alias set succeeds"
   ALIAS_CREATED=true
 else
@@ -26,10 +26,16 @@ else
 fi
 
 step "Alias Set Duplicate Without Force (negative)"
-expect_exit_non0 "alias set duplicate without --force fails" gitfleet alias set "$ALIAS_NAME" "checkout -b"
+expect_exit_non0 "alias set duplicate without --force fails" gitfleet alias set "$ALIAS_NAME" "version --json"
 
 step "Alias Set Overwrite With Force"
-expect_exit_0 "alias set --force overwrites" gitfleet alias set "$ALIAS_NAME" "checkout -b" --force
+expect_exit_0 "alias set --force overwrites" gitfleet alias set "$ALIAS_NAME" "version --json" --force
+
+step "Alias Execute"
+expect_exit_0 "alias executes its expansion" gitfleet "$ALIAS_NAME"
+
+step "Alias Canonical Command Collision (negative)"
+expect_exit_non0 "alias cannot shadow a command" gitfleet alias set version "repo list"
 
 step "Alias Get"
 expect_exit_0 "alias get succeeds" gitfleet alias get "$ALIAS_NAME"

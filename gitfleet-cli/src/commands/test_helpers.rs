@@ -236,6 +236,13 @@ pub fn make_app_no_caps() -> App {
     App::new(registry, renderer, ProviderId::GitHub, false)
 }
 
+pub fn make_app_no_caps_yes() -> App {
+    let registry = ProviderRegistry::with_provider(ProviderId::GitHub, Box::new(NoCapProvider));
+
+    let renderer = Renderer::new(OutputMode::Silent).with_yes(true);
+    App::new(registry, renderer, ProviderId::GitHub, false)
+}
+
 #[async_trait::async_trait]
 impl RepoOps for MockProvider {
     async fn list_org_repos(&self, _org: &str) -> Result<Vec<RepoSummary>, GitfleetError> {

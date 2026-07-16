@@ -39,6 +39,17 @@ pub enum ChangeCommand {
         #[arg(long)]
         repo: Option<String>,
     },
+
+    #[command(about = "Merge a change request.")]
+    Merge {
+        number: u64,
+        #[arg(long)]
+        repo: Option<String>,
+        #[arg(long, default_value = "merge", value_parser = ["merge", "squash", "rebase"])]
+        method: String,
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 pub async fn run(cmd: ChangeCommand, app: &App) -> Result<(), GitfleetError> {
@@ -101,6 +112,23 @@ pub async fn run(cmd: ChangeCommand, app: &App) -> Result<(), GitfleetError> {
             let repo_str = crate::repo_util::resolve_repo(&repo)?;
 
             service::changes::view(p, app.renderer(), &repo_str, number).await
+        }
+
+        ChangeCommand::Merge {
+            number,
+            repo,
+            method,
+            yes,
+        } => {
+            let repo_str = crate::repo_util::resolve_repo(&repo)?;
+
+            gitfleet_core::prompt::confirm_destructive(
+                &format!("Merge change request #{number} in {repo_str}?"),
+                app.renderer().mode(),
+                app.renderer().yes() || yes,
+            )?;
+
+            service::changes::merge(p, app.renderer(), &repo_str, number, &method).await
         }
     }
 }
@@ -314,6 +342,59 @@ mod tests {
             ChangeCommand::View {
                 number: 42,
                 repo: Some("org/repo".into()),
+            },
+            &app,
+        )
+        .await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_change_merge() {
+        let app = test_helpers::make_app_yes();
+
+        run(
+            ChangeCommand::Merge {
+                number: 42,
+                repo: Some("org/repo".into()),
+                method: "squash".into(),
+                yes: false,
+            },
+            &app,
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_change_merge_requires_confirmation() {
+        let app = test_helpers::make_app_json();
+
+        let result = run(
+            ChangeCommand::Merge {
+                number: 42,
+                repo: Some("org/repo".into()),
+                method: "merge".into(),
+                yes: false,
+            },
+            &app,
+        )
+        .await;
+
+        assert!(result.unwrap_err().to_string().contains("--yes"));
+    }
+
+    #[tokio::test]
+    async fn test_change_merge_no_caps() {
+        let app = test_helpers::make_app_no_caps_yes();
+
+        let result = run(
+            ChangeCommand::Merge {
+                number: 42,
+                repo: Some("org/repo".into()),
+                method: "rebase".into(),
+                yes: false,
             },
             &app,
         )

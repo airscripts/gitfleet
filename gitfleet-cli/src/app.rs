@@ -114,4 +114,12 @@ impl App {
             .get(self.context.provider)
             .map_err(GitfleetError::UnsupportedCapability)
     }
+
+    pub fn shared_provider(
+        &self,
+    ) -> Result<std::sync::Arc<dyn gitfleet_core::provider::GitProvider>, GitfleetError> {
+        self.registry
+            .get_shared(self.context.provider)
+            .map_err(GitfleetError::UnsupportedCapability)
+    }
 }

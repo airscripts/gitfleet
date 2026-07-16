@@ -5,9 +5,9 @@ use crate::app::App;
 
 pub async fn archive(name: &str, app: &App) -> Result<(), GitfleetError> {
     let workspace = gitfleet_core::workspace::get(name)?;
-    let provider = app.provider()?;
+    let provider = app.shared_provider()?;
 
-    let repo_ops = provider.repo_ops().ok_or_else(|| {
+    provider.repo_ops().ok_or_else(|| {
         GitfleetError::from(UnsupportedCapabilityError::new(
             app.provider_id(),
             ProviderCapability::Repositories,
@@ -53,20 +53,48 @@ pub async fn archive(name: &str, app: &App) -> Result<(), GitfleetError> {
     }
 
     if !app.dry_run() && has_pending_targets {
-        for result in &mut results {
-            if result["status"] != "pending" {
-                continue;
-            }
+        let pending_indices: Vec<usize> = results
+            .iter()
+            .enumerate()
+            .filter_map(|(index, result)| (result["status"] == "pending").then_some(index))
+            .collect();
+        let targets: Vec<String> = pending_indices
+            .iter()
+            .filter_map(|index| results[*index]["repository"].as_str().map(str::to_string))
+            .collect();
+        let worker_provider = provider.clone();
 
-            let target = result["repository"].as_str().unwrap_or_default();
+        let archive_results = gitfleet_core::bulk::run_bulk(
+            &targets,
+            move |target, _| {
+                let provider = worker_provider.clone();
 
-            match repo_ops.archive_repo(target).await {
-                Ok(()) => result["status"] = serde_json::json!("archived"),
-                Err(error) => {
-                    has_partial_failure = true;
-                    result["status"] = serde_json::json!("failed");
-                    result["reason"] = serde_json::json!(error.to_string());
+                async move {
+                    let ops = provider
+                        .repo_ops()
+                        .ok_or_else(|| "Repository capability became unavailable.".to_string())?;
+
+                    ops.archive_repo(&target)
+                        .await
+                        .map_err(|error| error.to_string())
                 }
+            },
+            gitfleet_core::constants::WORKSPACE_DEFAULT_CONCURRENCY,
+        )
+        .await;
+
+        for archive_result in archive_results {
+            let Some(result_index) = pending_indices.get(archive_result.index).copied() else {
+                continue;
+            };
+            let result = &mut results[result_index];
+
+            if archive_result.success {
+                result["status"] = serde_json::json!("archived");
+            } else {
+                has_partial_failure = true;
+                result["status"] = serde_json::json!("failed");
+                result["reason"] = serde_json::json!(archive_result.error.unwrap_or_default());
             }
         }
     }

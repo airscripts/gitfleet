@@ -3,10 +3,14 @@ name: Test
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
-  cli:
-    name: CLI
+  coverage:
+    name: Linux Coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v7
@@ -24,11 +28,39 @@ jobs:
       - run: cargo install cargo-llvm-cov
         name: Install cargo-llvm-cov
 
-      - run: cargo llvm-cov --fail-under-lines 80 --workspace --html
-        name: Run Tests
+      - run: CARGO_BUILD_JOBS=4 cargo llvm-cov --fail-under-lines 80 --workspace --html
+        name: Run Tests and Coverage
 
       - uses: actions/upload-artifact@v7
         name: Upload Coverage Report
         with:
           name: coverage-report
           path: target/llvm-cov/
+
+  portability:
+    name: Tests (${{ matrix.os }})
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout Code
+
+      - uses: dtolnay/rust-toolchain@stable
+        name: Install Rust Toolchain
+
+      - uses: Swatinem/rust-cache@v2
+        name: Cache Cargo
+
+      - run: cargo test --workspace --locked
+        name: Run Workspace Tests
+
+        env:
+          CARGO_BUILD_JOBS: 4

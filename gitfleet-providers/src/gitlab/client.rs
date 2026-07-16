@@ -10,7 +10,7 @@ use gitfleet_core::errors::{
 use gitfleet_core::provider::{ProviderCapability, ProviderId};
 use reqwest::Client;
 
-const USER_AGENT: &str = "gitfleet/0.1.0";
+const USER_AGENT: &str = concat!("gitfleet/", env!("CARGO_PKG_VERSION"));
 
 pub struct ProviderClient {
     http: Client,

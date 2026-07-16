@@ -3,8 +3,8 @@
 [![Main](https://github.com/airscripts/gitfleet/actions/workflows/main.yml/badge.svg)](https://github.com/airscripts/gitfleet/actions/workflows/main.yml)
 [![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen)](https://github.com/airscripts/gitfleet/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![LOC](https://img.shields.io/badge/loc-52401-blue)](gitfleet-scripts/loc.sh)
-[![Tests](https://img.shields.io/badge/tests-1766-blue)](gitfleet-scripts/tests.sh)
+[![LOC](https://img.shields.io/badge/loc-52784-blue)](gitfleet-scripts/loc.sh)
+[![Tests](https://img.shields.io/badge/tests-1778-blue)](gitfleet-scripts/tests.sh)
 
 Command every repository as one fleet.
 
@@ -14,6 +14,7 @@ Command every repository as one fleet.
 
 - [Overview](#overview)
 - [Providers](#providers)
+- [Provider Support](#provider-support)
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
@@ -75,6 +76,28 @@ Configure a profile per provider or account, then switch profiles or let
 `gitfleet auth detect` select the profile from the current repository remote.
 This makes mixed GitHub and GitLab fleets manageable without changing tools or
 learning provider-specific root command families.
+
+## Provider Support
+
+Gitfleet checks capabilities at runtime and returns an explicit unsupported
+capability error when the active provider cannot perform an operation.
+
+| Command capabilities | GitHub | GitLab |
+| -------------------- | ------ | ------ |
+| Repositories, changes, reviews, issues, pipelines, releases | Yes | Yes |
+| Milestones, webhooks, access, identity, notifications | Yes | Yes |
+| Search, code, labels, templates, environments, runners | Yes | Yes |
+| Variables, browse, raw API, deployments, licenses, snippets | Yes | Yes |
+| Repository policies and package registry | Yes | Yes |
+| Projects, Pages, discussions, security alerts, dev environments | Yes | No |
+| Analytics, rulesets, merge automation, dependency and advisory APIs | Yes | No |
+| Attestations and repository secrets | Yes | No |
+| Wikis and protected tags | No | Yes |
+
+Some provider APIs impose narrower constraints on individual options even when
+the command family is available. Gitfleet preserves those differences instead
+of emulating unsupported behavior. Use `gitfleet auth status` to inspect the
+active provider and its declared capabilities.
 
 ## Features
 
@@ -322,14 +345,14 @@ gitfleet help pipeline list-runs
 | Family                                         | Purpose                                                    |
 | ---------------------------------------------- | ---------------------------------------------------------- |
 | `auth`                                         | Provider accounts and profiles                             |
-| `repo`                                         | Repository lifecycle, forks, synchronization, and metadata |
-| `change`                                       | Pull request creation, listing, and inspection              |
+| `repo`                                         | Repository lifecycle, forks, and metadata                  |
+| `change`                                       | Change creation, listing, inspection, and merging          |
 | `review`                                       | Comments and reactions on changes                           |
 | `issue`, `discussion`, `inbox`                 | Collaboration and notification workflows                   |
 | `pipeline`                                     | Workflow definitions, runs, triggers, cancellations, and reruns |
 | `release`, `deploy`, `environment`             | Delivery lifecycle                                         |
 | `workspace`                                    | Named fleets and bounded multi-repository execution        |
-| `govern`, `policy`                             | Fleet governance and repository protection                 |
+| `govern`, `policy`                             | Ruleset governance and repository protection               |
 | `planning`                                     | Milestones and projects                                    |
 | `wiki`, `site`                                 | Repository documentation and publishing                    |
 | `search`, `code`, `browse`, `api`              | Discovery, navigation, and provider escape hatches         |
@@ -354,6 +377,9 @@ gitfleet help pipeline list-runs
 - `identity ssh-key` and `identity gpg-key` manage provider account keys.
 - `planning milestone`, `planning project`, `policy branch-protection`,
   `policy tag-protection`, and `repo fork` expose their respective operations.
+- `alias set NAME "COMMAND ..."` creates an executable command alias. Alias
+  arguments are forwarded without invoking a shell; canonical command names
+  cannot be shadowed.
 
 ## Common Workflows
 
@@ -362,6 +388,7 @@ gitfleet help pipeline list-runs
 ```bash
 gitfleet change create "Add feature" --head feature --base main
 gitfleet change list --state open
+gitfleet change merge 42 --method squash --yes
 gitfleet review comment list 42
 gitfleet review comment create 42 "Please add a regression test."
 gitfleet review comment create 17 "I can reproduce this." --target issue
@@ -407,6 +434,10 @@ github@github.com:owner/repository
 github@github.example.com:platform/repository
 gitlab@gitlab.com:group/project
 ```
+
+Workspace mutations run with bounded concurrency and preserve workspace order
+in their result report. Repositories that do not match the active provider and
+host profile are reported as skipped.
 
 ## Output Formats
 

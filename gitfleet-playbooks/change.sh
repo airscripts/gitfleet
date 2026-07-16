@@ -84,6 +84,10 @@ expect_exit_0 "pr list succeeds" gitfleet change list --repo "$TEST_REPO" --limi
 if [ -n "$TEST_PR_NUMBER" ]; then
   step "PR View"
   expect_exit_0 "pr view succeeds" gitfleet change view "$TEST_PR_NUMBER" --repo "$TEST_REPO"
+
+  step "PR Merge"
+  expect_exit_0 "pr merge succeeds" gitfleet change merge "$TEST_PR_NUMBER" --repo "$TEST_REPO" --method merge --yes
 else
   skip "pr view (no test PR)"
+  skip "pr merge (no test PR)"
 fi

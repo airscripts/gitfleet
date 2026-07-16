@@ -74,6 +74,7 @@ pub const DEFAULT_OUTPUT_DIR: &str = ".gitfleet/pipelines";
 pub const WORKFLOW_DEFAULT_DIR: &str = ".github/workflows";
 pub const SEARCH_DEFAULT_LIMIT: u32 = 30;
 pub const SEARCH_MAX_PER_PAGE: u32 = 100;
+pub const WORKSPACE_DEFAULT_CONCURRENCY: usize = 4;
 
 pub const GITFLEET_PROFILE_ENV: &str = "GITFLEET_PROFILE";
 pub const GITFLEET_TRUST_REPO_CONFIG_ENV: &str = "GITFLEET_TRUST_REPO_CONFIG";

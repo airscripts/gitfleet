@@ -51,6 +51,9 @@ Semantic Versioning.
 - Provider capability introspection and contract validation for reliable
   cross-provider command discovery.
 - Workspace archive operations and idempotent repository state changes.
+- Executable command aliases with argument forwarding, quoting, cycle
+  detection, and canonical-command protection.
+- Change-request merging with merge, squash, and rebase methods.
 
 ### Changed
 
@@ -72,6 +75,8 @@ Semantic Versioning.
   available on GitLab.
 - Hardened credential, configuration, provider-client, repository, prompt,
   output, and workspace behavior for interactive and automated use.
+- Added MSRV, macOS, Windows, dependency-policy, and vulnerability validation
+  to continuous integration.
 
 ### Fixed
 

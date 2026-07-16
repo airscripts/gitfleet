@@ -1,0 +1,30 @@
+name: Security
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+  schedule:
+    - cron: "23 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  dependencies:
+    name: Dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout Code
+
+      - uses: rustsec/audit-check@v2
+        name: Audit Vulnerabilities
+
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        name: Check Dependency Policy

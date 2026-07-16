@@ -1,44 +1,45 @@
+use std::sync::Arc;
+
 use gitfleet_core::errors::UnsupportedCapabilityError;
 use gitfleet_core::provider::{GitProvider, ProviderCapability, ProviderContext, ProviderId};
 
 pub struct ProviderRegistry {
-    providers: std::collections::HashMap<ProviderId, Box<dyn GitProvider>>,
+    providers: std::collections::HashMap<ProviderId, Arc<dyn GitProvider>>,
 }
 
 impl ProviderRegistry {
     pub fn new() -> Self {
-        let mut providers: std::collections::HashMap<ProviderId, Box<dyn GitProvider>> =
+        let mut providers: std::collections::HashMap<ProviderId, Arc<dyn GitProvider>> =
             std::collections::HashMap::new();
 
         let github = crate::github::GitHubProvider::new();
-        providers.insert(github.id(), Box::new(github));
+        providers.insert(github.id(), Arc::new(github));
 
         let gitlab = crate::gitlab::GitLabProvider::new();
-        providers.insert(gitlab.id(), Box::new(gitlab));
+        providers.insert(gitlab.id(), Arc::new(gitlab));
 
         Self { providers }
     }
 
     pub fn with_provider(id: ProviderId, provider: Box<dyn GitProvider>) -> Self {
-        let mut providers: std::collections::HashMap<ProviderId, Box<dyn GitProvider>> =
-            std::collections::HashMap::new();
-        providers.insert(id, provider);
+        let mut providers = std::collections::HashMap::new();
+        providers.insert(id, Arc::from(provider));
         Self { providers }
     }
 
     pub fn with_host(provider_id: ProviderId, host: &str) -> Self {
-        let mut providers: std::collections::HashMap<ProviderId, Box<dyn GitProvider>> =
+        let mut providers: std::collections::HashMap<ProviderId, Arc<dyn GitProvider>> =
             std::collections::HashMap::new();
 
-        let github: Box<dyn GitProvider> = match provider_id {
-            ProviderId::GitHub => Box::new(crate::github::GitHubProvider::with_host(host)),
-            ProviderId::GitLab => Box::new(crate::github::GitHubProvider::new()),
+        let github: Arc<dyn GitProvider> = match provider_id {
+            ProviderId::GitHub => Arc::new(crate::github::GitHubProvider::with_host(host)),
+            ProviderId::GitLab => Arc::new(crate::github::GitHubProvider::new()),
         };
 
         providers.insert(ProviderId::GitHub, github);
-        let gitlab: Box<dyn GitProvider> = match provider_id {
-            ProviderId::GitHub => Box::new(crate::gitlab::GitLabProvider::new()),
-            ProviderId::GitLab => Box::new(crate::gitlab::GitLabProvider::with_host(host)),
+        let gitlab: Arc<dyn GitProvider> = match provider_id {
+            ProviderId::GitHub => Arc::new(crate::gitlab::GitLabProvider::new()),
+            ProviderId::GitLab => Arc::new(crate::gitlab::GitLabProvider::with_host(host)),
         };
 
         providers.insert(ProviderId::GitLab, gitlab);
@@ -46,18 +47,18 @@ impl ProviderRegistry {
     }
 
     pub fn with_context(context: &ProviderContext) -> Self {
-        let mut providers: std::collections::HashMap<ProviderId, Box<dyn GitProvider>> =
+        let mut providers: std::collections::HashMap<ProviderId, Arc<dyn GitProvider>> =
             std::collections::HashMap::new();
 
-        let github: Box<dyn GitProvider> = match context.provider {
-            ProviderId::GitHub => Box::new(crate::github::GitHubProvider::with_context(context)),
-            ProviderId::GitLab => Box::new(crate::github::GitHubProvider::new()),
+        let github: Arc<dyn GitProvider> = match context.provider {
+            ProviderId::GitHub => Arc::new(crate::github::GitHubProvider::with_context(context)),
+            ProviderId::GitLab => Arc::new(crate::github::GitHubProvider::new()),
         };
         providers.insert(ProviderId::GitHub, github);
 
-        let gitlab: Box<dyn GitProvider> = match context.provider {
-            ProviderId::GitHub => Box::new(crate::gitlab::GitLabProvider::new()),
-            ProviderId::GitLab => Box::new(crate::gitlab::GitLabProvider::with_context(context)),
+        let gitlab: Arc<dyn GitProvider> = match context.provider {
+            ProviderId::GitHub => Arc::new(crate::gitlab::GitLabProvider::new()),
+            ProviderId::GitLab => Arc::new(crate::gitlab::GitLabProvider::with_context(context)),
         };
         providers.insert(ProviderId::GitLab, gitlab);
 
@@ -74,6 +75,15 @@ impl ProviderRegistry {
             .ok_or_else(|| {
                 UnsupportedCapabilityError::new(provider, ProviderCapability::Repositories)
             })
+    }
+
+    pub fn get_shared(
+        &self,
+        provider: ProviderId,
+    ) -> Result<Arc<dyn GitProvider>, UnsupportedCapabilityError> {
+        self.providers.get(&provider).cloned().ok_or_else(|| {
+            UnsupportedCapabilityError::new(provider, ProviderCapability::Repositories)
+        })
     }
 
     pub fn require_capability(

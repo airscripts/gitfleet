@@ -1,6 +1,5 @@
 ---
 source: gitfleet-cli/tests/cli.rs
-assertion_line: 1814
 expression: output
 ---
  ██████╗ ██╗████████╗███████╗██╗     ███████╗███████╗████████╗
@@ -23,7 +22,7 @@ Commands:
   attestation  Attestation operations
   auth         Provider authentication and profiles
   browse       Browse repository resources
-  change       Proposed changes, stacks, and merge automation
+  change       Proposed changes and merge operations
   code         Code navigation and search
   completion   Shell completion generation
   config       Configuration management
@@ -32,23 +31,23 @@ Commands:
   dev          Development environments
   discussion   Discussion management
   environment  Environment management
-  govern       Fleet governance
+  govern       Repository ruleset governance
   identity     Account keys (SSH, GPG)
   inbox        Notification management
   issue        Issue management
   label        Label management
   license      License discovery
   planning     Planning boards, milestones, and projects
-  pipeline     CI/CD pipeline definitions, runs, and caches
+  pipeline     CI/CD pipeline definitions and runs
   policy       Repository protection policies
   registry     Package registry
   release      Release management
-  repo         Repository lifecycle, forks, and synchronization
+  repo         Repository lifecycle and forks
   review       Reviews, comments, and reactions
   runner       CI/CD runner management
   search       Search repositories and code
   secret       Repository secrets
-  security     Security audit, leaks, and compliance
+  security     Security advisories and scanning
   site         Repository pages
   snippet      Hosted snippets
   template     Repository templates

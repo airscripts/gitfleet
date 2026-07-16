@@ -46,6 +46,41 @@ fn test_version_subcommand() {
 }
 
 #[test]
+fn test_alias_executes_expansion() {
+    let home = tempfile::tempdir().unwrap();
+
+    Command::cargo_bin("gitfleet")
+        .unwrap()
+        .env("GITFLEET_HOME", home.path())
+        .args(["alias", "set", "v", "version"])
+        .assert()
+        .success();
+
+    Command::cargo_bin("gitfleet")
+        .unwrap()
+        .env("GITFLEET_HOME", home.path())
+        .arg("v")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("0.1.0"));
+}
+
+#[test]
+fn test_alias_cannot_shadow_canonical_command() {
+    let home = tempfile::tempdir().unwrap();
+
+    Command::cargo_bin("gitfleet")
+        .unwrap()
+        .env("GITFLEET_HOME", home.path())
+        .args(["alias", "set", "version", "repo list"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "conflicts with a Gitfleet command",
+        ));
+}
+
+#[test]
 fn test_version_subcommand_ignores_malformed_credentials() {
     let home = tempfile::tempdir().unwrap();
     let folder = home.path().join(".config/gitfleet");
