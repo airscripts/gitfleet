@@ -17,6 +17,7 @@ jobs:
 
     outputs:
       version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
       tag: ${{ steps.version.outputs.tag }}
 
     steps:
@@ -30,11 +31,17 @@ jobs:
           tag="${GITHUB_REF_NAME}"
           version="${tag#v}"
 
-          bash gitfleet-scripts/changelog.sh "$tag" release-notes.md
+          bash gitfleet-scripts/release-notes.sh "$tag" release-notes.md
+
+          prerelease=false
+          if [[ "$version" == *-* ]]; then
+            prerelease=true
+          fi
 
           {
             echo "tag=$tag"
             echo "version=$version"
+            echo "prerelease=$prerelease"
           } >> "$GITHUB_OUTPUT"
 
         name: Validate Release Version
@@ -276,4 +283,5 @@ jobs:
           tag_name: ${{ needs.prepare.outputs.tag }}
           name: Gitfleet ${{ needs.prepare.outputs.version }}
           body_path: release/release-notes.md
+          prerelease: ${{ needs.prepare.outputs.prerelease }}
           files: release/assets/*
