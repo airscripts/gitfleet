@@ -1,0 +1,57 @@
+name: Publish
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+
+      tag:
+        required: true
+        type: string
+
+      prerelease:
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/download-artifact@v7
+        name: Download Release Notes
+
+        with:
+          name: gitfleet-release-notes-${{ inputs.version }}
+          path: release
+
+      - uses: actions/download-artifact@v7
+        name: Download Release Assets
+
+        with:
+          pattern: gitfleet-v${{ inputs.version }}-*
+          path: release/assets
+          merge-multiple: true
+
+      - run: |
+          set -euo pipefail
+          find release/assets -maxdepth 1 -type f | sort
+
+        name: List Release Assets
+
+      - uses: softprops/action-gh-release@v3
+        name: Publish Release
+
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: ${{ inputs.tag }}
+          body_path: release/release-notes.md
+          prerelease: ${{ inputs.prerelease }}
+          files: release/assets/*

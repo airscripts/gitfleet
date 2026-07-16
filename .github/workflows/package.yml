@@ -1,0 +1,144 @@
+name: Package
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Release
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            archive: tar.gz
+
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            archive: tar.gz
+
+          - os: macos-15
+            target: aarch64-apple-darwin
+            archive: tar.gz
+
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+            archive: zip
+
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            archive: zip
+
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout Code
+
+      - uses: dtolnay/rust-toolchain@stable
+        name: Install Rust Toolchain
+
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        name: Cache Cargo
+
+      - run: cargo build --release --locked --target ${{ matrix.target }}
+        name: Build Release Binaries
+
+        env:
+          CARGO_BUILD_JOBS: 4
+
+      - if: matrix.target == 'x86_64-unknown-linux-gnu' || matrix.target == 'aarch64-unknown-linux-gnu' || matrix.target == 'x86_64-apple-darwin' || matrix.target == 'aarch64-apple-darwin'
+
+        run: |
+          set -euo pipefail
+
+          ./target/${{ matrix.target }}/release/gitfleet version
+          ./target/${{ matrix.target }}/release/gf version
+
+        name: Smoke Test Unix Binaries
+
+      - if: matrix.target == 'x86_64-pc-windows-msvc' || matrix.target == 'aarch64-pc-windows-msvc'
+        shell: pwsh
+
+        run: |
+          ./target/${{ matrix.target }}/release/gitfleet.exe version
+          ./target/${{ matrix.target }}/release/gf.exe version
+
+        name: Smoke Test Windows Binaries
+
+      - if: matrix.archive == 'tar.gz'
+
+        run: |
+          set -euo pipefail
+
+          version="${{ inputs.version }}"
+          target="${{ matrix.target }}"
+          package_dir="gitfleet-v${version}-${target}"
+          archive="gitfleet-v${version}-${target}.tar.gz"
+
+          mkdir -p "$package_dir"
+          cp "target/${target}/release/gitfleet" "$package_dir/"
+          cp "target/${target}/release/gf" "$package_dir/"
+          cp LICENSE "$package_dir/"
+
+          tar -czf "$archive" "$package_dir"
+          bash gitfleet-scripts/verify-release-archive.sh "$archive" "$target"
+
+        name: Package Unix Archive
+
+      - if: matrix.archive == 'zip'
+        shell: pwsh
+
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $version = "${{ inputs.version }}"
+          $target = "${{ matrix.target }}"
+          $packageDir = "gitfleet-v$version-$target"
+          $archive = "gitfleet-v$version-$target.zip"
+
+          New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
+          Copy-Item "target/$target/release/gitfleet.exe" "$packageDir/"
+          Copy-Item "target/$target/release/gf.exe" "$packageDir/"
+          Copy-Item "LICENSE" "$packageDir/"
+
+          Compress-Archive -Path $packageDir -DestinationPath $archive
+
+          $verifyDir = Join-Path $env:RUNNER_TEMP "gitfleet-release-verify-$target"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $verifyDir
+          Expand-Archive -LiteralPath $archive -DestinationPath $verifyDir
+
+          foreach ($required in @("gitfleet.exe", "gf.exe", "LICENSE")) {
+            $found = Get-ChildItem -Path $verifyDir -Recurse -File -Filter $required
+
+            if (-not $found) {
+              throw "archive $archive is missing $required"
+            }
+          }
+
+        name: Package Windows Archive
+
+      - uses: actions/upload-artifact@v7
+        name: Upload Release Archive
+
+        with:
+          name: gitfleet-v${{ inputs.version }}-${{ matrix.target }}
+          path: gitfleet-v${{ inputs.version }}-${{ matrix.target }}.${{ matrix.archive }}
+          if-no-files-found: error

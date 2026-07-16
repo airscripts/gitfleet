@@ -1,0 +1,61 @@
+name: Prepare
+
+on:
+  workflow_call:
+    outputs:
+      version:
+        value: ${{ jobs.release.outputs.version }}
+
+      prerelease:
+        value: ${{ jobs.release.outputs.prerelease }}
+
+      tag:
+        value: ${{ jobs.release.outputs.tag }}
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout Code
+
+      - id: version
+        run: |
+          set -euo pipefail
+
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+
+          bash gitfleet-scripts/release-notes.sh "$tag" release-notes.md
+
+          prerelease=false
+          if [[ "$version" == *-* ]]; then
+            prerelease=true
+          fi
+
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+
+        name: Validate Release Version
+
+      - uses: actions/upload-artifact@v7
+        name: Upload Release Notes
+
+        with:
+          name: gitfleet-release-notes-${{ steps.version.outputs.version }}
+          path: release-notes.md
+          if-no-files-found: error

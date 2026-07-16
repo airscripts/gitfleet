@@ -1,0 +1,53 @@
+name: Checksum
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/download-artifact@v7
+        name: Download Release Archives
+
+        with:
+          pattern: gitfleet-v${{ inputs.version }}-*
+          path: dist
+          merge-multiple: true
+
+      - run: |
+          set -euo pipefail
+
+          find dist -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.zip' \) | sort > archives.txt
+
+          if [ "$(wc -l < archives.txt)" -ne 6 ]; then
+            echo "expected 6 release archives" >&2
+            cat archives.txt >&2
+            exit 1
+          fi
+
+          (
+            cd dist
+
+            while read -r archive; do
+              sha256sum "$(basename "$archive")"
+            done < ../archives.txt > SHA256SUMS
+          )
+        name: Generate Checksums
+
+      - uses: actions/upload-artifact@v7
+        name: Upload Checksums
+        with:
+          name: gitfleet-v${{ inputs.version }}-checksums
+          path: dist/SHA256SUMS
+          if-no-files-found: error

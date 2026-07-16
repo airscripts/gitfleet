@@ -29,7 +29,7 @@ fi
 
 if [ "$version" != "$base_version" ]; then
     cat > "$output_file" <<EOF
-Release candidate for \`$base_version\`.
+Release candidate for \`v$base_version\`.
 
 This prerelease is intended to validate release packaging and platform artifacts.
 See the final \`v$base_version\` release for changelog notes.
