@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v7
         name: Checkout Code
 
-      - uses: rustsec/audit-check@v2
+      - uses: rustsec/audit-check@858dc40f52ca2b8570b7a997c1c4e35c6fc9a432
         name: Audit Vulnerabilities
 
         with:

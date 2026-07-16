@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   coverage:
-    name: Linux Coverage
+    name: Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -38,7 +38,7 @@ jobs:
           path: target/llvm-cov/
 
   portability:
-    name: Tests (${{ matrix.os }})
+    name: Portability
 
     strategy:
       fail-fast: false
