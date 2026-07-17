@@ -37,9 +37,14 @@ EOF
     exit 0
 fi
 
-awk -v version="$base_version" '
+awk -v version="$base_version" -v tag="$tag" '
     $0 ~ "^## \\[" version "\\]" {
         found = 1
+        first = 1
+        date = $0
+        sub("^## \\[" version "\\] - ", "", date)
+        print "## gitfleet@" tag " | " date
+        print ""
         next
     }
 
@@ -48,6 +53,11 @@ awk -v version="$base_version" '
     }
 
     found {
+        if (first && $0 == "") {
+            first = 0
+            next
+        }
+        first = 0
         print
     }
 

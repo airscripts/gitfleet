@@ -3,7 +3,7 @@
 All notable Gitfleet changes are documented here using Keep a Changelog and
 Semantic Versioning.
 
-## [0.1.0] - 2026-07-01
+## [0.1.0] - 2026-07-17
 
 ### Added
 
