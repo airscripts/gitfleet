@@ -2482,11 +2482,28 @@ async fn test_gitlab_create_change() {
 async fn test_gitlab_merge_change() {
     let server = MockServer::start().await;
 
+    Mock::given(method("GET"))
+        .and(path("/projects/testgroup%2Fmy-project/merge_requests/7"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "state": "opened",
+            "iid": 7,
+            "source_branch": "feature-branch",
+            "target_branch": "main",
+            "sha": "def456"
+        })))
+        .mount(&server)
+        .await;
+
     Mock::given(method("PUT"))
         .and(path(
             "/projects/testgroup%2Fmy-project/merge_requests/7/merge",
         ))
         .and(header("PRIVATE-TOKEN", "testtoken"))
+        .and(body_json(serde_json::json!({
+            "sha": "def456",
+            "squash": true
+        })))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "state": "merged",
             "iid": 7

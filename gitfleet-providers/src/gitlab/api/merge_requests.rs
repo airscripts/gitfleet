@@ -103,6 +103,27 @@ fn normalize_mr(raw: &serde_json::Value) -> PullRequest {
     }
 }
 
+fn merge_body(method: &str, sha: Option<&str>) -> serde_json::Value {
+    let mut body = serde_json::json!({});
+
+    if let Some(sha) = sha {
+        body["sha"] = serde_json::Value::String(sha.to_string());
+    }
+
+    match method {
+        "squash" => {
+            body["squash"] = serde_json::Value::Bool(true);
+        }
+        "rebase" => {
+            body["squash"] = serde_json::Value::Bool(false);
+        }
+
+        _ => {}
+    }
+
+    body
+}
+
 pub struct MergeRequestsApi;
 
 impl MergeRequestsApi {
@@ -226,18 +247,8 @@ impl MergeRequestsApi {
         let encoded = encode_path(project);
 
         let endpoint = format!("/projects/{encoded}/merge_requests/{iid}/merge");
-        let mut body = serde_json::json!({});
-
-        match method {
-            "squash" => {
-                body["squash"] = serde_json::Value::Bool(true);
-            }
-            "rebase" => {
-                body["squash"] = serde_json::Value::Bool(false);
-            }
-
-            _ => {}
-        }
+        let merge_request = Self::get(client, project, iid).await?;
+        let body = merge_body(method, merge_request.head.sha.as_deref());
 
         let response = client
             .request_token_required(reqwest::Method::PUT, &endpoint, Some(body), None, None)
@@ -375,6 +386,7 @@ mod tests {
         assert_eq!(result.user.unwrap().login, "dev1");
 
         assert_eq!(result.head.r#ref, "fix-login");
+        assert_eq!(result.head.sha, Some("def456".to_string()));
         assert_eq!(result.base.r#ref, "main");
 
         assert_eq!(result.labels.as_ref().unwrap().len(), 2);
@@ -401,5 +413,21 @@ mod tests {
         assert_eq!(result.head.r#ref, "feature");
 
         assert_eq!(result.base.r#ref, "develop");
+    }
+
+    #[test]
+    fn test_merge_body_includes_sha() {
+        let body = merge_body("merge", Some("abc123"));
+
+        assert_eq!(body["sha"], "abc123");
+        assert!(body.get("squash").is_none());
+    }
+
+    #[test]
+    fn test_merge_body_preserves_squash_method() {
+        let body = merge_body("squash", Some("abc123"));
+
+        assert_eq!(body["sha"], "abc123");
+        assert_eq!(body["squash"], true);
     }
 }

@@ -62,8 +62,27 @@ setup() {
   fi
 
   local result
-  result=$(gitfleet change create --repo "$TEST_REPO" "[noop] gitfleet PR lifecycle test" --body "Created by the PR playbook." --base "$BASE_BRANCH" --head "$HEAD_BRANCH" --draft --json 2>&1) || true
+  result=$(gitfleet change create --repo "$TEST_REPO" "[noop] gitfleet PR lifecycle test" --body "Created by the PR playbook." --base "$BASE_BRANCH" --head "$HEAD_BRANCH" --json 2>&1) || true
   TEST_PR_NUMBER=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('number',''))" 2>/dev/null || echo "")
+}
+
+wait_for_mergeable() {
+  local status
+
+  for _ in $(seq 1 12); do
+    status=$(gitfleet change view "$TEST_PR_NUMBER" --repo "$TEST_REPO" --json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('mergeable_state') or '')" 2>/dev/null || true)
+
+    case "$status" in
+      ""|"checking"|"unchecked")
+        sleep 5
+        ;;
+      *)
+        return 0
+        ;;
+    esac
+  done
+
+  return 0
 }
 
 teardown() {
@@ -86,6 +105,7 @@ if [ -n "$TEST_PR_NUMBER" ]; then
   expect_exit_0 "pr view succeeds" gitfleet change view "$TEST_PR_NUMBER" --repo "$TEST_REPO"
 
   step "PR Merge"
+  wait_for_mergeable
   expect_exit_0 "pr merge succeeds" gitfleet change merge "$TEST_PR_NUMBER" --repo "$TEST_REPO" --method merge --yes
 else
   skip "pr view (no test PR)"
