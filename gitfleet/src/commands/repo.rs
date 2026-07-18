@@ -1,4 +1,4 @@
-use clap::Subcommand;
+use clap::{ArgGroup, Subcommand};
 use gitfleet_core::errors::{GitfleetError, UnprocessableError, UnsupportedCapabilityError};
 use gitfleet_core::provider::ProviderCapability;
 
@@ -40,10 +40,28 @@ pub enum RepoCommand {
     View { repository: Option<String> },
 
     #[command(about = "Clone a repository.")]
+    #[command(group(ArgGroup::new("clone_owner").args(["org", "user"]).multiple(false)))]
     Clone {
-        repository: String,
+        #[arg(conflicts_with = "all")]
+        repository: Option<String>,
+        #[arg(long, requires = "clone_owner")]
+        all: bool,
+        #[arg(long, requires = "all", conflicts_with = "user")]
+        org: Option<String>,
+        #[arg(long, requires = "all", conflicts_with = "org")]
+        user: Option<String>,
+        #[arg(long)]
+        directory: Option<String>,
         #[arg(long)]
         depth: Option<u32>,
+        #[arg(long)]
+        ssh: bool,
+        #[arg(long, default_value = "4")]
+        concurrency: usize,
+        #[arg(long, requires = "all")]
+        include_forks: bool,
+        #[arg(long, requires = "all")]
+        include_archived: bool,
     },
 
     #[command(about = "Delete a repository.")]
@@ -161,19 +179,33 @@ pub async fn run(cmd: RepoCommand, app: &App) -> Result<(), GitfleetError> {
             service::repos::view(p, app.renderer(), repo).await
         }
 
-        RepoCommand::Clone { repository, depth } => {
-            let url = format!("https://{}/{repository}", app.provider_host());
-            let depth_display = match depth {
-                Some(d) => format!("depth: {d}"),
-                None => "full depth".to_string(),
+        RepoCommand::Clone {
+            repository,
+            all,
+            org,
+            user,
+            directory,
+            depth,
+            ssh,
+            concurrency,
+            include_forks,
+            include_archived,
+        } => {
+            let options = service::repos::CloneOptions {
+                repository: repository.as_deref(),
+                all,
+                org: org.as_deref(),
+                user: user.as_deref(),
+                directory: directory.as_deref(),
+                depth,
+                ssh,
+                concurrency,
+                include_forks,
+                include_archived,
+                dry_run: app.dry_run(),
             };
 
-            gitfleet_core::git::clone_repository(&url, depth, None, None)?;
-
-            app.renderer()
-                .render_success_box("Cloned", &format!("{repository} ({depth_display})"));
-
-            Ok(())
+            service::repos::clone(p, app.renderer(), app.provider_host(), options).await
         }
 
         RepoCommand::Delete { repository, yes } => {
@@ -444,6 +476,76 @@ mod tests {
         let app = test_helpers::make_app();
 
         let result = run(RepoCommand::View { repository: None }, &app).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_repo_clone_all_org_dry_run() {
+        let app = test_helpers::make_app_dry_run();
+
+        run(
+            RepoCommand::Clone {
+                repository: None,
+                all: true,
+                org: Some("org".into()),
+                user: None,
+                directory: None,
+                depth: Some(1),
+                ssh: false,
+                concurrency: 4,
+                include_forks: false,
+                include_archived: false,
+            },
+            &app,
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_repo_clone_all_user_dry_run() {
+        let app = test_helpers::make_app_dry_run();
+
+        run(
+            RepoCommand::Clone {
+                repository: None,
+                all: true,
+                org: None,
+                user: Some("user".into()),
+                directory: None,
+                depth: None,
+                ssh: true,
+                concurrency: 2,
+                include_forks: true,
+                include_archived: true,
+            },
+            &app,
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_repo_clone_rejects_missing_repository_without_all() {
+        let app = test_helpers::make_app();
+
+        let result = run(
+            RepoCommand::Clone {
+                repository: None,
+                all: false,
+                org: None,
+                user: None,
+                directory: None,
+                depth: None,
+                ssh: false,
+                concurrency: 4,
+                include_forks: false,
+                include_archived: false,
+            },
+            &app,
+        )
+        .await;
 
         assert!(result.is_err());
     }

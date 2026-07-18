@@ -21,6 +21,9 @@ expect_exit_0 "repo view succeeds" gitfleet repo view "$GITFLEET_PLAYBOOK_REPO"
 step "Repo List"
 expect_exit_0 "repo list succeeds" gitfleet repo list --owner "$GITFLEET_PLAYBOOK_ORG" --owner-type org
 
+step "Repo Bulk Clone Dry Run"
+expect_exit_0 "repo clone all org dry-run succeeds" gitfleet repo clone --all --org "$GITFLEET_PLAYBOOK_ORG" --directory "$GITFLEET_PLAYBOOK_TMPDIR/repo-clone-$GITFLEET_PLAYBOOK_RESOURCE_SUFFIX" --dry-run
+
 step "Fork List"
 expect_exit_0 "repo fork list succeeds" gitfleet repo fork list --repo "$GITFLEET_PLAYBOOK_REPO"
 

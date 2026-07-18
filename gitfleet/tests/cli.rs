@@ -241,6 +241,48 @@ fn test_repo_create_help() {
 }
 
 #[test]
+fn test_repo_clone_help() {
+    Command::cargo_bin("gitfleet")
+        .unwrap()
+        .arg("repo")
+        .arg("clone")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--all"))
+        .stdout(predicate::str::contains("--org"))
+        .stdout(predicate::str::contains("--user"))
+        .stdout(predicate::str::contains("--ssh"));
+}
+
+#[test]
+fn test_repo_clone_rejects_repository_with_all() {
+    Command::cargo_bin("gitfleet")
+        .unwrap()
+        .args(["repo", "clone", "owner/repo", "--all", "--org", "owner"])
+        .assert()
+        .failure();
+}
+
+#[test]
+fn test_repo_clone_all_requires_owner_scope() {
+    Command::cargo_bin("gitfleet")
+        .unwrap()
+        .args(["repo", "clone", "--all"])
+        .assert()
+        .failure();
+}
+
+#[test]
+fn test_repo_clone_all_rejects_org_and_user() {
+    Command::cargo_bin("gitfleet")
+        .unwrap()
+        .args(["repo", "clone", "--all", "--org", "org", "--user", "user"])
+        .assert()
+        .failure();
+}
+
+#[test]
 fn test_pipeline_help() {
     Command::cargo_bin("gitfleet")
         .unwrap()

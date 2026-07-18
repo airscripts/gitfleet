@@ -10,6 +10,7 @@ directory unless the script is intentionally repository-local.
 ```bash
 GITFLEET_GITHUB_TOKEN=github_pat_... gitfleet repo list --json
 GITFLEET_PROFILE=work gitfleet issue list --repo owner/repository --json
+gitfleet repo clone --all --org platform --directory repos --dry-run --json
 gitfleet repo delete owner/old-repository --json --yes
 ```
 
@@ -19,6 +20,12 @@ Use `--dry-run` before supported bulk mutations:
 
 ```bash
 gitfleet workspace archive platform --dry-run --json
+```
+
+Use `--dry-run` before bulk local operations too:
+
+```bash
+gitfleet repo clone --all --user alice --directory user-repos --dry-run --json
 ```
 
 Parse stdout for JSON results and leave stderr for progress or debug logs. If a

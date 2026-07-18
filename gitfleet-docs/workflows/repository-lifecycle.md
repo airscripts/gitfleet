@@ -15,6 +15,18 @@ gitfleet repo clone platform/service-api
 gitfleet repo edit platform/service-api --description "Service API"
 ```
 
+Clone a whole owner set when setting up a local working copy for an organization
+or user:
+
+```bash
+gitfleet repo clone --all --org platform --directory repos --dry-run
+gitfleet repo clone --all --org platform --directory repos
+gitfleet repo clone --all --user alice --directory user-repos --ssh
+```
+
+Bulk clone skips forks and archived repositories by default. Add
+`--include-forks` or `--include-archived` when you need a complete mirror.
+
 Fork and star workflows stay under `repo`:
 
 ```bash
@@ -31,5 +43,5 @@ gitfleet repo delete owner/repository --yes
 ```
 
 Creation, edit, archive, rename, fork, star, and delete commands all change
-provider state. Use `repo list` and `repo view` first when reviewing a
-repository before mutation.
+provider state. Clone commands only write local directories, but a bulk clone
+can create many folders and should be previewed with `--dry-run`.
