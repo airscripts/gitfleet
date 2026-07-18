@@ -8,7 +8,7 @@ management. GitHub and GitLab are built-in providers.
 `PLAN.md` and `ROADMAP.md` are reserved for implementation planning and
 deferred milestones.
 
-## Crates
+## Crates And Supporting Directories
 
 - `gitfleet-core` contains provider-neutral entities, identifiers, capabilities,
   errors, operations, and all infrastructure (config, git, output, prompts,
@@ -17,7 +17,8 @@ deferred milestones.
   normalization, and capability implementations for GitHub and GitLab. This is
   the only crate that calls reqwest.
 - `gitfleet` is the product CLI crate and a thin surface over shared operations.
-- `gitfleet-playbooks` contains live API test scripts (bash, not Rust).
+- `gitfleet-playbooks` is not a Rust crate. It contains live API test scripts
+  (Bash, not Cargo).
 
 ## Boundaries
 
@@ -43,6 +44,10 @@ deferred milestones.
 - Bulk mutations provide `--dry-run` behavior when a preview is meaningful.
 - CLI command labels use provider-neutral terminology from the
   operation registry.
+- Product and command behavior changes must update `gitfleet-docs/` in the same
+  workflow. New or changed command families update the relevant command page,
+  workflow docs when user behavior changes, provider notes when capability
+  support changes, and README links when navigation changes.
 - No legacy aliases. Canonical names only.
 - Configuration lives under `~/.config/gitfleet/`; environment variables use
   the `GITFLEET_` prefix. Config format is TOML.
