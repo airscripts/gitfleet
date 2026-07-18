@@ -3,6 +3,33 @@
 All notable Gitfleet changes are documented here using Keep a Changelog and
 Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+- Added a `gitfleet-docs/` documentation set with command, workflow,
+  provider, configuration, testing, release, and troubleshooting pages so users
+  can understand each command family by purpose, timing, examples, provider
+  behavior, safety notes, and automation usage.
+- Added bulk repository cloning with `gitfleet repo clone --all`, scoped by
+  exactly one of `--org` or `--user`, including dry-run reports, JSON output,
+  HTTPS or SSH clone URLs, depth control, configurable concurrency, existing
+  directory skips, and per-repository failure reporting.
+- Added bulk clone filters for forks and archived repositories through
+  `--include-forks` and `--include-archived`; both are excluded by default for
+  safer fleet bootstrapping.
+- Added unit, CLI integration, snapshot-help, and live-playbook coverage for
+  bulk repository clone behavior.
+
+### Changed
+
+- Expanded repository documentation and workflow guides with more descriptive
+  product and usage context for single clone, bulk clone, dry-run, and JSON
+  automation scenarios.
+- Updated maintainer guidance to keep `gitfleet-docs/` synchronized with
+  command, flag, output, safety, provider-support, and workflow changes.
+- Refreshed README repository metrics for the current source and test suite.
+
 ## [0.1.0] - 2026-07-17
 
 ### Added
