@@ -25,14 +25,14 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         name: Download Release Notes
 
         with:
           name: gitfleet-release-notes-${{ inputs.version }}
           path: release
 
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         name: Download Release Assets
 
         with:
