@@ -72,6 +72,7 @@ gitfleet help pipeline list-runs
 ## Documentation
 
 The full Markdown documentation lives in [gitfleet-docs/](./gitfleet-docs/).
+The static homepage source lives in [gitfleet-site/](./gitfleet-site/).
 
 - [Concepts](./gitfleet-docs/concepts.md)
 - [Providers](./gitfleet-docs/providers.md)
@@ -105,6 +106,18 @@ CARGO_BUILD_JOBS=4 cargo build --release
 
 Coverage must remain at or above 80 percent. See [AGENTS.md](./AGENTS.md) for
 crate boundaries, coding style, testing rules, playbooks, and release rules.
+
+The static homepage has its own Node-based quality gate and is intentionally
+kept separate from Rust CLI LOC, test, and coverage metrics:
+
+```bash
+cd gitfleet-site
+pnpm verify
+```
+
+The site gate uses Prettier for formatting, ESLint plus `astro check` for
+linting/type diagnostics, Vitest for unit and build-output integration tests,
+and Astro's static build.
 
 ## Security
 

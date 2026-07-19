@@ -1,0 +1,38 @@
+---
+import { BookOpen, Download, ExternalLink } from "@lucide/astro";
+
+import { docsTreeUrl, releaseUrl, repoUrl } from "../data/site";
+---
+
+<header class="flex flex-col gap-4 pb-4 sm:flex-row sm:items-center sm:justify-between">
+  <a href="/" class="flex items-center gap-3 no-underline" aria-label="Gitfleet home">
+    <div>
+      <p class="text-base font-semibold tracking-normal text-ink">Gitfleet</p>
+      <p class="text-sm text-muted">Command Every Repository As One Fleet</p>
+    </div>
+  </a>
+
+  <nav class="flex flex-wrap gap-2 text-sm" aria-label="Primary links">
+    <a
+      class="inline-flex items-center gap-2 rounded-md border border-line bg-surface px-3 py-2 font-medium text-ink no-underline transition hover:border-fleet hover:text-fleet"
+      href={docsTreeUrl}
+    >
+      <BookOpen class="h-4 w-4" aria-hidden="true" />
+      Docs
+    </a>
+    <a
+      class="inline-flex items-center gap-2 rounded-md border border-line bg-surface px-3 py-2 font-medium text-ink no-underline transition hover:border-fleet hover:text-fleet"
+      href={repoUrl}
+    >
+      <ExternalLink class="h-4 w-4" aria-hidden="true" />
+      GitHub
+    </a>
+    <a
+      class="inline-flex items-center gap-2 rounded-md bg-ink px-3 py-2 font-medium text-canvas no-underline transition hover:bg-fleet hover:text-surface"
+      href={releaseUrl}
+    >
+      <Download class="h-4 w-4" aria-hidden="true" />
+      Releases
+    </a>
+  </nav>
+</header>

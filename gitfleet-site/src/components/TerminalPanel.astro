@@ -1,0 +1,32 @@
+---
+import { terminalTips } from "../data/site";
+---
+
+<aside class="site-reveal [animation-delay:120ms]">
+  <div
+    class="terminal-panel overflow-hidden rounded-lg border border-line bg-canvas text-sm leading-7 text-ink sm:text-base"
+  >
+    <div class="flex items-center gap-2 border-b border-line px-5 py-3 sm:px-7">
+      <span class="h-2.5 w-2.5 rounded-full border border-line" aria-hidden="true"></span>
+      <span class="h-2.5 w-2.5 rounded-full border border-line" aria-hidden="true"></span>
+      <span class="h-2.5 w-2.5 rounded-full border border-line" aria-hidden="true"></span>
+    </div>
+
+    <div class="p-5 sm:p-7">
+      <p>
+        <span class="text-muted">airscript@gitfleet:~$ </span>
+        <span>gf discover</span>
+      </p>
+      <p class="mt-5 min-h-20 text-ink" aria-live="polite">
+        <span data-terminal-tip></span><span class="terminal-cursor" aria-hidden="true"></span>
+      </p>
+    </div>
+  </div>
+</aside>
+
+<script
+  id="terminal-tips"
+  type="application/json"
+  is:inline
+  set:html={JSON.stringify(terminalTips)}
+/>

@@ -1,0 +1,49 @@
+---
+import { Moon, Sun } from "@lucide/astro";
+
+import { repoUrl } from "../data/site";
+---
+
+<footer
+  class="site-reveal flex flex-col gap-3 pt-4 text-sm text-muted sm:flex-row sm:items-center sm:justify-between [animation-delay:160ms]"
+>
+  <p>
+    MIT Licensed. Maintained by
+    {" "}
+    <a
+      class="font-medium text-muted underline transition hover:text-fleet"
+      href="https://github.com/airscripts"
+    >
+      Airscripts
+    </a>.
+  </p>
+  <div class="flex flex-wrap gap-3">
+    <a
+      class="font-medium text-muted underline transition hover:text-fleet"
+      href={`${repoUrl}/blob/main/CONTRIBUTING.md`}
+    >
+      Contributing
+    </a>
+    <a
+      class="font-medium text-muted underline transition hover:text-fleet"
+      href={`${repoUrl}/blob/main/SECURITY.md`}
+    >
+      Security
+    </a>
+    <a
+      class="font-medium text-muted underline transition hover:text-fleet"
+      href="https://github.com/sponsors/airscripts"
+    >
+      Sponsor
+    </a>
+    <button
+      class="theme-toggle inline-flex items-center justify-center bg-transparent p-0 text-muted transition hover:text-fleet"
+      type="button"
+      data-theme-toggle
+      aria-label="Switch color theme"
+    >
+      <Sun class="theme-icon-sun h-4 w-4" aria-hidden="true" />
+      <Moon class="theme-icon-moon h-4 w-4" aria-hidden="true" />
+    </button>
+  </div>
+</footer>

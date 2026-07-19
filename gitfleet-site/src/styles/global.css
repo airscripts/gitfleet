@@ -1,0 +1,169 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: Inter, ui-monospace, "SFMono-Regular", "Liberation Mono", monospace;
+  --color-canvas: var(--site-canvas);
+  --color-surface: var(--site-surface);
+  --color-panel: var(--site-panel);
+  --color-ink: var(--site-ink);
+  --color-muted: var(--site-muted);
+  --color-line: var(--site-line);
+  --color-fleet: var(--site-fleet);
+  --color-signal: var(--site-signal);
+  --color-code: var(--site-code);
+  --color-code-line: var(--site-code-line);
+}
+
+:root {
+  color-scheme: light;
+  --site-canvas: #ffffff;
+  --site-surface: #ffffff;
+  --site-panel: #ffffff;
+  --site-ink: #000000;
+  --site-muted: #000000;
+  --site-line: #000000;
+  --site-fleet: #000000;
+  --site-signal: #000000;
+  --site-code: #000000;
+  --site-code-line: #ffffff;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --site-canvas: #000000;
+  --site-surface: #000000;
+  --site-panel: #000000;
+  --site-ink: #ffffff;
+  --site-muted: #ffffff;
+  --site-line: #ffffff;
+  --site-fleet: #ffffff;
+  --site-signal: #ffffff;
+  --site-code: #ffffff;
+  --site-code-line: #000000;
+}
+
+html {
+  background: var(--site-canvas);
+  color: var(--color-ink);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  text-rendering: optimizeLegibility;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+a {
+  text-underline-offset: 4px;
+}
+
+.theme-icon-sun {
+  display: none;
+}
+
+[data-theme="dark"] .theme-icon-moon {
+  display: none;
+}
+
+[data-theme="dark"] .theme-icon-sun {
+  display: block;
+}
+
+.site-reveal {
+  animation: site-reveal 760ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.ascii-title {
+  display: block;
+  font-size: clamp(0.38rem, 1.22vw, 0.84rem);
+}
+
+.terminal-cursor {
+  display: inline-block;
+  width: 0;
+  height: 1.1em;
+  margin-left: 0.25ch;
+  border-left: 2px solid var(--site-signal);
+  vertical-align: -0.18em;
+  background: transparent;
+  animation: terminal-cursor 1s steps(2, start) infinite;
+}
+
+.terminal-panel {
+  min-height: clamp(12.75rem, 27vw, 18.75rem);
+  transition:
+    background-color 220ms ease,
+    border-color 220ms ease,
+    color 220ms ease;
+}
+
+.theme-toggle {
+  touch-action: manipulation;
+}
+
+a,
+button {
+  transition:
+    border-color 220ms ease,
+    background-color 220ms ease,
+    color 220ms ease,
+    transform 220ms ease;
+}
+
+a:hover,
+button:hover {
+  transform: translateY(-1px);
+}
+
+@keyframes site-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes terminal-cursor {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-reveal {
+    animation: none;
+  }
+
+  .terminal-cursor {
+    animation: none;
+  }
+
+  a,
+  button {
+    transition: none;
+  }
+
+  a:hover,
+  button:hover {
+    transform: none;
+  }
+}
+
+::selection {
+  background: var(--site-ink);
+  color: var(--site-canvas);
+}
+
+[data-theme="dark"] ::selection {
+  background: var(--site-ink);
+  color: var(--site-canvas);
+}

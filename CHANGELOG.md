@@ -22,6 +22,15 @@ Semantic Versioning.
   bulk repository clone behavior.
 - Added explicit `--page` support to paginated list and search commands so
   users can request a concrete 1-based provider page alongside `--limit`.
+- Added `gitfleet-site/`, a static Astro homepage with light and dark themes
+  for discovering Gitfleet, downloading releases, starring the project, and
+  reaching the GitHub-hosted docs.
+- Added Gitfleet site jobs to the existing verify, build, and test workflows
+  with pnpm install, Prettier format checks, ESLint source linting, Astro
+  lint/type checks, Vitest unit tests, static build, and build-output
+  integration tests.
+- Added typed site content fixtures and tests for homepage links, terminal tips,
+  metadata, footer theme toggle placement, and static output behavior.
 
 ### Changed
 
@@ -38,6 +47,14 @@ Semantic Versioning.
   credential.
 - Reduced bulk operation memory use by sharing the prepared work list across
   concurrent workers instead of cloning it once per worker.
+- Finalized the Gitfleet homepage visual system around a monochrome Inter-based
+  layout, CLI ASCII banner hero, animated terminal panel, footer theme toggle,
+  and icon-supported navigation and calls to action.
+- Structured the Astro homepage with dedicated layout, component, data, and
+  browser-script modules so the site can scale beyond a single page without
+  concentrating markup, content, and behavior in one file.
+- Updated Gitfleet site CI jobs to run on Node.js 24 with Node 24-compatible
+  `actions/setup-node@v7` and `pnpm/action-setup@v6` actions.
 
 ## [0.1.0] - 2026-07-17
 

@@ -1,0 +1,36 @@
+---
+import { Download, Star } from "@lucide/astro";
+
+import { banner, releaseUrl, repoUrl } from "../data/site";
+---
+
+<section class="site-reveal flex max-w-3xl flex-col justify-center">
+  <h1 class="sr-only">Gitfleet</h1>
+
+  <pre
+    class="ascii-title max-w-full overflow-hidden whitespace-pre font-mono font-semibold leading-none text-ink"
+    aria-hidden="true">{banner}</pre>
+
+  <p class="mt-5 max-w-2xl text-base leading-7 text-muted sm:text-lg sm:leading-8">
+    Command every repository as one fleet with a provider-neutral CLI for GitHub and GitLab. Use the
+    same vocabulary for discovery, cloning, authentication, automation, and day-to-day repository
+    work.
+  </p>
+
+  <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+    <a
+      class="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-ink bg-ink px-5 py-3 text-sm font-semibold text-canvas no-underline transition hover:bg-canvas hover:text-ink"
+      href={releaseUrl}
+    >
+      <Download class="h-4 w-4" aria-hidden="true" />
+      Download Releases
+    </a>
+    <a
+      class="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-line bg-surface px-5 py-3 text-sm font-semibold text-ink no-underline transition hover:border-fleet hover:text-fleet"
+      href={repoUrl}
+    >
+      <Star class="h-4 w-4" aria-hidden="true" />
+      Star On GitHub
+    </a>
+  </div>
+</section>

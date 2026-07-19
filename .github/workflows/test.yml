@@ -66,3 +66,46 @@ jobs:
         with:
           name: gitfleet-coverage-${{ github.run_id }}
           path: target/llvm-cov/
+
+  site:
+    name: Site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: gitfleet-site
+
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout Code
+
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: pnpm/action-setup@v6
+        name: Install pnpm
+
+        with:
+          package_json_file: gitfleet-site/package.json
+          run_install: false
+
+      - uses: actions/setup-node@v7
+        name: Install Node.js
+
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: gitfleet-site/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+        name: Install Dependencies
+
+      - run: pnpm build
+        name: Build Static Site Fixture
+
+        env:
+          ASTRO_TELEMETRY_DISABLED: "1"
+
+      - run: pnpm test:integration
+        name: Run Integration Tests
