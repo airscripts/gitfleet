@@ -18,7 +18,7 @@ pub async fn run_bulk<T, F, Fut>(
     concurrency: usize,
 ) -> Vec<BulkItemResult<T>>
 where
-    T: Clone + Send + 'static,
+    T: Clone + Send + Sync + 'static,
     F: Fn(T, usize) -> Fut + Send + Sync + 'static,
     Fut: Future<Output = Result<(), String>> + Send,
 {
@@ -33,7 +33,7 @@ pub async fn run_bulk_with_cancel<T, F, Fut>(
     cancel_on_error: bool,
 ) -> Vec<BulkItemResult<T>>
 where
-    T: Clone + Send + 'static,
+    T: Clone + Send + Sync + 'static,
     F: Fn(T, usize) -> Fut + Send + Sync + 'static,
     Fut: Future<Output = Result<(), String>> + Send,
 {
@@ -45,6 +45,7 @@ where
 
     let next_index = Arc::new(std::sync::atomic::AtomicUsize::new(0));
 
+    let items_vec = Arc::new(items.to_vec());
     let worker = Arc::new(worker);
     let cancelled = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
@@ -54,7 +55,7 @@ where
         let results = results.clone();
 
         let next_index = next_index.clone();
-        let items_vec = items.to_vec();
+        let items_vec = items_vec.clone();
 
         let worker = worker.clone();
         let cancel = cancel.clone();

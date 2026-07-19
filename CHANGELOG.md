@@ -36,6 +36,8 @@ Semantic Versioning.
 - Expanded `auth status` so it reports the active profile, token source,
   whether a token is configured, and live validation details for the active
   credential.
+- Reduced bulk operation memory use by sharing the prepared work list across
+  concurrent workers instead of cloning it once per worker.
 
 ## [0.1.0] - 2026-07-17
 
