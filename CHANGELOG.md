@@ -20,6 +20,8 @@ Semantic Versioning.
   safer fleet bootstrapping.
 - Added unit, CLI integration, snapshot-help, and live-playbook coverage for
   bulk repository clone behavior.
+- Added explicit `--page` support to paginated list and search commands so
+  users can request a concrete 1-based provider page alongside `--limit`.
 
 ### Changed
 
@@ -29,6 +31,11 @@ Semantic Versioning.
 - Updated maintainer guidance to keep `gitfleet-docs/` synchronized with
   command, flag, output, safety, provider-support, and workflow changes.
 - Refreshed README repository metrics for the current source and test suite.
+- Changed `auth login` to validate tokens with the selected provider before
+  saving them, and changed the password prompt to show masked input feedback.
+- Expanded `auth status` so it reports the active profile, token source,
+  whether a token is configured, and live validation details for the active
+  credential.
 
 ## [0.1.0] - 2026-07-17
 

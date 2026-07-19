@@ -23,6 +23,8 @@ pub enum IssueCommand {
         state: String,
         #[arg(long, default_value = "10")]
         limit: u32,
+        #[arg(long)]
+        page: Option<u32>,
     },
 
     #[command(about = "View an issue.")]
@@ -52,10 +54,16 @@ pub async fn run(cmd: IssueCommand, app: &App) -> Result<(), GitfleetError> {
             .await
         }
 
-        IssueCommand::List { repo, state, limit } => {
+        IssueCommand::List {
+            repo,
+            state,
+            limit,
+            page,
+        } => {
+            crate::commands::validate_page(page)?;
             let repo_str = crate::repo_util::resolve_repo(&repo)?;
 
-            service::issues::list(p, app.renderer(), &repo_str, &state, limit).await
+            service::issues::list(p, app.renderer(), &repo_str, &state, limit, page).await
         }
 
         IssueCommand::View { number, repo } => {
@@ -145,6 +153,7 @@ mod tests {
                 repo: Some("org/repo".into()),
                 state: "open".into(),
                 limit: 10,
+                page: None,
             },
             &app,
         )
@@ -161,6 +170,7 @@ mod tests {
                 repo: Some("org/repo".into()),
                 state: "closed".into(),
                 limit: 5,
+                page: None,
             },
             &app,
         )
@@ -177,6 +187,7 @@ mod tests {
                 repo: Some("org/repo".into()),
                 state: "open".into(),
                 limit: 10,
+                page: None,
             },
             &app,
         )
@@ -193,6 +204,7 @@ mod tests {
                 repo: Some("org/repo".into()),
                 state: "open".into(),
                 limit: 10,
+                page: None,
             },
             &app,
         )

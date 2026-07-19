@@ -13,10 +13,12 @@ impl ReleasesApi {
         client: &ProviderClient,
         project: &str,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<serde_json::Value, GitfleetError> {
         let encoded = encode_path(project);
 
-        let endpoint = format!("/projects/{encoded}/releases?per_page={limit}");
+        let page = page.unwrap_or(1);
+        let endpoint = format!("/projects/{encoded}/releases?per_page={limit}&page={page}");
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)

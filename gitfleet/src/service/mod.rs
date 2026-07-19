@@ -239,6 +239,7 @@ mod tests {
             _repo: &str,
             _state: &str,
             _limit: u32,
+            _page: Option<u32>,
             _base: Option<&str>,
             _head: Option<&str>,
         ) -> Result<Vec<PullRequest>, GitfleetError> {
@@ -453,6 +454,7 @@ mod tests {
             _repo: &str,
             _state: &str,
             _limit: u32,
+            _page: Option<u32>,
             _labels: &[String],
             _assignees: &[String],
         ) -> Result<serde_json::Value, GitfleetError> {
@@ -574,6 +576,7 @@ mod tests {
             _repo: &str,
             _filters: &str,
             _limit: u32,
+            _page: Option<u32>,
         ) -> Result<serde_json::Value, GitfleetError> {
             Ok(
                 serde_json::json!({"workflow_runs": [{"id": 1, "name": "build", "status": "completed", "conclusion": "success", "head_branch": "main"}]}),
@@ -609,6 +612,7 @@ mod tests {
             &self,
             _repo: &str,
             _limit: u32,
+            _page: Option<u32>,
         ) -> Result<serde_json::Value, GitfleetError> {
             Ok(
                 serde_json::json!([{"tag_name": "v1.0", "name": "Release 1.0", "draft": false, "prerelease": false, "published_at": "2025-01-01"}]),
@@ -762,6 +766,7 @@ mod tests {
             _sort: Option<&str>,
             _order: Option<&str>,
             _limit: u32,
+            _page: Option<u32>,
         ) -> Result<SearchResult<serde_json::Value>, GitfleetError> {
             Ok(SearchResult {
                 items: vec![
@@ -778,6 +783,7 @@ mod tests {
             _sort: Option<&str>,
             _order: Option<&str>,
             _limit: u32,
+            _page: Option<u32>,
         ) -> Result<SearchResult<serde_json::Value>, GitfleetError> {
             Ok(SearchResult {
                 items: vec![
@@ -792,6 +798,7 @@ mod tests {
             &self,
             _query: &str,
             _limit: u32,
+            _page: Option<u32>,
         ) -> Result<SearchResult<serde_json::Value>, GitfleetError> {
             Ok(SearchResult {
                 items: vec![serde_json::json!({"file": "main.rs", "repo": "org/repo"})],
@@ -850,6 +857,7 @@ mod tests {
             _repo: &str,
             _environment: Option<&str>,
             _limit: u32,
+            _page: Option<u32>,
         ) -> Result<Vec<DeploymentSummary>, GitfleetError> {
             Ok(vec![DeploymentSummary {
                 id: 1,
@@ -1025,6 +1033,7 @@ mod tests {
             _name: &str,
             _category_id: Option<&str>,
             _limit: u32,
+            _page: Option<u32>,
         ) -> Result<Vec<Discussion>, GitfleetError> {
             Ok(vec![Discussion {
                 id: "1".into(),
@@ -1244,9 +1253,20 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Silent);
-        changes::list(&p, &r, "org/repo", "open", 10, None, None)
-            .await
-            .unwrap();
+        changes::list(
+            &p,
+            &r,
+            "org/repo",
+            changes::ListOptions {
+                state: "open",
+                limit: 10,
+                page: None,
+                base: None,
+                head: None,
+            },
+        )
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
@@ -1254,9 +1274,20 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Human);
-        changes::list(&p, &r, "org/repo", "open", 10, None, None)
-            .await
-            .unwrap();
+        changes::list(
+            &p,
+            &r,
+            "org/repo",
+            changes::ListOptions {
+                state: "open",
+                limit: 10,
+                page: None,
+                base: None,
+                head: None,
+            },
+        )
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
@@ -1324,7 +1355,9 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Silent);
-        issues::list(&p, &r, "org/repo", "open", 10).await.unwrap();
+        issues::list(&p, &r, "org/repo", "open", 10, None)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -1332,7 +1365,9 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Human);
-        issues::list(&p, &r, "org/repo", "open", 10).await.unwrap();
+        issues::list(&p, &r, "org/repo", "open", 10, None)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -1448,7 +1483,7 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Silent);
-        pipelines::list_runs(&p, &r, "org/repo", "status=completed", 10)
+        pipelines::list_runs(&p, &r, "org/repo", "status=completed", 10, None)
             .await
             .unwrap();
     }
@@ -1458,7 +1493,7 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Human);
-        pipelines::list_runs(&p, &r, "org/repo", "status=completed", 10)
+        pipelines::list_runs(&p, &r, "org/repo", "status=completed", 10, None)
             .await
             .unwrap();
     }
@@ -1502,7 +1537,7 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Silent);
-        releases::list(&p, &r, "org/repo", 10).await.unwrap();
+        releases::list(&p, &r, "org/repo", 10, None).await.unwrap();
     }
 
     #[tokio::test]
@@ -1510,7 +1545,7 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Human);
-        releases::list(&p, &r, "org/repo", 10).await.unwrap();
+        releases::list(&p, &r, "org/repo", 10, None).await.unwrap();
     }
 
     #[tokio::test]
@@ -1630,7 +1665,7 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Silent);
-        search::search_issues(&p, &r, "bug", None, None, 10)
+        search::search_issues(&p, &r, "bug", None, None, 10, None)
             .await
             .unwrap();
     }
@@ -1640,7 +1675,7 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Human);
-        search::search_issues(&p, &r, "bug", None, None, 10)
+        search::search_issues(&p, &r, "bug", None, None, 10, None)
             .await
             .unwrap();
     }
@@ -1650,7 +1685,7 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Silent);
-        search::search_repos(&p, &r, "rust", None, None, 10)
+        search::search_repos(&p, &r, "rust", None, None, 10, None)
             .await
             .unwrap();
     }
@@ -1660,7 +1695,7 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Human);
-        search::search_repos(&p, &r, "rust", None, None, 10)
+        search::search_repos(&p, &r, "rust", None, None, 10, None)
             .await
             .unwrap();
     }
@@ -1670,7 +1705,9 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Silent);
-        search::search_code(&p, &r, "fn main", 10).await.unwrap();
+        search::search_code(&p, &r, "fn main", 10, None)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -1678,7 +1715,9 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Human);
-        search::search_code(&p, &r, "fn main", 10).await.unwrap();
+        search::search_code(&p, &r, "fn main", 10, None)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -1722,7 +1761,7 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Silent);
-        deployments::list(&p, &r, "org/repo", None, 10)
+        deployments::list(&p, &r, "org/repo", None, 10, None)
             .await
             .unwrap();
     }
@@ -1732,7 +1771,7 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Human);
-        deployments::list(&p, &r, "org/repo", None, 10)
+        deployments::list(&p, &r, "org/repo", None, 10, None)
             .await
             .unwrap();
     }
@@ -1910,7 +1949,7 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Silent);
-        discussions::list(&p, &r, "org", "repo", None, 10)
+        discussions::list(&p, &r, "org", "repo", None, 10, None)
             .await
             .unwrap();
     }
@@ -1920,7 +1959,7 @@ mod tests {
         let p = mock_provider();
 
         let r = Renderer::new(OutputMode::Human);
-        discussions::list(&p, &r, "org", "repo", None, 10)
+        discussions::list(&p, &r, "org", "repo", None, 10, None)
             .await
             .unwrap();
     }
@@ -2036,7 +2075,19 @@ mod tests {
         let p = NoCapProvider;
         let r = Renderer::new(OutputMode::Silent);
 
-        let result = changes::list(&p, &r, "org/repo", "open", 10, None, None).await;
+        let result = changes::list(
+            &p,
+            &r,
+            "org/repo",
+            changes::ListOptions {
+                state: "open",
+                limit: 10,
+                page: None,
+                base: None,
+                head: None,
+            },
+        )
+        .await;
 
         assert!(result.is_err());
     }
@@ -2046,7 +2097,7 @@ mod tests {
         let p = NoCapProvider;
         let r = Renderer::new(OutputMode::Silent);
 
-        let result = issues::list(&p, &r, "org/repo", "open", 10).await;
+        let result = issues::list(&p, &r, "org/repo", "open", 10, None).await;
 
         assert!(result.is_err());
     }
@@ -2086,7 +2137,7 @@ mod tests {
         let p = NoCapProvider;
         let r = Renderer::new(OutputMode::Silent);
 
-        let result = releases::list(&p, &r, "org/repo", 10).await;
+        let result = releases::list(&p, &r, "org/repo", 10, None).await;
 
         assert!(result.is_err());
     }
@@ -2116,7 +2167,7 @@ mod tests {
         let p = NoCapProvider;
         let r = Renderer::new(OutputMode::Silent);
 
-        let result = search::search_issues(&p, &r, "bug", None, None, 10).await;
+        let result = search::search_issues(&p, &r, "bug", None, None, 10, None).await;
 
         assert!(result.is_err());
     }
@@ -2136,7 +2187,7 @@ mod tests {
         let p = NoCapProvider;
         let r = Renderer::new(OutputMode::Silent);
 
-        let result = deployments::list(&p, &r, "org/repo", None, 10).await;
+        let result = deployments::list(&p, &r, "org/repo", None, 10, None).await;
 
         assert!(result.is_err());
     }
@@ -2186,7 +2237,7 @@ mod tests {
         let p = NoCapProvider;
         let r = Renderer::new(OutputMode::Silent);
 
-        let result = discussions::list(&p, &r, "org", "repo", None, 10).await;
+        let result = discussions::list(&p, &r, "org", "repo", None, 10, None).await;
 
         assert!(result.is_err());
     }

@@ -36,7 +36,7 @@ trap teardown EXIT
 setup
 
 step "Issue List"
-expect_exit_0 "issue list succeeds" gitfleet issue list --repo "$TEST_REPO" --limit 10
+expect_exit_0 "issue list succeeds" gitfleet issue list --repo "$TEST_REPO" --limit 10 --page 1
 
 if [ -n "$TEST_ISSUE_NUMBER" ]; then
   step "Issue View"

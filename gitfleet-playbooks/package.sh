@@ -14,4 +14,4 @@ else
   PACKAGE_OWNER="$GITFLEET_PLAYBOOK_OWNER"
 fi
 
-expect_exit_0 "package list succeeds" gitfleet registry list --owner "$PACKAGE_OWNER"
+expect_exit_0 "package list succeeds" gitfleet registry list --owner "$PACKAGE_OWNER" --limit 5 --page 1

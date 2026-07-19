@@ -4,11 +4,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::GitfleetError;
 use crate::types::{
-    CodeSearchResult, CodespaceSummary, DependencyReviewChange, DeploymentSummary, Discussion,
-    EnvironmentListResponse, GistSummary, GpgKeySummary, IssueTemplate, Label, LicenseDetail,
-    LicenseSummary, Notification, PackageSummary, PublicKeyResponse, PullRequest, RepoSecret,
-    RepoSummary, RepoVariable, RulesetInput, RunnerSummary, SearchResult, SecretListResponse,
-    SshKeySummary, VariableListResponse, WebhookSummary, WikiPage, WikiPageContent,
+    AuthStatus, CodeSearchResult, CodespaceSummary, DependencyReviewChange, DeploymentSummary,
+    Discussion, EnvironmentListResponse, GistSummary, GpgKeySummary, IssueTemplate, Label,
+    LicenseDetail, LicenseSummary, Notification, PackageSummary, PublicKeyResponse, PullRequest,
+    RepoSecret, RepoSummary, RepoVariable, RulesetInput, RunnerSummary, SearchResult,
+    SecretListResponse, SshKeySummary, VariableListResponse, WebhookSummary, WikiPage,
+    WikiPageContent,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -142,6 +143,11 @@ impl fmt::Display for ProviderCapability {
 }
 
 #[async_trait::async_trait]
+pub trait AuthOps: Send + Sync {
+    async fn get_authenticated_user(&self) -> Result<AuthStatus, GitfleetError>;
+}
+
+#[async_trait::async_trait]
 pub trait RepoOps: Send + Sync {
     async fn list_org_repos(&self, org: &str) -> Result<Vec<RepoSummary>, GitfleetError>;
     async fn list_user_repos(&self) -> Result<Vec<RepoSummary>, GitfleetError>;
@@ -184,6 +190,7 @@ pub trait ChangeOps: Send + Sync {
         repo: &str,
         state: &str,
         limit: u32,
+        page: Option<u32>,
         base: Option<&str>,
         head: Option<&str>,
     ) -> Result<Vec<PullRequest>, GitfleetError>;
@@ -240,6 +247,7 @@ pub trait IssueOps: Send + Sync {
         repo: &str,
         state: &str,
         limit: u32,
+        page: Option<u32>,
         labels: &[String],
         assignees: &[String],
     ) -> Result<serde_json::Value, GitfleetError>;
@@ -308,6 +316,7 @@ pub trait PipelineOps: Send + Sync {
         repo: &str,
         filters: &str,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<serde_json::Value, GitfleetError>;
     async fn get_run(&self, repo: &str, run_id: u64) -> Result<serde_json::Value, GitfleetError>;
     async fn cancel_run(&self, repo: &str, run_id: u64) -> Result<(), GitfleetError>;
@@ -321,6 +330,7 @@ pub trait ReleaseOps: Send + Sync {
         &self,
         repo: &str,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<serde_json::Value, GitfleetError>;
     async fn fetch_release_by_tag(
         &self,
@@ -371,6 +381,7 @@ pub trait PlanningOps: Send + Sync {
         &self,
         owner: &str,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<crate::types::ProjectSummary>, GitfleetError>;
     async fn get_project(&self, project_id: &str) -> Result<serde_json::Value, GitfleetError>;
     async fn create_project(
@@ -422,6 +433,7 @@ pub trait DiscussionOps: Send + Sync {
         name: &str,
         category_id: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<Discussion>, GitfleetError>;
     async fn get_discussion(
         &self,
@@ -448,6 +460,7 @@ pub trait RegistryOps: Send + Sync {
         owner: &str,
         package_type: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<PackageSummary>, GitfleetError>;
     async fn get_package(
         &self,
@@ -476,6 +489,7 @@ pub trait DeployOps: Send + Sync {
         repo: &str,
         environment: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<DeploymentSummary>, GitfleetError>;
     async fn create_deployment(
         &self,
@@ -651,6 +665,7 @@ pub trait SearchOps: Send + Sync {
         sort: Option<&str>,
         order: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<SearchResult<serde_json::Value>, GitfleetError>;
     async fn search_repos(
         &self,
@@ -658,11 +673,13 @@ pub trait SearchOps: Send + Sync {
         sort: Option<&str>,
         order: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<SearchResult<serde_json::Value>, GitfleetError>;
     async fn search_code(
         &self,
         query: &str,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<SearchResult<serde_json::Value>, GitfleetError>;
 }
 
@@ -680,6 +697,7 @@ pub trait CodeOps: Send + Sync {
         repo: Option<&str>,
         language: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<CodeSearchResult>, GitfleetError>;
 }
 
@@ -829,6 +847,10 @@ pub trait GitProvider: Send + Sync {
     fn id(&self) -> ProviderId;
     fn default_host(&self) -> &'static str;
     fn capabilities(&self) -> &[ProviderCapability];
+
+    fn auth_ops(&self) -> Option<&dyn AuthOps> {
+        None
+    }
 
     fn repo_ops(&self) -> Option<&dyn RepoOps> {
         None

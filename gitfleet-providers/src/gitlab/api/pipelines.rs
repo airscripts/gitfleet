@@ -32,10 +32,12 @@ impl PipelinesApi {
         project: &str,
         filters: &str,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<serde_json::Value, GitfleetError> {
         let encoded = encode_path(project);
 
-        let mut endpoint = format!("/projects/{encoded}/pipelines?per_page={limit}");
+        let page = page.unwrap_or(1);
+        let mut endpoint = format!("/projects/{encoded}/pipelines?per_page={limit}&page={page}");
 
         if !filters.is_empty() {
             endpoint.push('&');

@@ -1,10 +1,10 @@
 # Gitfleet
 
 [![Main](https://github.com/airscripts/gitfleet/actions/workflows/main.yml/badge.svg)](https://github.com/airscripts/gitfleet/actions/workflows/main.yml)
-[![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen)](https://github.com/airscripts/gitfleet/actions/workflows/test.yml)
+[![Coverage](https://img.shields.io/badge/coverage-90.33%25-brightgreen)](https://github.com/airscripts/gitfleet/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![LOC](https://img.shields.io/badge/loc-53419-blue)](gitfleet-scripts/loc.sh)
-[![Tests](https://img.shields.io/badge/tests-1795-blue)](gitfleet-scripts/tests.sh)
+[![LOC](https://img.shields.io/badge/loc-54148-blue)](gitfleet-scripts/loc.sh)
+[![Tests](https://img.shields.io/badge/tests-1803-blue)](gitfleet-scripts/tests.sh)
 
 Command every repository as one fleet.
 

@@ -14,15 +14,16 @@ impl PackagesApi {
         org: &str,
         package_type: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<PackageSummary>, GitfleetError> {
         if let Some(package_type) = package_type {
-            return Self::list_for_org_type(client, org, package_type, limit).await;
+            return Self::list_for_org_type(client, org, package_type, limit, page).await;
         }
 
         let mut packages = Vec::new();
 
         for package_type in PACKAGE_TYPES {
-            packages.extend(Self::list_for_org_type(client, org, package_type, limit).await?);
+            packages.extend(Self::list_for_org_type(client, org, package_type, limit, page).await?);
 
             if packages.len() >= limit as usize {
                 packages.truncate(limit as usize);
@@ -39,8 +40,13 @@ impl PackagesApi {
         org: &str,
         package_type: &str,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<PackageSummary>, GitfleetError> {
-        let mut endpoint = format!("/orgs/{}/packages?per_page={limit}", encode_segment(org));
+        let page = page.unwrap_or(1);
+        let mut endpoint = format!(
+            "/orgs/{}/packages?per_page={limit}&page={page}",
+            encode_segment(org)
+        );
         endpoint.push_str(&format!("&package_type={}", encode_segment(package_type)));
 
         let response = client
@@ -101,15 +107,17 @@ impl PackagesApi {
         owner: &str,
         package_type: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<PackageSummary>, GitfleetError> {
         if let Some(package_type) = package_type {
-            return Self::list_for_user_type(client, owner, package_type, limit).await;
+            return Self::list_for_user_type(client, owner, package_type, limit, page).await;
         }
 
         let mut packages = Vec::new();
 
         for package_type in PACKAGE_TYPES {
-            packages.extend(Self::list_for_user_type(client, owner, package_type, limit).await?);
+            packages
+                .extend(Self::list_for_user_type(client, owner, package_type, limit, page).await?);
 
             if packages.len() >= limit as usize {
                 packages.truncate(limit as usize);
@@ -126,8 +134,13 @@ impl PackagesApi {
         owner: &str,
         package_type: &str,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<PackageSummary>, GitfleetError> {
-        let mut endpoint = format!("/users/{}/packages?per_page={limit}", encode_segment(owner));
+        let page = page.unwrap_or(1);
+        let mut endpoint = format!(
+            "/users/{}/packages?per_page={limit}&page={page}",
+            encode_segment(owner)
+        );
         endpoint.push_str(&format!("&package_type={}", encode_segment(package_type)));
 
         let response = client

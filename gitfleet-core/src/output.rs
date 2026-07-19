@@ -73,6 +73,14 @@ impl Renderer {
         println!("{value}");
     }
 
+    pub fn write_blank_line(&self) {
+        if !self.is_human() {
+            return;
+        }
+
+        println!();
+    }
+
     pub fn write_error(&self, message: &str, hint: Option<&str>) {
         self.write_error_with_details(message, hint, None);
     }
@@ -241,12 +249,38 @@ impl Renderer {
             return;
         }
 
+        self.render_key_values_with_indent(entries, 0);
+    }
+
+    pub fn render_indented_summary(&self, title: &str, entries: &[(&str, String)], indent: usize) {
+        self.render_section(title);
+
+        self.render_key_values_with_indent(entries, indent);
+    }
+
+    fn render_key_values_with_indent(&self, entries: &[(&str, String)], indent: usize) {
+        if !self.is_human() {
+            return;
+        }
+
         let p = &self.palette;
+        let prefix = " ".repeat(indent);
+        let label_width = entries
+            .iter()
+            .map(|(label, _)| format!("{label}:").len())
+            .max()
+            .unwrap_or(0)
+            .max(16);
 
         for (label, value) in entries {
             let rendered_label = p.muted(&format!("{label}:"));
 
-            println!("{} {}", pad_right(&rendered_label, 16), value);
+            println!(
+                "{}{} {}",
+                prefix,
+                pad_right(&rendered_label, label_width),
+                value
+            );
         }
 
         println!();
@@ -684,9 +718,28 @@ mod tests {
     }
 
     #[test]
+    fn test_render_indented_summary_human() {
+        let r = Renderer::new(OutputMode::Human).with_theme(Theme::Dark);
+        r.render_indented_summary(
+            "Repository",
+            &[
+                ("Name", "org/repo".to_string()),
+                ("Private", "false".to_string()),
+            ],
+            2,
+        );
+    }
+
+    #[test]
     fn test_render_summary_json_is_noop() {
         let r = Renderer::new(OutputMode::Json);
         r.render_summary("Repository", &[("Name", "org/repo".to_string())]);
+    }
+
+    #[test]
+    fn test_render_indented_summary_json_is_noop() {
+        let r = Renderer::new(OutputMode::Json);
+        r.render_indented_summary("Repository", &[("Name", "org/repo".to_string())], 2);
     }
 
     #[test]

@@ -1,8 +1,8 @@
 use gitfleet_core::provider::{
-    AccessOps, BrowseOps, ChangeOps, CodeOps, DeployOps, EnvironmentOps, GitProvider, IdentityOps,
-    IssueOps, LabelOps, LicenseOps, NotificationOps, PipelineOps, PlanningOps, PolicyOps,
-    ProviderCapability, ProviderId, RawApiOps, RegistryOps, ReleaseOps, RepoOps, ReviewOps,
-    RunnerOps, SearchOps, SnippetOps, TemplateOps, VariableOps, WebhookOps, WikiOps,
+    AccessOps, AuthOps, BrowseOps, ChangeOps, CodeOps, DeployOps, EnvironmentOps, GitProvider,
+    IdentityOps, IssueOps, LabelOps, LicenseOps, NotificationOps, PipelineOps, PlanningOps,
+    PolicyOps, ProviderCapability, ProviderId, RawApiOps, RegistryOps, ReleaseOps, RepoOps,
+    ReviewOps, RunnerOps, SearchOps, SnippetOps, TemplateOps, VariableOps, WebhookOps, WikiOps,
 };
 
 static CAPABILITIES: &[ProviderCapability] = &[
@@ -85,6 +85,10 @@ impl GitProvider for GitLabProvider {
 
     fn capabilities(&self) -> &[ProviderCapability] {
         CAPABILITIES
+    }
+
+    fn auth_ops(&self) -> Option<&dyn AuthOps> {
+        Some(&self.client)
     }
 
     fn repo_ops(&self) -> Option<&dyn RepoOps> {

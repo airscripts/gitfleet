@@ -18,7 +18,7 @@ if ! has_capability "discussions"; then
 fi
 
 step "Discussion List"
-if gitfleet discussion list --repo "$GITFLEET_PLAYBOOK_REPO" >/dev/null 2>&1; then
+if gitfleet discussion list --repo "$GITFLEET_PLAYBOOK_REPO" --limit 5 --page 1 >/dev/null 2>&1; then
   pass "discussion list succeeded"
 else
   skip "discussion list (discussions may not be enabled)"

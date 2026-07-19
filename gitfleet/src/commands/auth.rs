@@ -2,7 +2,9 @@ use std::path::Path;
 
 use clap::{Subcommand, ValueEnum};
 use gitfleet_core::errors::{ConfigError, GitfleetError, TokenRequiredError};
-use gitfleet_core::provider::ProviderId;
+use gitfleet_core::provider::{ProviderContext, ProviderId, TokenSource};
+use gitfleet_core::types::AuthStatus;
+use gitfleet_providers::ProviderRegistry;
 
 use crate::app::App;
 
@@ -30,6 +32,47 @@ fn normalize_setup_git_host(
     default_host: &str,
 ) -> Result<String, GitfleetError> {
     gitfleet_core::config::normalize_host(host.unwrap_or(default_host)).map_err(GitfleetError::from)
+}
+
+fn token_source_label(source: TokenSource) -> &'static str {
+    match source {
+        TokenSource::Environment => "environment",
+        TokenSource::Profile => "profile",
+        TokenSource::None => "none",
+    }
+}
+
+async fn validate_auth_context(
+    profile_name: &str,
+    provider: ProviderId,
+    host: &str,
+    token: &str,
+) -> Result<AuthStatus, GitfleetError> {
+    let context = ProviderContext {
+        profile_name: profile_name.to_string(),
+        provider,
+        host: host.to_string(),
+        token: Some(token.to_string()),
+        token_source: TokenSource::Profile,
+        capabilities: Vec::new(),
+    };
+
+    let registry = ProviderRegistry::with_context(&context);
+    let provider = registry.get(provider)?;
+    let auth = provider
+        .auth_ops()
+        .ok_or_else(|| GitfleetError::new("Provider does not support authentication status."))?;
+
+    auth.get_authenticated_user().await
+}
+
+async fn validate_active_auth(app: &App) -> Result<AuthStatus, GitfleetError> {
+    let auth = app
+        .provider()?
+        .auth_ops()
+        .ok_or_else(|| GitfleetError::new("Provider does not support authentication status."))?;
+
+    auth.get_authenticated_user().await
 }
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -111,15 +154,6 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
             provider,
             profile,
         } => {
-            let token = gitfleet_core::prompt::prompt_password("Enter provider token:")?;
-
-            if token.trim().is_empty() {
-                return Err(GitfleetError::from(TokenRequiredError::new(
-                    gitfleet_core::constants::ERROR_AUTH_NO_TOKEN,
-                    vec![],
-                )));
-            }
-
             let provider =
                 provider
                     .map(|provider| provider.id())
@@ -139,18 +173,51 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
                 ProviderId::GitLab => "gitlab",
             };
 
+            let token = gitfleet_core::prompt::prompt_password("Enter provider token:")?;
+            let token = token.trim().to_string();
+
+            if token.is_empty() {
+                return Err(GitfleetError::from(TokenRequiredError::new(
+                    gitfleet_core::constants::ERROR_AUTH_NO_TOKEN,
+                    vec![],
+                )));
+            }
+
+            let status = validate_auth_context(&profile, provider, &host, &token).await?;
+
             gitfleet_core::config::add_profile(
                 &profile,
                 gitfleet_core::types::Profile {
-                    token: Some(token.trim().to_string()),
-                    host: Some(host),
+                    token: Some(token),
+                    host: Some(host.clone()),
                     provider: Some(provider_name.to_string()),
                     extra: Default::default(),
                 },
             )?;
 
-            app.renderer()
-                .render_success_box("Logged in", "Authentication successful.");
+            if app.renderer().is_json() {
+                app.renderer().write_result(&serde_json::json!({
+                    "profile": profile,
+                    "provider": provider_name,
+                    "host": host,
+                    "saved": true,
+                    "user": status.user,
+                    "scopes": status.scopes,
+                }));
+            } else {
+                app.renderer().write_blank_line();
+                app.renderer().render_indented_summary(
+                    "Authentication Validated",
+                    &[
+                        ("Profile", profile),
+                        ("Provider", provider_name.to_string()),
+                        ("Host", host),
+                        ("User", status.user.login),
+                        ("Saved", "true".to_string()),
+                    ],
+                    2,
+                );
+            }
 
             Ok(())
         }
@@ -183,6 +250,31 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
             show_token,
             capabilities,
         } => {
+            let profiles = gitfleet_core::config::list_profiles()?;
+
+            let active_validation = if app.has_token() {
+                validate_active_auth(app).await.map(Some)
+            } else {
+                Err(GitfleetError::from(TokenRequiredError::new(
+                    gitfleet_core::constants::ERROR_AUTH_NO_TOKEN,
+                    vec![],
+                )))
+            };
+
+            let validation_ok = active_validation.is_ok();
+            let validation_error = active_validation.as_ref().err().map(ToString::to_string);
+            let authenticated_user = active_validation
+                .as_ref()
+                .ok()
+                .and_then(|status| status.as_ref())
+                .map(|status| status.user.clone());
+            let authenticated_scopes = active_validation
+                .as_ref()
+                .ok()
+                .and_then(|status| status.as_ref())
+                .map(|status| status.scopes.clone())
+                .unwrap_or_default();
+
             if capabilities {
                 let capability_names: Vec<String> =
                     app.capabilities().iter().map(ToString::to_string).collect();
@@ -191,6 +283,12 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
                     "profile": app.profile_name(),
                     "provider": app.provider_id().to_string(),
                     "host": app.provider_host(),
+                    "token_source": token_source_label(app.token_source()),
+                    "token_configured": app.has_token(),
+                    "valid": validation_ok,
+                    "user": authenticated_user,
+                    "scopes": authenticated_scopes,
+                    "error": validation_error,
                     "capabilities": capability_names,
                 });
 
@@ -215,6 +313,19 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
                             ("Profile", app.profile_name().to_string()),
                             ("Provider", app.provider_id().to_string()),
                             ("Host", app.provider_host().to_string()),
+                            (
+                                "Token Source",
+                                token_source_label(app.token_source()).to_string(),
+                            ),
+                            ("Token Configured", app.has_token().to_string()),
+                            ("Valid", validation_ok.to_string()),
+                            (
+                                "User",
+                                status["user"]["login"]
+                                    .as_str()
+                                    .unwrap_or("(not authenticated)")
+                                    .to_string(),
+                            ),
                         ],
                     );
                     app.renderer().render_table_titled(
@@ -225,13 +336,52 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
                     );
                 }
 
+                if let Err(error) = active_validation {
+                    return Err(error);
+                }
+
                 return Ok(());
             }
 
-            let profiles = gitfleet_core::config::list_profiles()?;
-
             if app.renderer().is_json() {
-                let json = serde_json::to_value(&profiles).unwrap_or_default();
+                let json_profiles: Vec<serde_json::Value> = profiles
+                    .iter()
+                    .map(|p| {
+                        let token_display = if show_token && p.has_token {
+                            let t = gitfleet_core::config::get_profile(&p.name)
+                                .ok()
+                                .flatten()
+                                .and_then(|profile| profile.token)
+                                .unwrap_or_default();
+
+                            Some(mask_token(&t))
+                        } else {
+                            None
+                        };
+
+                        serde_json::json!({
+                            "name": p.name,
+                            "active": p.active,
+                            "has_token": p.has_token,
+                            "token": token_display,
+                        })
+                    })
+                    .collect();
+
+                let json = serde_json::json!({
+                    "active": {
+                        "profile": app.profile_name(),
+                        "provider": app.provider_id().to_string(),
+                        "host": app.provider_host(),
+                        "token_source": token_source_label(app.token_source()),
+                        "token_configured": app.has_token(),
+                        "valid": validation_ok,
+                        "user": authenticated_user,
+                        "scopes": authenticated_scopes,
+                        "error": validation_error,
+                    },
+                    "profiles": json_profiles,
+                });
 
                 app.renderer().write_result(&json);
             } else {
@@ -273,15 +423,42 @@ pub async fn run(cmd: AuthCommand, app: &App) -> Result<(), GitfleetError> {
                     Some(&["NAME", "ACTIVE", "HAS TOKEN"][..])
                 };
 
+                app.renderer().render_indented_summary(
+                    "Active Authentication",
+                    &[
+                        ("Profile", app.profile_name().to_string()),
+                        ("Provider", app.provider_id().to_string()),
+                        ("Host", app.provider_host().to_string()),
+                        (
+                            "Token Source",
+                            token_source_label(app.token_source()).to_string(),
+                        ),
+                        ("Token Configured", app.has_token().to_string()),
+                        ("Valid", validation_ok.to_string()),
+                        (
+                            "User",
+                            authenticated_user
+                                .as_ref()
+                                .map(|user| user.login.clone())
+                                .unwrap_or_else(|| "(not authenticated)".to_string()),
+                        ),
+                    ],
+                    2,
+                );
+
                 app.renderer().render_table_titled(
                     &rows,
                     Some("No profiles found."),
                     Some("Profiles"),
                     columns,
                 );
+
+                if active_validation.is_err() {
+                    app.renderer().write_blank_line();
+                }
             }
 
-            Ok(())
+            active_validation.map(|_| ())
         }
 
         AuthCommand::Token { raw } => {

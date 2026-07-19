@@ -12,9 +12,11 @@ impl SearchApi {
         sort: Option<&str>,
         order: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<SearchResult<serde_json::Value>, GitfleetError> {
+        let page = page.unwrap_or(1);
         let mut endpoint = format!(
-            "/search/issues?q={}&per_page={limit}",
+            "/search/issues?q={}&per_page={limit}&page={page}",
             urlencoding::encode(query)
         );
 
@@ -54,9 +56,11 @@ impl SearchApi {
         sort: Option<&str>,
         order: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<SearchResult<serde_json::Value>, GitfleetError> {
+        let page = page.unwrap_or(1);
         let mut endpoint = format!(
-            "/search/repositories?q={}&per_page={limit}",
+            "/search/repositories?q={}&per_page={limit}&page={page}",
             urlencoding::encode(query)
         );
 
@@ -94,9 +98,11 @@ impl SearchApi {
         client: &ProviderClient,
         query: &str,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<SearchResult<serde_json::Value>, GitfleetError> {
+        let page = page.unwrap_or(1);
         let endpoint = format!(
-            "/search/code?q={}&per_page={limit}",
+            "/search/code?q={}&per_page={limit}&page={page}",
             urlencoding::encode(query)
         );
 

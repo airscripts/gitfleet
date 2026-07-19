@@ -38,6 +38,7 @@ impl CodeApi {
         repo: Option<&str>,
         language: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<CodeSearchResult>, GitfleetError> {
         let mut q = query.to_string();
 
@@ -49,8 +50,9 @@ impl CodeApi {
             q.push_str(&format!(" language:{l}"));
         }
 
+        let page = page.unwrap_or(1);
         let endpoint = format!(
-            "/search/code?q={}&per_page={limit}",
+            "/search/code?q={}&per_page={limit}&page={page}",
             urlencoding::encode(&q)
         );
 

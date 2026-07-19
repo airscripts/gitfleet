@@ -15,6 +15,8 @@ pub enum CodeCommand {
         language: Option<String>,
         #[arg(long, default_value = "30")]
         limit: u32,
+        #[arg(long)]
+        page: Option<u32>,
     },
 
     #[command(about = "View file contents.")]
@@ -36,7 +38,9 @@ pub async fn run(cmd: CodeCommand, app: &App) -> Result<(), GitfleetError> {
             repo,
             language,
             limit,
+            page,
         } => {
+            crate::commands::validate_page(page)?;
             let repo_str = crate::repo_util::resolve_repo(&repo)?;
 
             let ops = p.code_ops().ok_or_else(|| {
@@ -47,7 +51,7 @@ pub async fn run(cmd: CodeCommand, app: &App) -> Result<(), GitfleetError> {
             })?;
 
             let results = ops
-                .search_code(&query, Some(&repo_str), language.as_deref(), limit)
+                .search_code(&query, Some(&repo_str), language.as_deref(), limit, page)
                 .await?;
 
             if app.renderer().is_json() {
@@ -122,6 +126,7 @@ mod tests {
                 repo: Some("org/repo".into()),
                 language: None,
                 limit: 10,
+                page: None,
             },
             &app,
         )
@@ -139,6 +144,7 @@ mod tests {
                 repo: Some("org/repo".into()),
                 language: Some("rust".into()),
                 limit: 5,
+                page: None,
             },
             &app,
         )
@@ -156,6 +162,7 @@ mod tests {
                 repo: Some("org/repo".into()),
                 language: None,
                 limit: 10,
+                page: None,
             },
             &app,
         )
@@ -173,6 +180,7 @@ mod tests {
                 repo: Some("org/repo".into()),
                 language: None,
                 limit: 10,
+                page: None,
             },
             &app,
         )

@@ -9,6 +9,7 @@ pub async fn search_issues(
     sort: Option<&str>,
     order: Option<&str>,
     limit: u32,
+    page: Option<u32>,
 ) -> Result<(), GitfleetError> {
     let ops = provider.search_ops().ok_or_else(|| {
         GitfleetError::from(UnsupportedCapabilityError::new(
@@ -17,7 +18,7 @@ pub async fn search_issues(
         ))
     })?;
 
-    let result = ops.search_issues(query, sort, order, limit).await?;
+    let result = ops.search_issues(query, sort, order, limit, page).await?;
 
     if renderer.is_json() {
         let json = serde_json::to_value(&result)
@@ -66,6 +67,7 @@ pub async fn search_repos(
     sort: Option<&str>,
     order: Option<&str>,
     limit: u32,
+    page: Option<u32>,
 ) -> Result<(), GitfleetError> {
     let ops = provider.search_ops().ok_or_else(|| {
         GitfleetError::from(UnsupportedCapabilityError::new(
@@ -74,7 +76,7 @@ pub async fn search_repos(
         ))
     })?;
 
-    let result = ops.search_repos(query, sort, order, limit).await?;
+    let result = ops.search_repos(query, sort, order, limit, page).await?;
 
     if renderer.is_json() {
         let json = serde_json::to_value(&result)
@@ -121,6 +123,7 @@ pub async fn search_code(
     renderer: &Renderer,
     query: &str,
     limit: u32,
+    page: Option<u32>,
 ) -> Result<(), GitfleetError> {
     let ops = provider.search_ops().ok_or_else(|| {
         GitfleetError::from(UnsupportedCapabilityError::new(
@@ -129,7 +132,7 @@ pub async fn search_code(
         ))
     })?;
 
-    let result = ops.search_code(query, limit).await?;
+    let result = ops.search_code(query, limit, page).await?;
 
     if renderer.is_json() {
         let json = serde_json::to_value(&result)

@@ -22,6 +22,7 @@ assets while leaving the Git tag behavior provider-dependent.
 ## Common Commands
 
 - `gitfleet release list --repo owner/repository`
+- `gitfleet release list --repo owner/repository --limit 20 --page 2`
 - `gitfleet release view v1.0.0 --repo owner/repository`
 - `gitfleet release create --tag v1.0.0 --repo owner/repository --title "v1.0.0"`
 - `gitfleet release delete v1.0.0 --repo owner/repository --yes`
@@ -38,6 +39,8 @@ confirmation or `--yes`.
 ## JSON/Automation Notes
 
 Use `--json` for release automation and changelog tooling.
+For list output, `--limit` is the page size and `--page` selects a 1-based
+provider page.
 
 ## Related Commands
 

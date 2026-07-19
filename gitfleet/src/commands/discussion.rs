@@ -15,6 +15,8 @@ pub enum DiscussionCommand {
         category: Option<String>,
         #[arg(long, default_value = "10")]
         limit: u32,
+        #[arg(long)]
+        page: Option<u32>,
     },
 
     #[command(about = "View a discussion.")]
@@ -51,7 +53,9 @@ pub async fn run(cmd: DiscussionCommand, app: &App) -> Result<(), GitfleetError>
             repo,
             category,
             limit,
+            page,
         } => {
+            crate::commands::validate_page(page)?;
             let repo_str = match repo {
                 Some(r) => r,
                 None => {
@@ -64,8 +68,16 @@ pub async fn run(cmd: DiscussionCommand, app: &App) -> Result<(), GitfleetError>
 
             let (owner, name) = crate::repo_util::split_repo(&repo_str)?;
 
-            service::discussions::list(p, app.renderer(), owner, name, category.as_deref(), limit)
-                .await
+            service::discussions::list(
+                p,
+                app.renderer(),
+                owner,
+                name,
+                category.as_deref(),
+                limit,
+                page,
+            )
+            .await
         }
 
         DiscussionCommand::View { number, repo } => {
@@ -150,6 +162,7 @@ mod tests {
                 repo: Some("org/repo".into()),
                 category: None,
                 limit: 10,
+                page: None,
             },
             &app,
         )
@@ -166,6 +179,7 @@ mod tests {
                 repo: Some("org/repo".into()),
                 category: Some("Q&A".into()),
                 limit: 5,
+                page: None,
             },
             &app,
         )
@@ -182,6 +196,7 @@ mod tests {
                 repo: Some("invalidrepo".into()),
                 category: None,
                 limit: 10,
+                page: None,
             },
             &app,
         )
@@ -281,6 +296,7 @@ mod tests {
                 repo: Some("org/repo".into()),
                 category: None,
                 limit: 10,
+                page: None,
             },
             &app,
         )

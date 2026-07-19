@@ -111,6 +111,7 @@ pub async fn list_runs(
     repo: &str,
     filters: &str,
     limit: u32,
+    page: Option<u32>,
 ) -> Result<(), GitfleetError> {
     let ops = provider.pipeline_ops().ok_or_else(|| {
         GitfleetError::from(UnsupportedCapabilityError::new(
@@ -119,7 +120,7 @@ pub async fn list_runs(
         ))
     })?;
 
-    let data = ops.list_runs(repo, filters, limit).await?;
+    let data = ops.list_runs(repo, filters, limit, page).await?;
 
     if renderer.is_json() {
         renderer.write_result(&data);

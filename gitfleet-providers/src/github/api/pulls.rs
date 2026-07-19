@@ -63,13 +63,15 @@ impl PullsApi {
         repo: &str,
         state: &str,
         limit: u32,
+        page: Option<u32>,
         base: Option<&str>,
         head: Option<&str>,
     ) -> Result<Vec<PullRequest>, GitfleetError> {
         let enc_state = urlencoding::encode(state);
+        let page = page.unwrap_or(1);
 
         let mut endpoint = format!(
-            "{}?state={enc_state}&per_page={limit}",
+            "{}?state={enc_state}&per_page={limit}&page={page}",
             repo_path(repo, &["pulls"])
         );
 

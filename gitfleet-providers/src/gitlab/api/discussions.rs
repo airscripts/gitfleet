@@ -20,6 +20,7 @@ impl DiscussionsApi {
         _name: &str,
         _category_id: Option<&str>,
         _limit: u32,
+        _page: Option<u32>,
     ) -> Result<Vec<Discussion>, GitfleetError> {
         Err(unsupported())
     }

@@ -856,6 +856,26 @@ fn test_auth_status_help() {
 }
 
 #[test]
+fn test_paginated_commands_show_page_flag() {
+    for args in [
+        &["change", "list"][..],
+        &["issue", "list"][..],
+        &["release", "list"][..],
+        &["pipeline", "list-runs"][..],
+        &["search", "issues"][..],
+        &["code", "search"][..],
+    ] {
+        Command::cargo_bin("gitfleet")
+            .unwrap()
+            .args(args)
+            .arg("--help")
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("--page"));
+    }
+}
+
+#[test]
 fn test_config_show_help() {
     Command::cargo_bin("gitfleet")
         .unwrap()

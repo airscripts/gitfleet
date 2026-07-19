@@ -21,11 +21,17 @@ or self-managed hosts, pass `--host` during login so later repository commands
 resolve against the correct provider API. For CI, prefer environment tokens and
 `GITFLEET_PROFILE` instead of interactive login.
 
+`auth login` validates the token with the selected provider before saving the
+profile. The token prompt masks typed characters with `*`, so users get input
+feedback without exposing the secret. If validation fails, Gitfleet does not
+save the token.
+
 ## Common Commands
 
 - `gitfleet auth login`
 - `gitfleet auth login --provider gitlab --host git.example.com --profile work-gitlab`
 - `gitfleet auth status`
+- `gitfleet auth status --capabilities`
 - `gitfleet auth token`
 - `gitfleet auth list`
 - `gitfleet auth switch work`
@@ -46,7 +52,11 @@ for automation.
 ## JSON/Automation Notes
 
 Use `GITFLEET_GITHUB_TOKEN`, `GITFLEET_GITLAB_TOKEN`, and `GITFLEET_PROFILE` in
-CI. See [../authentication.md](../authentication.md).
+CI. `auth status` performs a live check of the active profile and exits
+non-zero when the active token is missing or rejected by the provider. Use
+`--json` for health checks that need active profile, provider, host, token
+source, validation state, user, scopes, and configured profiles. See
+[../authentication.md](../authentication.md).
 
 ## Related Commands
 

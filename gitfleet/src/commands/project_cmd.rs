@@ -12,6 +12,8 @@ pub enum ProjectCmdCommand {
         owner: Option<String>,
         #[arg(long, default_value = "10")]
         limit: u32,
+        #[arg(long)]
+        page: Option<u32>,
     },
 
     #[command(about = "View a project.")]
@@ -45,14 +47,15 @@ pub async fn run(cmd: ProjectCmdCommand, app: &App) -> Result<(), GitfleetError>
     })?;
 
     match cmd {
-        ProjectCmdCommand::List { owner, limit } => {
+        ProjectCmdCommand::List { owner, limit, page } => {
+            crate::commands::validate_page(page)?;
             let owner_str = owner.as_deref().ok_or_else(|| {
                 GitfleetError::from(UnprocessableError::new(
                     "Project owner is required. Use --owner OWNER.",
                 ))
             })?;
 
-            let data = ops.list_projects(owner_str, limit).await?;
+            let data = ops.list_projects(owner_str, limit, page).await?;
 
             if app.renderer().is_json() {
                 let json = serde_json::to_value(&data).map_err(|e| {
@@ -165,6 +168,7 @@ mod tests {
             ProjectCmdCommand::List {
                 owner: Some("org".into()),
                 limit: 10,
+                page: None,
             },
             &app,
         )
@@ -180,6 +184,7 @@ mod tests {
             ProjectCmdCommand::List {
                 owner: None,
                 limit: 5,
+                page: None,
             },
             &app,
         )
@@ -196,6 +201,7 @@ mod tests {
             ProjectCmdCommand::List {
                 owner: Some("org".into()),
                 limit: 10,
+                page: None,
             },
             &app,
         )
@@ -211,6 +217,7 @@ mod tests {
             ProjectCmdCommand::List {
                 owner: Some("org".into()),
                 limit: 10,
+                page: None,
             },
             &app,
         )

@@ -1,6 +1,6 @@
 use gitfleet_core::errors::GitfleetError;
 use gitfleet_core::output::Renderer;
-use gitfleet_core::provider::{ProviderContext, ProviderId};
+use gitfleet_core::provider::{ProviderContext, ProviderId, TokenSource};
 use gitfleet_providers::ProviderRegistry;
 
 pub struct App {
@@ -103,6 +103,14 @@ impl App {
 
     pub fn capabilities(&self) -> &[gitfleet_core::provider::ProviderCapability] {
         &self.context.capabilities
+    }
+
+    pub fn token_source(&self) -> TokenSource {
+        self.context.token_source
+    }
+
+    pub fn has_token(&self) -> bool {
+        self.context.token.is_some()
     }
 
     pub fn dry_run(&self) -> bool {

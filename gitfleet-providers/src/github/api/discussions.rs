@@ -66,7 +66,10 @@ impl DiscussionsApi {
         name: &str,
         category_id: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<Discussion>, GitfleetError> {
+        let page = page.unwrap_or(1);
+        let fetch_limit = limit.saturating_mul(page);
         let query = r#"
             query ListDiscussions($owner: String!, $name: String!, $first: Int!, $categoryId: ID) {
                 repository(owner: $owner, name: $name) {
@@ -81,7 +84,7 @@ impl DiscussionsApi {
             "variables": {
                 "owner": owner,
                 "name": name,
-                "first": limit,
+                "first": fetch_limit,
                 "categoryId": category_id,
             }
         });
@@ -103,7 +106,13 @@ impl DiscussionsApi {
             .cloned()
             .unwrap_or_default();
 
-        Ok(nodes.iter().map(normalize_discussion).collect())
+        let start = ((page - 1) * limit) as usize;
+        Ok(nodes
+            .iter()
+            .skip(start)
+            .take(limit as usize)
+            .map(normalize_discussion)
+            .collect())
     }
 
     pub async fn get(

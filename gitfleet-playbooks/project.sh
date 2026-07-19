@@ -23,7 +23,7 @@ if ! has_capability "projects"; then
 fi
 
 step "Project List"
-expect_exit_0 "project list succeeds" gitfleet planning project list --owner "$GITFLEET_PLAYBOOK_OWNER"
+expect_exit_0 "project list succeeds" gitfleet planning project list --owner "$GITFLEET_PLAYBOOK_OWNER" --limit 5 --page 1
 
 step "Project Create"
 output=$(gitfleet planning project create "gitfleet-test-project-$GITFLEET_PLAYBOOK_RESOURCE_SUFFIX" --owner "$GITFLEET_PLAYBOOK_OWNER" --json 2>&1) || true

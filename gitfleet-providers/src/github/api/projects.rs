@@ -10,7 +10,10 @@ impl ProjectsApi {
         client: &ProviderClient,
         owner: &str,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<ProjectSummary>, GitfleetError> {
+        let page = page.unwrap_or(1);
+        let fetch_limit = limit.saturating_mul(page);
         let query = r#"
             query Projects($owner: String!, $limit: Int!) {
                 repositoryOwner(login: $owner) {
@@ -29,7 +32,7 @@ impl ProjectsApi {
         "#;
         let payload = serde_json::json!({
             "query": query,
-            "variables": { "owner": owner, "limit": limit }
+            "variables": { "owner": owner, "limit": fetch_limit }
         });
 
         let response = client
@@ -55,7 +58,12 @@ impl ProjectsApi {
             }
         }
 
-        Ok(results)
+        let start = ((page - 1) * limit) as usize;
+        Ok(results
+            .into_iter()
+            .skip(start)
+            .take(limit as usize)
+            .collect())
     }
 
     pub async fn get(

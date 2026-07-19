@@ -25,6 +25,7 @@ queries once you confirm the active provider and account.
 - `gitfleet search issues "is:open label:bug"`
 - `gitfleet search repos "topic:rust"`
 - `gitfleet search code "Renderer repo:owner/repository"`
+- `gitfleet search issues "is:open label:bug" --limit 25 --page 2`
 
 ## Provider Support
 
@@ -38,6 +39,8 @@ These commands are read-only.
 ## JSON/Automation Notes
 
 Use `--json` for discovery scripts and reports.
+For search output, `--limit` is the page size and `--page` selects a 1-based
+provider page.
 
 ## Related Commands
 

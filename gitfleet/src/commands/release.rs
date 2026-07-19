@@ -12,6 +12,8 @@ pub enum ReleaseCommand {
         repo: Option<String>,
         #[arg(long, default_value = "10")]
         limit: u32,
+        #[arg(long)]
+        page: Option<u32>,
     },
 
     #[command(about = "View a release.")]
@@ -52,10 +54,11 @@ pub async fn run(cmd: ReleaseCommand, app: &App) -> Result<(), GitfleetError> {
     let p = app.provider()?;
 
     match cmd {
-        ReleaseCommand::List { repo, limit } => {
+        ReleaseCommand::List { repo, limit, page } => {
+            crate::commands::validate_page(page)?;
             let repo_str = crate::repo_util::resolve_repo(&repo)?;
 
-            service::releases::list(p, app.renderer(), &repo_str, limit).await
+            service::releases::list(p, app.renderer(), &repo_str, limit, page).await
         }
 
         ReleaseCommand::View { tag, repo } => {
@@ -141,6 +144,7 @@ mod tests {
             ReleaseCommand::List {
                 repo: Some("org/repo".into()),
                 limit: 10,
+                page: None,
             },
             &app,
         )
@@ -156,6 +160,7 @@ mod tests {
             ReleaseCommand::List {
                 repo: Some("org/repo".into()),
                 limit: 5,
+                page: None,
             },
             &app,
         )
@@ -171,6 +176,7 @@ mod tests {
             ReleaseCommand::List {
                 repo: Some("org/repo".into()),
                 limit: 10,
+                page: None,
             },
             &app,
         )

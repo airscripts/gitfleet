@@ -455,13 +455,8 @@ fn clone_url(host: &str, repository: &str, ssh: bool) -> String {
     }
 }
 
-fn render_clone_report(
-    renderer: &Renderer,
-    context: CloneReportContext<'_>,
-    targets: &[CloneTarget],
-) {
-    let counts = clone_counts(targets);
-    let rows: Vec<serde_json::Value> = targets
+fn clone_report_rows(targets: &[CloneTarget]) -> Vec<serde_json::Value> {
+    targets
         .iter()
         .map(|target| {
             serde_json::json!({
@@ -471,7 +466,30 @@ fn render_clone_report(
                 "reason": target.reason,
             })
         })
-        .collect();
+        .collect()
+}
+
+fn clone_report_human_rows(targets: &[CloneTarget]) -> Vec<serde_json::Value> {
+    targets
+        .iter()
+        .map(|target| {
+            serde_json::json!({
+                "REPOSITORY": target.repo.full_name,
+                "DIRECTORY": target.directory.display().to_string(),
+                "STATUS": target.status.as_str(),
+                "REASON": target.reason,
+            })
+        })
+        .collect()
+}
+
+fn render_clone_report(
+    renderer: &Renderer,
+    context: CloneReportContext<'_>,
+    targets: &[CloneTarget],
+) {
+    let counts = clone_counts(targets);
+    let rows = clone_report_rows(targets);
 
     let report = serde_json::json!({
         "operation": "clone",
@@ -488,8 +506,9 @@ fn render_clone_report(
     if renderer.is_json() {
         renderer.write_result(&report);
     } else {
+        renderer.write_blank_line();
         renderer.render_summary(
-            "Repository clone",
+            "Repository Clone",
             &[
                 ("Owner", format!("{}:{}", context.owner_kind, context.owner)),
                 ("Destination", context.root.display().to_string()),
@@ -505,11 +524,13 @@ fn render_clone_report(
             ],
         );
 
+        let human_rows = clone_report_human_rows(targets);
+
         renderer.render_table_titled(
-            &rows,
+            &human_rows,
             Some("No repositories matched."),
             Some("Repositories"),
-            Some(&["repository", "directory", "status", "reason"]),
+            Some(&["REPOSITORY", "DIRECTORY", "STATUS", "REASON"]),
         );
     }
 }
@@ -754,5 +775,27 @@ mod tests {
         assert_eq!(counts["total"], 2);
         assert_eq!(counts["would_clone"], 1);
         assert_eq!(counts["excluded"], 1);
+    }
+
+    #[test]
+    fn test_clone_report_human_rows_use_uppercase_headers() {
+        let root = tempfile::tempdir().unwrap();
+        let targets = build_clone_targets(
+            vec![repo("active", false, false)],
+            "github.com",
+            root.path(),
+            false,
+            false,
+            false,
+            true,
+        );
+
+        let json_rows = clone_report_rows(&targets);
+        let human_rows = clone_report_human_rows(&targets);
+
+        assert!(json_rows[0].get("repository").is_some());
+        assert!(json_rows[0].get("REPOSITORY").is_none());
+        assert!(human_rows[0].get("REPOSITORY").is_some());
+        assert!(human_rows[0].get("repository").is_none());
     }
 }

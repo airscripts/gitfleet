@@ -15,6 +15,8 @@ pub enum SearchCommand {
         order: Option<String>,
         #[arg(long, default_value = "30")]
         limit: u32,
+        #[arg(long)]
+        page: Option<u32>,
     },
 
     #[command(about = "Search repositories.")]
@@ -26,6 +28,8 @@ pub enum SearchCommand {
         order: Option<String>,
         #[arg(long, default_value = "30")]
         limit: u32,
+        #[arg(long)]
+        page: Option<u32>,
     },
 
     #[command(about = "Search code.")]
@@ -33,6 +37,8 @@ pub enum SearchCommand {
         query: String,
         #[arg(long, default_value = "30")]
         limit: u32,
+        #[arg(long)]
+        page: Option<u32>,
     },
 }
 
@@ -45,7 +51,9 @@ pub async fn run(cmd: SearchCommand, app: &App) -> Result<(), GitfleetError> {
             sort,
             order,
             limit,
+            page,
         } => {
+            crate::commands::validate_page(page)?;
             service::search::search_issues(
                 p,
                 app.renderer(),
@@ -53,6 +61,7 @@ pub async fn run(cmd: SearchCommand, app: &App) -> Result<(), GitfleetError> {
                 sort.as_deref(),
                 order.as_deref(),
                 limit,
+                page,
             )
             .await
         }
@@ -62,7 +71,9 @@ pub async fn run(cmd: SearchCommand, app: &App) -> Result<(), GitfleetError> {
             sort,
             order,
             limit,
+            page,
         } => {
+            crate::commands::validate_page(page)?;
             service::search::search_repos(
                 p,
                 app.renderer(),
@@ -70,12 +81,14 @@ pub async fn run(cmd: SearchCommand, app: &App) -> Result<(), GitfleetError> {
                 sort.as_deref(),
                 order.as_deref(),
                 limit,
+                page,
             )
             .await
         }
 
-        SearchCommand::Code { query, limit } => {
-            service::search::search_code(p, app.renderer(), &query, limit).await
+        SearchCommand::Code { query, limit, page } => {
+            crate::commands::validate_page(page)?;
+            service::search::search_code(p, app.renderer(), &query, limit, page).await
         }
     }
 }
@@ -95,6 +108,7 @@ mod tests {
                 sort: None,
                 order: None,
                 limit: 30,
+                page: None,
             },
             &app,
         )
@@ -112,6 +126,7 @@ mod tests {
                 sort: Some("created".into()),
                 order: Some("desc".into()),
                 limit: 10,
+                page: None,
             },
             &app,
         )
@@ -129,6 +144,7 @@ mod tests {
                 sort: None,
                 order: None,
                 limit: 30,
+                page: None,
             },
             &app,
         )
@@ -146,6 +162,7 @@ mod tests {
                 sort: None,
                 order: None,
                 limit: 30,
+                page: None,
             },
             &app,
         )
@@ -163,6 +180,7 @@ mod tests {
                 sort: None,
                 order: None,
                 limit: 30,
+                page: None,
             },
             &app,
         )
@@ -180,6 +198,7 @@ mod tests {
                 sort: None,
                 order: None,
                 limit: 30,
+                page: None,
             },
             &app,
         )
@@ -197,6 +216,7 @@ mod tests {
                 sort: Some("stars".into()),
                 order: Some("asc".into()),
                 limit: 5,
+                page: None,
             },
             &app,
         )
@@ -214,6 +234,7 @@ mod tests {
                 sort: None,
                 order: None,
                 limit: 30,
+                page: None,
             },
             &app,
         )
@@ -231,6 +252,7 @@ mod tests {
                 sort: None,
                 order: None,
                 limit: 30,
+                page: None,
             },
             &app,
         )
@@ -246,6 +268,7 @@ mod tests {
             SearchCommand::Code {
                 query: "fn main".into(),
                 limit: 30,
+                page: None,
             },
             &app,
         )
@@ -261,6 +284,7 @@ mod tests {
             SearchCommand::Code {
                 query: "fn main".into(),
                 limit: 5,
+                page: None,
             },
             &app,
         )
@@ -276,6 +300,7 @@ mod tests {
             SearchCommand::Code {
                 query: "fn main".into(),
                 limit: 30,
+                page: None,
             },
             &app,
         )
@@ -291,6 +316,7 @@ mod tests {
             SearchCommand::Code {
                 query: "fn main".into(),
                 limit: 30,
+                page: None,
             },
             &app,
         )
@@ -308,6 +334,7 @@ mod tests {
                 sort: None,
                 order: None,
                 limit: 30,
+                page: None,
             },
             &app,
         )
@@ -326,6 +353,7 @@ mod tests {
                 sort: None,
                 order: None,
                 limit: 30,
+                page: None,
             },
             &app,
         )
@@ -342,6 +370,7 @@ mod tests {
             SearchCommand::Code {
                 query: "fn main".into(),
                 limit: 30,
+                page: None,
             },
             &app,
         )

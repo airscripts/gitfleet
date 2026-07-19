@@ -369,6 +369,7 @@ impl ChangeOps for MockProvider {
         _repo: &str,
         _state: &str,
         _limit: u32,
+        _page: Option<u32>,
         _base: Option<&str>,
         _head: Option<&str>,
     ) -> Result<Vec<PullRequest>, GitfleetError> {
@@ -618,6 +619,7 @@ impl IssueOps for MockProvider {
         _repo: &str,
         _state: &str,
         _limit: u32,
+        _page: Option<u32>,
         _labels: &[String],
         _assignees: &[String],
     ) -> Result<serde_json::Value, GitfleetError> {
@@ -737,6 +739,7 @@ impl PipelineOps for MockProvider {
         _repo: &str,
         _filters: &str,
         _limit: u32,
+        _page: Option<u32>,
     ) -> Result<serde_json::Value, GitfleetError> {
         Ok(
             serde_json::json!({"workflow_runs": [{"id": 1, "name": "build", "status": "completed", "conclusion": "success", "head_branch": "main"}]}),
@@ -768,6 +771,7 @@ impl ReleaseOps for MockProvider {
         &self,
         _repo: &str,
         _limit: u32,
+        _page: Option<u32>,
     ) -> Result<serde_json::Value, GitfleetError> {
         Ok(
             serde_json::json!([{"tag_name": "v1.0", "name": "Release 1.0", "draft": false, "prerelease": false, "published_at": "2025-01-01"}]),
@@ -921,6 +925,7 @@ impl SearchOps for MockProvider {
         _sort: Option<&str>,
         _order: Option<&str>,
         _limit: u32,
+        _page: Option<u32>,
     ) -> Result<SearchResult<serde_json::Value>, GitfleetError> {
         Ok(SearchResult {
             items: vec![
@@ -937,6 +942,7 @@ impl SearchOps for MockProvider {
         _sort: Option<&str>,
         _order: Option<&str>,
         _limit: u32,
+        _page: Option<u32>,
     ) -> Result<SearchResult<serde_json::Value>, GitfleetError> {
         Ok(SearchResult {
             items: vec![
@@ -951,6 +957,7 @@ impl SearchOps for MockProvider {
         &self,
         _query: &str,
         _limit: u32,
+        _page: Option<u32>,
     ) -> Result<SearchResult<serde_json::Value>, GitfleetError> {
         Ok(SearchResult {
             items: vec![serde_json::json!({"file": "main.rs", "repo": "org/repo"})],
@@ -1009,6 +1016,7 @@ impl DeployOps for MockProvider {
         _repo: &str,
         _environment: Option<&str>,
         _limit: u32,
+        _page: Option<u32>,
     ) -> Result<Vec<DeploymentSummary>, GitfleetError> {
         Ok(vec![DeploymentSummary {
             id: 1,
@@ -1184,6 +1192,7 @@ impl DiscussionOps for MockProvider {
         _name: &str,
         _category_id: Option<&str>,
         _limit: u32,
+        _page: Option<u32>,
     ) -> Result<Vec<Discussion>, GitfleetError> {
         Ok(vec![Discussion {
             id: "1".into(),
@@ -1262,6 +1271,7 @@ impl CodeOps for MockProvider {
         _repo: Option<&str>,
         _language: Option<&str>,
         _limit: u32,
+        _page: Option<u32>,
     ) -> Result<Vec<CodeSearchResult>, GitfleetError> {
         Ok(vec![CodeSearchResult {
             file: "src/main.rs".into(),
@@ -1650,6 +1660,7 @@ impl RegistryOps for MockProvider {
         _owner: &str,
         _package_type: Option<&str>,
         _limit: u32,
+        _page: Option<u32>,
     ) -> Result<Vec<PackageSummary>, GitfleetError> {
         Ok(vec![PackageSummary {
             id: 1,
@@ -1799,6 +1810,7 @@ impl PlanningOps for MockProvider {
         &self,
         _owner: &str,
         _limit: u32,
+        _page: Option<u32>,
     ) -> Result<Vec<ProjectSummary>, GitfleetError> {
         Ok(vec![ProjectSummary {
             id: "1".into(),

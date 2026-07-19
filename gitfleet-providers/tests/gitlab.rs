@@ -482,7 +482,7 @@ async fn test_gitlab_list_changes() {
     let ops = provider.change_ops().expect("change ops");
 
     let pulls = ops
-        .list_changes("testgroup/my-project", "opened", 100, None, None)
+        .list_changes("testgroup/my-project", "opened", 100, None, None, None)
         .await
         .expect("list changes");
     teardown_token();
@@ -527,6 +527,7 @@ async fn test_gitlab_list_changes_with_branches() {
             "testgroup/my-project",
             "open",
             50,
+            None,
             Some("main"),
             Some("fix-login"),
         )
@@ -557,7 +558,7 @@ async fn test_gitlab_list_changes_empty() {
     let ops = provider.change_ops().expect("change ops");
 
     let pulls = ops
-        .list_changes("testgroup/my-project", "opened", 100, None, None)
+        .list_changes("testgroup/my-project", "opened", 100, None, None, None)
         .await
         .expect("list empty changes");
     teardown_token();
@@ -590,6 +591,7 @@ async fn test_gitlab_list_issues() {
             "testgroup/my-project",
             "open",
             30,
+            None,
             &["bug&urgent".to_string()],
             &[],
         )
@@ -760,7 +762,7 @@ async fn test_gitlab_list_pipelines() {
     let ops = provider.pipeline_ops().expect("pipeline ops");
 
     let result = ops
-        .list_runs("testgroup/my-project", "", 30)
+        .list_runs("testgroup/my-project", "", 30, None)
         .await
         .expect("list pipelines");
 
@@ -839,7 +841,7 @@ async fn test_gitlab_translates_open_change_state() {
     let ops = provider.change_ops().expect("change ops");
 
     let result = ops
-        .list_changes("testgroup/my-project", "open", 10, None, None)
+        .list_changes("testgroup/my-project", "open", 10, None, None, None)
         .await;
 
     teardown_token();
@@ -865,7 +867,7 @@ async fn test_gitlab_list_releases() {
     let provider = GitLabProvider::with_base_url(&server.uri());
     let ops = provider.release_ops().expect("release ops");
 
-    let result = ops.list_releases("testgroup/my-project", 10).await;
+    let result = ops.list_releases("testgroup/my-project", 10, None).await;
 
     teardown_token();
 
@@ -1351,7 +1353,7 @@ async fn test_gitlab_list_discussions() {
     };
 
     let result = ops
-        .list_discussions("testgroup", "my-project", None, 10)
+        .list_discussions("testgroup", "my-project", None, 10, None)
         .await;
 
     teardown_token();
@@ -1789,7 +1791,7 @@ async fn test_gitlab_search_issues() {
     let provider = GitLabProvider::with_base_url(&server.uri());
     let ops = provider.search_ops().expect("search ops");
 
-    let result = ops.search_issues("bug", None, None, 30).await;
+    let result = ops.search_issues("bug", None, None, 30, None).await;
 
     teardown_token();
 
@@ -1835,7 +1837,7 @@ async fn test_gitlab_search_repos() {
     let provider = GitLabProvider::with_base_url(&server.uri());
     let ops = provider.search_ops().expect("search ops");
 
-    let result = ops.search_repos("my-project", None, None, 30).await;
+    let result = ops.search_repos("my-project", None, None, 30, None).await;
 
     teardown_token();
 
@@ -3080,7 +3082,7 @@ async fn test_gitlab_list_deployments() {
     let ops = provider.deploy_ops().expect("deploy ops");
 
     let result = ops
-        .list_deployments("testgroup/my-project", Some("production&blue"), 30)
+        .list_deployments("testgroup/my-project", Some("production&blue"), 30, None)
         .await;
 
     teardown_token();
@@ -3897,7 +3899,7 @@ async fn test_gitlab_code_search_scopes_to_project() {
     let ops = provider.code_ops().unwrap();
 
     let results = ops
-        .search_code("main", Some("testgroup/my-project"), Some("rust"), 10)
+        .search_code("main", Some("testgroup/my-project"), Some("rust"), 10, None)
         .await
         .unwrap();
 
@@ -3939,7 +3941,7 @@ async fn test_gitlab_global_code_search_normalizes_repository() {
     let results = provider
         .search_ops()
         .unwrap()
-        .search_code("main", 10)
+        .search_code("main", 10, None)
         .await
         .unwrap();
 
@@ -4531,7 +4533,10 @@ async fn test_gitlab_list_packages() {
     let provider = GitLabProvider::with_base_url(&server.uri());
     let ops = provider.registry_ops().unwrap();
 
-    let result = ops.list_packages("org/repo", None, 100).await.unwrap();
+    let result = ops
+        .list_packages("org/repo", None, 100, None)
+        .await
+        .unwrap();
 
     teardown_token();
 
@@ -4732,7 +4737,7 @@ async fn test_gitlab_list_projects_unsupported() {
     let provider = GitLabProvider::new();
     let ops = provider.planning_ops().unwrap();
 
-    let result = ops.list_projects("owner", 100).await;
+    let result = ops.list_projects("owner", 100, None).await;
 
     teardown_token();
 

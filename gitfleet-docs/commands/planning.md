@@ -28,6 +28,7 @@ deleting a project.
 - `gitfleet planning milestone update 1 --repo owner/repository --description "Updated scope"`
 - `gitfleet planning milestone delete 1 --repo owner/repository --yes`
 - `gitfleet planning project list --owner owner`
+- `gitfleet planning project list --owner owner --limit 25 --page 2`
 - `gitfleet planning project create "Roadmap" --owner owner`
 - `gitfleet planning project view <project-id>`
 - `gitfleet planning project delete <project-id> --yes`
@@ -45,6 +46,9 @@ Deleting milestones or projects is destructive and requires confirmation or
 ## JSON/Automation Notes
 
 Use `--json` for planning reports and release dashboards.
+For project lists, `--limit` is the page size and `--page` selects a 1-based
+provider page. Use both flags together when exporting owner-level planning data
+so each run reads a clear slice of the project inventory.
 
 ## Related Commands
 

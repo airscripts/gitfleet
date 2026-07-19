@@ -7,6 +7,7 @@ pub async fn list(
     renderer: &Renderer,
     repo: &str,
     limit: u32,
+    page: Option<u32>,
 ) -> Result<(), GitfleetError> {
     let ops = provider.release_ops().ok_or_else(|| {
         GitfleetError::from(UnsupportedCapabilityError::new(
@@ -15,7 +16,7 @@ pub async fn list(
         ))
     })?;
 
-    let data = ops.list_releases(repo, limit).await?;
+    let data = ops.list_releases(repo, limit, page).await?;
 
     if renderer.is_json() {
         renderer.write_result(&data);

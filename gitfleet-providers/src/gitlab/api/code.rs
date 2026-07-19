@@ -47,6 +47,7 @@ impl CodeApi {
         repo: Option<&str>,
         language: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<CodeSearchResult>, GitfleetError> {
         let project = repo.ok_or_else(|| {
             GitfleetError::from(UnprocessableError::new(
@@ -58,8 +59,9 @@ impl CodeApi {
             Some(language) => format!("{query} extension:{}", language_extension(language)),
             None => query.to_string(),
         };
+        let page = page.unwrap_or(1);
         let endpoint = format!(
-            "/projects/{encoded}/search?scope=blobs&search={}&per_page={limit}",
+            "/projects/{encoded}/search?scope=blobs&search={}&per_page={limit}&page={page}",
             urlencoding::encode(&query)
         );
 

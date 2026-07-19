@@ -8,6 +8,7 @@ pub async fn list(
     repo: &str,
     environment: Option<&str>,
     limit: u32,
+    page: Option<u32>,
 ) -> Result<(), GitfleetError> {
     let ops = provider.deploy_ops().ok_or_else(|| {
         GitfleetError::from(UnsupportedCapabilityError::new(
@@ -16,7 +17,7 @@ pub async fn list(
         ))
     })?;
 
-    let deployments = ops.list_deployments(repo, environment, limit).await?;
+    let deployments = ops.list_deployments(repo, environment, limit, page).await?;
 
     if renderer.is_json() {
         let json = serde_json::to_value(&deployments)

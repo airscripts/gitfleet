@@ -11,6 +11,17 @@ gitfleet auth switch work
 gitfleet auth detect
 ```
 
+`auth login` is an online validation flow. Gitfleet resolves the provider and
+host, prompts for the token with masked `*` input feedback, verifies the token
+against the provider account endpoint, and only saves the profile after the
+provider accepts the token. A failed validation means the profile is left
+unchanged.
+
+`auth status` is both inventory and health check. It shows the active profile,
+provider, host, token source, whether a token is configured, whether the live
+validation succeeded, and the authenticated user when available. It exits
+non-zero when the active token is missing or invalid.
+
 ## Token Storage
 
 Profile metadata is stored at `~/.config/gitfleet/credentials.toml` with mode
@@ -56,6 +67,9 @@ export GITFLEET_GITLAB_TOKEN=glpat-...
 
 Use `GITFLEET_PROFILE` when automation needs a named profile. Destructive JSON
 or non-interactive operations require `--yes`.
+
+Use `gitfleet auth status --json` in automation when a script needs to confirm
+the configured token is usable before running provider-backed work.
 
 Keep CI tokens scoped to the commands the job runs. A read-only inventory job
 should not receive delete permissions, and a release job should not receive

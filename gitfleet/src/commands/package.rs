@@ -14,6 +14,8 @@ pub enum PackageCommand {
         package_type: Option<String>,
         #[arg(long, default_value = "10")]
         limit: u32,
+        #[arg(long)]
+        page: Option<u32>,
     },
 
     #[command(about = "View a package.")]
@@ -42,7 +44,9 @@ pub async fn run(cmd: PackageCommand, app: &App) -> Result<(), GitfleetError> {
             owner,
             package_type,
             limit,
+            page,
         } => {
+            crate::commands::validate_page(page)?;
             let owner_str = owner.as_deref().ok_or_else(|| {
                 GitfleetError::from(UnprocessableError::new(
                     "Package owner is required. Use --owner OWNER.",
@@ -50,7 +54,7 @@ pub async fn run(cmd: PackageCommand, app: &App) -> Result<(), GitfleetError> {
             })?;
 
             let data = ops
-                .list_packages(owner_str, package_type.as_deref(), limit)
+                .list_packages(owner_str, package_type.as_deref(), limit, page)
                 .await?;
 
             if app.renderer().is_json() {
@@ -142,6 +146,7 @@ mod tests {
                 owner: None,
                 package_type: None,
                 limit: 10,
+                page: None,
             },
             &app,
         )
@@ -159,6 +164,7 @@ mod tests {
                 owner: Some("org".into()),
                 package_type: Some("npm".into()),
                 limit: 5,
+                page: None,
             },
             &app,
         )
@@ -175,6 +181,7 @@ mod tests {
                 owner: None,
                 package_type: None,
                 limit: 10,
+                page: None,
             },
             &app,
         )
@@ -192,6 +199,7 @@ mod tests {
                 owner: None,
                 package_type: None,
                 limit: 10,
+                page: None,
             },
             &app,
         )

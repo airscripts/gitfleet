@@ -74,6 +74,7 @@ impl IssuesApi {
         repo: &str,
         state: &str,
         limit: u32,
+        page: Option<u32>,
         labels: &[String],
         assignees: &[String],
     ) -> Result<serde_json::Value, GitfleetError> {
@@ -93,8 +94,9 @@ impl IssuesApi {
 
         let query = qualifiers.join(" ");
 
+        let page = page.unwrap_or(1);
         let endpoint = format!(
-            "/search/issues?q={}&sort=updated&order=desc&per_page={limit}",
+            "/search/issues?q={}&sort=updated&order=desc&per_page={limit}&page={page}",
             urlencoding::encode(&query)
         );
 

@@ -32,6 +32,8 @@ pub enum PipelineCommand {
         filter: String,
         #[arg(long, default_value = "10")]
         limit: u32,
+        #[arg(long)]
+        page: Option<u32>,
     },
 
     #[command(about = "View a pipeline run.")]
@@ -73,6 +75,7 @@ pub async fn run(cmd: PipelineCommand, app: &App) -> Result<(), GitfleetError> {
 
     match cmd {
         PipelineCommand::ListDef { repo, limit, page } => {
+            crate::commands::validate_page(page)?;
             let repo_str = crate::repo_util::resolve_repo(&repo)?;
 
             service::pipelines::list_workflows(p, app.renderer(), &repo_str, limit, page).await
@@ -88,10 +91,12 @@ pub async fn run(cmd: PipelineCommand, app: &App) -> Result<(), GitfleetError> {
             repo,
             filter,
             limit,
+            page,
         } => {
+            crate::commands::validate_page(page)?;
             let repo_str = crate::repo_util::resolve_repo(&repo)?;
 
-            service::pipelines::list_runs(p, app.renderer(), &repo_str, &filter, limit).await
+            service::pipelines::list_runs(p, app.renderer(), &repo_str, &filter, limit, page).await
         }
 
         PipelineCommand::ViewRun { run_id, repo } => {
@@ -243,6 +248,7 @@ mod tests {
                 repo: Some("org/repo".into()),
                 filter: "".into(),
                 limit: 10,
+                page: None,
             },
             &app,
         )
@@ -259,6 +265,7 @@ mod tests {
                 repo: Some("org/repo".into()),
                 filter: "status=completed".into(),
                 limit: 5,
+                page: None,
             },
             &app,
         )

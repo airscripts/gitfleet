@@ -16,10 +16,12 @@ impl DeployApi {
         project: &str,
         environment: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<DeploymentSummary>, GitfleetError> {
         let encoded = encode_path(project);
 
-        let mut endpoint = format!("/projects/{encoded}/deployments?per_page={limit}");
+        let page = page.unwrap_or(1);
+        let mut endpoint = format!("/projects/{encoded}/deployments?per_page={limit}&page={page}");
 
         if let Some(env) = environment {
             endpoint.push_str(&format!("&environment={}", urlencoding::encode(env)));

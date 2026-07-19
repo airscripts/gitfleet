@@ -9,6 +9,7 @@ pub async fn list(
     name: &str,
     category_id: Option<&str>,
     limit: u32,
+    page: Option<u32>,
 ) -> Result<(), GitfleetError> {
     let ops = provider.discussion_ops().ok_or_else(|| {
         GitfleetError::from(UnsupportedCapabilityError::new(
@@ -18,7 +19,7 @@ pub async fn list(
     })?;
 
     let discussions = ops
-        .list_discussions(owner, name, category_id, limit)
+        .list_discussions(owner, name, category_id, limit, page)
         .await?;
 
     if renderer.is_json() {

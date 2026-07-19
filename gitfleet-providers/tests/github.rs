@@ -284,7 +284,7 @@ async fn test_list_changes() {
     let ops = provider.change_ops().expect("change ops");
 
     let pulls = ops
-        .list_changes("testorg/my-repo", "open", 100, None, None)
+        .list_changes("testorg/my-repo", "open", 100, None, None, None)
         .await
         .expect("list changes");
     teardown_token();
@@ -319,7 +319,7 @@ async fn test_list_issues() {
     let ops = provider.issue_ops().expect("issue ops");
 
     let result = ops
-        .list_issues("testorg/my-repo", "open", 30, &[], &[])
+        .list_issues("testorg/my-repo", "open", 30, None, &[], &[])
         .await
         .expect("list issues");
     teardown_token();
@@ -592,6 +592,7 @@ async fn test_list_changes_with_base_and_head() {
             "testorg/my-repo",
             "open",
             50,
+            None,
             Some("main"),
             Some("testorg:feature"),
         )
@@ -753,7 +754,7 @@ async fn test_list_changes_empty() {
     let ops = provider.change_ops().expect("change ops");
 
     let pulls = ops
-        .list_changes("testorg/my-repo", "open", 100, None, None)
+        .list_changes("testorg/my-repo", "open", 100, None, None, None)
         .await
         .expect("list empty changes");
     teardown_token();
@@ -971,7 +972,7 @@ async fn test_releases_list() {
     let provider = GitHubProvider::with_base_url(&server.uri());
     let ops = provider.release_ops().expect("release ops");
 
-    let result = ops.list_releases("testorg/my-repo", 10).await;
+    let result = ops.list_releases("testorg/my-repo", 10, None).await;
 
     teardown_token();
 
@@ -1121,7 +1122,9 @@ async fn test_deployments_list() {
     let provider = GitHubProvider::with_base_url(&server.uri());
     let ops = provider.deploy_ops().expect("deploy ops");
 
-    let result = ops.list_deployments("testorg/my-repo", None, 30).await;
+    let result = ops
+        .list_deployments("testorg/my-repo", None, 30, None)
+        .await;
 
     teardown_token();
 
@@ -1218,7 +1221,9 @@ async fn test_workflows_list_runs() {
     let provider = GitHubProvider::with_base_url(&server.uri());
     let ops = provider.pipeline_ops().expect("pipeline ops");
 
-    let result = ops.list_runs("testorg/my-repo", "per_page=10", 10).await;
+    let result = ops
+        .list_runs("testorg/my-repo", "per_page=10", 10, None)
+        .await;
 
     teardown_token();
 
@@ -1542,7 +1547,7 @@ async fn test_discussions_list() {
     let provider = GitHubProvider::with_base_url(&server.uri());
     let ops = provider.discussion_ops().expect("discussion ops");
 
-    let result = ops.list_discussions("org", "repo", None, 10).await;
+    let result = ops.list_discussions("org", "repo", None, 10, None).await;
 
     teardown_token();
 
@@ -1650,7 +1655,7 @@ async fn test_search_issues() {
     let ops = provider.search_ops().expect("search ops");
 
     let result = ops
-        .search_issues("repo:testorg/my-repo is:issue", None, None, 30)
+        .search_issues("repo:testorg/my-repo is:issue", None, None, 30, None)
         .await;
 
     teardown_token();
@@ -1698,7 +1703,7 @@ async fn test_search_repos() {
     let provider = GitHubProvider::with_base_url(&server.uri());
     let ops = provider.search_ops().expect("search ops");
 
-    let result = ops.search_repos("my-repo", None, None, 30).await;
+    let result = ops.search_repos("my-repo", None, None, 30, None).await;
 
     teardown_token();
 
@@ -1739,7 +1744,7 @@ async fn test_search_code() {
     let provider = GitHubProvider::with_base_url(&server.uri());
     let ops = provider.search_ops().expect("search ops");
 
-    let result = ops.search_code("fn main", 30).await;
+    let result = ops.search_code("fn main", 30, None).await;
 
     teardown_token();
 
@@ -3704,7 +3709,7 @@ async fn test_list_projects() {
     let provider = GitHubProvider::with_base_url(&server.uri());
     let ops = provider.planning_ops().unwrap();
 
-    let projects = ops.list_projects("testorg", 10).await.unwrap();
+    let projects = ops.list_projects("testorg", 10, None).await.unwrap();
 
     teardown_token();
 
@@ -4382,7 +4387,7 @@ async fn test_list_packages() {
     let provider = GitHubProvider::with_base_url(&server.uri());
     let ops = provider.registry_ops().unwrap();
 
-    let packages = ops.list_packages("testorg", None, 10).await.unwrap();
+    let packages = ops.list_packages("testorg", None, 10, None).await.unwrap();
 
     teardown_token();
 
@@ -4424,7 +4429,7 @@ async fn test_list_user_packages_falls_back_from_org_endpoint() {
     let packages = provider
         .registry_ops()
         .unwrap()
-        .list_packages("testuser", None, 10)
+        .list_packages("testuser", None, 10, None)
         .await
         .unwrap();
 

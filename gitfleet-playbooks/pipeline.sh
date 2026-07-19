@@ -15,4 +15,4 @@ else
 fi
 
 step "Pipeline List-Runs"
-expect_exit_0 "pipeline list-runs succeeds" gitfleet pipeline list-runs --repo "$GITFLEET_PLAYBOOK_REPO" --limit 5
+expect_exit_0 "pipeline list-runs succeeds" gitfleet pipeline list-runs --repo "$GITFLEET_PLAYBOOK_REPO" --limit 5 --page 1

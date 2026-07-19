@@ -21,6 +21,7 @@ ID, which should come from provider configuration or existing discussion data.
 ## Common Commands
 
 - `gitfleet discussion list --repo owner/repository`
+- `gitfleet discussion list --repo owner/repository --limit 25 --page 2`
 - `gitfleet discussion view <discussion-id> --repo owner/repository`
 - `gitfleet discussion create "Topic" --repo owner/repository --body "Details"`
 
@@ -36,6 +37,10 @@ Creating discussions mutates provider state.
 ## JSON/Automation Notes
 
 Use `--json` for reporting or moderation tooling.
+For discussion lists, `--limit` is the page size and `--page` selects a
+1-based provider page. This makes moderation scans predictable when a project
+has enough discussions that the provider would otherwise return only the first
+default page.
 
 ## Related Commands
 

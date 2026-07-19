@@ -1,5 +1,5 @@
 use gitfleet_core::provider::{
-    AccessOps, AdvisoryOps, AnalyticsOps, AttestationOps, BrowseOps, ChangeOps, CodeOps,
+    AccessOps, AdvisoryOps, AnalyticsOps, AttestationOps, AuthOps, BrowseOps, ChangeOps, CodeOps,
     DependencyOps, DeployOps, DevEnvOps, DiscussionOps, EnvironmentOps, GitProvider, GovernanceOps,
     IdentityOps, IssueOps, LabelOps, LicenseOps, MergeAutomationOps, NotificationOps, PipelineOps,
     PlanningOps, PolicyOps, ProviderCapability, ProviderId, RawApiOps, RegistryOps, ReleaseOps,
@@ -97,6 +97,10 @@ impl GitProvider for GitHubProvider {
 
     fn capabilities(&self) -> &[ProviderCapability] {
         CAPABILITIES
+    }
+
+    fn auth_ops(&self) -> Option<&dyn AuthOps> {
+        Some(&self.client)
     }
 
     fn repo_ops(&self) -> Option<&dyn RepoOps> {

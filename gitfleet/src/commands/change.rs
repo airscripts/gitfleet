@@ -31,6 +31,8 @@ pub enum ChangeCommand {
         base_branch: Option<String>,
         #[arg(long, default_value = "10")]
         limit: u32,
+        #[arg(long)]
+        page: Option<u32>,
     },
 
     #[command(about = "View a change request.")]
@@ -93,17 +95,22 @@ pub async fn run(cmd: ChangeCommand, app: &App) -> Result<(), GitfleetError> {
             state,
             base_branch,
             limit,
+            page,
         } => {
+            crate::commands::validate_page(page)?;
             let repo_str = crate::repo_util::resolve_repo(&repo)?;
 
             service::changes::list(
                 p,
                 app.renderer(),
                 &repo_str,
-                &state,
-                limit,
-                base_branch.as_deref(),
-                None,
+                service::changes::ListOptions {
+                    state: &state,
+                    limit,
+                    page,
+                    base: base_branch.as_deref(),
+                    head: None,
+                },
             )
             .await
         }
@@ -245,6 +252,7 @@ mod tests {
                 state: "open".into(),
                 base_branch: None,
                 limit: 10,
+                page: None,
             },
             &app,
         )
@@ -262,6 +270,7 @@ mod tests {
                 state: "closed".into(),
                 base_branch: Some("main".into()),
                 limit: 5,
+                page: None,
             },
             &app,
         )
@@ -279,6 +288,7 @@ mod tests {
                 state: "open".into(),
                 base_branch: None,
                 limit: 10,
+                page: None,
             },
             &app,
         )
@@ -296,6 +306,7 @@ mod tests {
                 state: "open".into(),
                 base_branch: None,
                 limit: 10,
+                page: None,
             },
             &app,
         )

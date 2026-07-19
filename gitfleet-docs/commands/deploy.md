@@ -22,6 +22,7 @@ an artifact unless the provider or surrounding automation reacts to that record.
 ## Common Commands
 
 - `gitfleet deploy list --repo owner/repository`
+- `gitfleet deploy list --repo owner/repository --environment production --limit 25 --page 2`
 - `gitfleet deploy create --repo owner/repository --ref main --environment production`
 
 ## Provider Support
@@ -36,6 +37,9 @@ values.
 ## JSON/Automation Notes
 
 Use `--json` in deployment systems and keep status logs on stderr.
+For deployment inventory, `--limit` is the page size and `--page` selects a
+1-based provider page. Use explicit pages when a deployment dashboard or audit
+job needs stable batches instead of relying on provider defaults.
 
 ## Related Commands
 

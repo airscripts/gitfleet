@@ -80,6 +80,7 @@ impl IssuesApi {
         project: &str,
         state: &str,
         limit: u32,
+        page: Option<u32>,
         labels: &[String],
         _assignees: &[String],
     ) -> Result<serde_json::Value, GitfleetError> {
@@ -90,8 +91,9 @@ impl IssuesApi {
             state => state,
         };
 
+        let page = page.unwrap_or(1);
         let mut endpoint = format!(
-            "/projects/{encoded}/issues?state={}&per_page={limit}",
+            "/projects/{encoded}/issues?state={}&per_page={limit}&page={page}",
             urlencoding::encode(state)
         );
 

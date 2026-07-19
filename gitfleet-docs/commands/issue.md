@@ -22,6 +22,7 @@ state and limit options when building triage views.
 
 - `gitfleet issue create "Bug title" --repo owner/repository --body "Details"`
 - `gitfleet issue list --repo owner/repository --state open`
+- `gitfleet issue list --repo owner/repository --state open --limit 50 --page 2`
 - `gitfleet issue view 17 --repo owner/repository`
 
 ## Provider Support
@@ -35,6 +36,8 @@ Creating issues mutates provider state. Listing and viewing are read-only.
 ## JSON/Automation Notes
 
 Use `--json` for triage dashboards and import/export workflows.
+For list output, `--limit` is the page size and `--page` selects a 1-based
+provider page.
 
 ## Related Commands
 

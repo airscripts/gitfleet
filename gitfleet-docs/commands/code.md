@@ -24,6 +24,7 @@ know the path.
 ## Common Commands
 
 - `gitfleet code search "Renderer" --repo owner/repository`
+- `gitfleet code search "Renderer" --repo owner/repository --limit 25 --page 2`
 - `gitfleet code view src/main.rs --repo owner/repository`
 
 ## Provider Support
@@ -37,6 +38,8 @@ These commands are read-only.
 ## JSON/Automation Notes
 
 Use `--json` for indexing, audit, or migration scripts.
+For code search, `--limit` is the page size and `--page` selects a 1-based
+provider page.
 
 ## Related Commands
 

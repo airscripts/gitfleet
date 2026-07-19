@@ -45,5 +45,31 @@ pub mod webhook;
 pub mod wiki;
 pub mod workspace;
 
+pub(crate) fn validate_page(page: Option<u32>) -> Result<(), gitfleet_core::errors::GitfleetError> {
+    if page == Some(0) {
+        return Err(gitfleet_core::errors::GitfleetError::from(
+            gitfleet_core::errors::UnprocessableError::new("--page must be greater than 0."),
+        ));
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_validate_page_rejects_zero() {
+        let result = super::validate_page(Some(0));
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_page_accepts_none_and_positive_values() {
+        assert!(super::validate_page(None).is_ok());
+        assert!(super::validate_page(Some(1)).is_ok());
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod test_helpers;

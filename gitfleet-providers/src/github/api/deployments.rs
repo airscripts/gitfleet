@@ -12,8 +12,9 @@ impl DeploymentsApi {
         repo: &str,
         environment: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<DeploymentSummary>, GitfleetError> {
-        let endpoint = list_endpoint(repo, environment, limit);
+        let endpoint = list_endpoint(repo, environment, limit, page);
 
         let response = client
             .request_token_required(reqwest::Method::GET, &endpoint, None, None, None)
@@ -118,8 +119,12 @@ impl DeploymentsApi {
     }
 }
 
-fn list_endpoint(repo: &str, environment: Option<&str>, limit: u32) -> String {
-    let mut endpoint = format!("{}?per_page={limit}", repo_path(repo, &["deployments"]));
+fn list_endpoint(repo: &str, environment: Option<&str>, limit: u32, page: Option<u32>) -> String {
+    let page = page.unwrap_or(1);
+    let mut endpoint = format!(
+        "{}?per_page={limit}&page={page}",
+        repo_path(repo, &["deployments"])
+    );
 
     if let Some(environment) = environment {
         endpoint.push_str(&format!(
@@ -226,11 +231,11 @@ mod tests {
 
     #[test]
     fn test_list_endpoint_encodes_environment() {
-        let endpoint = list_endpoint("org/repo", Some("prod&per_page=1"), 10);
+        let endpoint = list_endpoint("org/repo", Some("prod&per_page=1"), 10, Some(2));
 
         assert_eq!(
             endpoint,
-            "/repos/org/repo/deployments?per_page=10&environment=prod%26per_page%3D1"
+            "/repos/org/repo/deployments?per_page=10&page=2&environment=prod%26per_page%3D1"
         );
     }
 }

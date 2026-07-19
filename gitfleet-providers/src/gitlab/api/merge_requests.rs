@@ -132,6 +132,7 @@ impl MergeRequestsApi {
         project: &str,
         state: &str,
         limit: u32,
+        page: Option<u32>,
         base: Option<&str>,
         head: Option<&str>,
     ) -> Result<Vec<PullRequest>, GitfleetError> {
@@ -142,8 +143,9 @@ impl MergeRequestsApi {
             state => state,
         };
 
+        let page = page.unwrap_or(1);
         let mut endpoint = format!(
-            "/projects/{encoded}/merge_requests?state={}&per_page={limit}",
+            "/projects/{encoded}/merge_requests?state={}&per_page={limit}&page={page}",
             urlencoding::encode(state)
         );
 

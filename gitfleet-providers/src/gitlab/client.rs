@@ -495,6 +495,15 @@ macro_rules! impl_empty_ops {
 impl_empty_ops!();
 
 #[async_trait::async_trait]
+impl gitfleet_core::provider::AuthOps for ProviderClient {
+    async fn get_authenticated_user(
+        &self,
+    ) -> Result<gitfleet_core::types::AuthStatus, gitfleet_core::errors::GitfleetError> {
+        crate::gitlab::api::AuthApi::fetch_authenticated_user(self).await
+    }
+}
+
+#[async_trait::async_trait]
 impl gitfleet_core::provider::DiscussionOps for ProviderClient {
     async fn list_discussions(
         &self,
@@ -502,8 +511,9 @@ impl gitfleet_core::provider::DiscussionOps for ProviderClient {
         name: &str,
         category_id: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<gitfleet_core::types::Discussion>, gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::DiscussionsApi::list(self, owner, name, category_id, limit).await
+        crate::gitlab::api::DiscussionsApi::list(self, owner, name, category_id, limit, page).await
     }
 
     async fn get_discussion(
@@ -629,10 +639,11 @@ impl gitfleet_core::provider::ChangeOps for ProviderClient {
         repo: &str,
         state: &str,
         limit: u32,
+        page: Option<u32>,
         base: Option<&str>,
         head: Option<&str>,
     ) -> Result<Vec<gitfleet_core::types::PullRequest>, gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::MergeRequestsApi::list(self, repo, state, limit, base, head).await
+        crate::gitlab::api::MergeRequestsApi::list(self, repo, state, limit, page, base, head).await
     }
 
     async fn get_change(
@@ -734,10 +745,11 @@ impl gitfleet_core::provider::IssueOps for ProviderClient {
         repo: &str,
         state: &str,
         limit: u32,
+        page: Option<u32>,
         labels: &[String],
         assignees: &[String],
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::IssuesApi::list(self, repo, state, limit, labels, assignees).await
+        crate::gitlab::api::IssuesApi::list(self, repo, state, limit, page, labels, assignees).await
     }
 
     async fn update_issue(
@@ -801,8 +813,9 @@ impl gitfleet_core::provider::PipelineOps for ProviderClient {
         repo: &str,
         filters: &str,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::PipelinesApi::list_pipelines(self, repo, filters, limit).await
+        crate::gitlab::api::PipelinesApi::list_pipelines(self, repo, filters, limit, page).await
     }
 
     async fn get_run(
@@ -844,8 +857,9 @@ impl gitfleet_core::provider::ReleaseOps for ProviderClient {
         &self,
         repo: &str,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<serde_json::Value, gitfleet_core::errors::GitfleetError> {
-        crate::gitlab::api::ReleasesApi::list(self, repo, limit).await
+        crate::gitlab::api::ReleasesApi::list(self, repo, limit, page).await
     }
 
     async fn fetch_release_by_tag(
@@ -1167,11 +1181,12 @@ impl gitfleet_core::provider::SearchOps for ProviderClient {
         sort: Option<&str>,
         order: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<
         gitfleet_core::types::SearchResult<serde_json::Value>,
         gitfleet_core::errors::GitfleetError,
     > {
-        crate::gitlab::api::SearchApi::search_issues(self, query, sort, order, limit).await
+        crate::gitlab::api::SearchApi::search_issues(self, query, sort, order, limit, page).await
     }
 
     async fn search_repos(
@@ -1180,22 +1195,24 @@ impl gitfleet_core::provider::SearchOps for ProviderClient {
         sort: Option<&str>,
         order: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<
         gitfleet_core::types::SearchResult<serde_json::Value>,
         gitfleet_core::errors::GitfleetError,
     > {
-        crate::gitlab::api::SearchApi::search_projects(self, query, sort, order, limit).await
+        crate::gitlab::api::SearchApi::search_projects(self, query, sort, order, limit, page).await
     }
 
     async fn search_code(
         &self,
         query: &str,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<
         gitfleet_core::types::SearchResult<serde_json::Value>,
         gitfleet_core::errors::GitfleetError,
     > {
-        crate::gitlab::api::SearchApi::search_code(self, query, limit).await
+        crate::gitlab::api::SearchApi::search_code(self, query, limit, page).await
     }
 }
 
@@ -1216,9 +1233,10 @@ impl gitfleet_core::provider::CodeOps for ProviderClient {
         repo: Option<&str>,
         language: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<gitfleet_core::types::CodeSearchResult>, gitfleet_core::errors::GitfleetError>
     {
-        crate::gitlab::api::CodeApi::search(self, query, repo, language, limit).await
+        crate::gitlab::api::CodeApi::search(self, query, repo, language, limit, page).await
     }
 }
 
@@ -1334,9 +1352,10 @@ impl gitfleet_core::provider::DeployOps for ProviderClient {
         repo: &str,
         environment: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<gitfleet_core::types::DeploymentSummary>, gitfleet_core::errors::GitfleetError>
     {
-        crate::gitlab::api::DeployApi::list(self, repo, environment, limit).await
+        crate::gitlab::api::DeployApi::list(self, repo, environment, limit, page).await
     }
 
     async fn create_deployment(
@@ -1605,6 +1624,7 @@ impl gitfleet_core::provider::PlanningOps for ProviderClient {
         &self,
         _owner: &str,
         _limit: u32,
+        _page: Option<u32>,
     ) -> Result<Vec<gitfleet_core::types::ProjectSummary>, gitfleet_core::errors::GitfleetError>
     {
         Err(GitfleetError::from(UnsupportedCapabilityError::new(
@@ -1761,9 +1781,10 @@ impl gitfleet_core::provider::RegistryOps for ProviderClient {
         owner: &str,
         package_type: Option<&str>,
         limit: u32,
+        page: Option<u32>,
     ) -> Result<Vec<gitfleet_core::types::PackageSummary>, gitfleet_core::errors::GitfleetError>
     {
-        crate::gitlab::api::RegistryApi::list(self, owner, package_type, limit).await
+        crate::gitlab::api::RegistryApi::list(self, owner, package_type, limit, page).await
     }
 
     async fn get_package(

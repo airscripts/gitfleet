@@ -98,7 +98,7 @@ step "PR Create"
 if [ -n "$TEST_PR_NUMBER" ]; then pass "change create succeeds"; else fail "change create failed"; fi
 
 step "PR List"
-expect_exit_0 "pr list succeeds" gitfleet change list --repo "$TEST_REPO" --limit 10
+expect_exit_0 "pr list succeeds" gitfleet change list --repo "$TEST_REPO" --limit 10 --page 1
 
 if [ -n "$TEST_PR_NUMBER" ]; then
   step "PR View"

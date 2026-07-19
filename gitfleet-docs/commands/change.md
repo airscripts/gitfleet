@@ -24,6 +24,7 @@ base is omitted Gitfleet defaults to `main`. Merge methods are limited to
 
 - `gitfleet change create "Add feature" --head feature --base main --repo owner/repository`
 - `gitfleet change list --repo owner/repository --state open`
+- `gitfleet change list --repo owner/repository --state open --limit 25 --page 2`
 - `gitfleet change view 42 --repo owner/repository`
 - `gitfleet change merge 42 --repo owner/repository --method squash --yes`
 
@@ -39,6 +40,8 @@ human mode or `--yes` in automation.
 ## JSON/Automation Notes
 
 Use `--json` for review dashboards and release automation.
+For list output, `--limit` is the page size and `--page` selects a 1-based
+provider page.
 
 ## Related Commands
 

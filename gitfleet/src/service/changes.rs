@@ -2,14 +2,19 @@ use gitfleet_core::errors::{GitfleetError, UnsupportedCapabilityError};
 use gitfleet_core::output::Renderer;
 use gitfleet_core::provider::{GitProvider, ProviderCapability};
 
+pub struct ListOptions<'a> {
+    pub state: &'a str,
+    pub limit: u32,
+    pub page: Option<u32>,
+    pub base: Option<&'a str>,
+    pub head: Option<&'a str>,
+}
+
 pub async fn list(
     provider: &dyn GitProvider,
     renderer: &Renderer,
     repo: &str,
-    state: &str,
-    limit: u32,
-    base: Option<&str>,
-    head: Option<&str>,
+    options: ListOptions<'_>,
 ) -> Result<(), GitfleetError> {
     let ops = provider.change_ops().ok_or_else(|| {
         GitfleetError::from(UnsupportedCapabilityError::new(
@@ -18,7 +23,16 @@ pub async fn list(
         ))
     })?;
 
-    let prs = ops.list_changes(repo, state, limit, base, head).await?;
+    let prs = ops
+        .list_changes(
+            repo,
+            options.state,
+            options.limit,
+            options.page,
+            options.base,
+            options.head,
+        )
+        .await?;
 
     if renderer.is_json() {
         let json = serde_json::to_value(&prs)
