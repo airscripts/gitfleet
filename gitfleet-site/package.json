@@ -16,8 +16,8 @@
     "lint": "eslint . && astro check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run src",
-    "test:integration": "vitest run tests",
+    "test": "vitest run src --reporter=default",
+    "test:integration": "vitest run tests --reporter=default",
     "verify": "pnpm format:check && pnpm lint && pnpm test && pnpm build && pnpm test:integration"
   },
   "dependencies": {

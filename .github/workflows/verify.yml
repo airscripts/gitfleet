@@ -105,6 +105,3 @@ jobs:
 
       - run: pnpm lint
         name: Lint and Type Check
-
-      - run: pnpm test
-        name: Run Unit Tests

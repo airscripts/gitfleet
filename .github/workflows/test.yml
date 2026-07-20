@@ -107,5 +107,8 @@ jobs:
         env:
           ASTRO_TELEMETRY_DISABLED: "1"
 
+      - run: pnpm test
+        name: Run Unit Tests
+
       - run: pnpm test:integration
         name: Run Integration Tests
