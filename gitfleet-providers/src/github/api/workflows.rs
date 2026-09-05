@@ -12,7 +12,7 @@ impl WorkflowsApi {
         limit: u32,
         page: Option<u32>,
     ) -> Result<serde_json::Value, GitfleetError> {
-        let page_param = page.map_or(1, |p| p);
+        let page_param = page.unwrap_or(1);
 
         let endpoint = repo_path(repo, &["actions", "workflows"]);
         let endpoint = format!("{endpoint}?per_page={limit}&page={page_param}");
