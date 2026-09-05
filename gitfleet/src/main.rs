@@ -331,6 +331,9 @@ fn requires_provider_context(command: &Commands) -> bool {
             | Commands::Config { .. }
             | Commands::GitCredential { .. }
             | Commands::Version
+            | Commands::Label {
+                subcommand: commands::label_cmd::LabelCmdCommand::Template { .. }
+            }
             | Commands::Auth {
                 subcommand: commands::auth::AuthCommand::Login { .. }
                     | commands::auth::AuthCommand::Logout { .. }

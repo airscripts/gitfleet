@@ -7,6 +7,12 @@ use crate::service;
 
 #[derive(Subcommand, Debug)]
 pub enum LabelCmdCommand {
+    #[command(about = "Inspect built-in label templates.")]
+    Template {
+        #[command(subcommand)]
+        command: LabelTemplateCommand,
+    },
+
     #[command(about = "List labels.")]
     List {
         #[arg(long)]
@@ -32,13 +38,52 @@ pub enum LabelCmdCommand {
         #[arg(long)]
         yes: bool,
     },
+
+    #[command(about = "Rename a label while preserving its issue and change references.")]
+    Rename {
+        old_name: String,
+        new_name: String,
+        #[arg(long)]
+        repo: Option<String>,
+    },
+
+    #[command(about = "Synchronize repository labels from a template.")]
+    Sync {
+        #[arg(long, conflicts_with = "file", required_unless_present = "file")]
+        template: Option<String>,
+        #[arg(
+            long,
+            conflicts_with = "template",
+            required_unless_present = "template"
+        )]
+        file: Option<String>,
+        #[arg(long)]
+        repo: Option<String>,
+        #[arg(long)]
+        replace: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum LabelTemplateCommand {
+    #[command(about = "List built-in templates.")]
+    List,
+
+    #[command(about = "Show a built-in template.")]
+    Show { name: String },
 }
 
 pub async fn run(cmd: LabelCmdCommand, app: &App) -> Result<(), GitfleetError> {
-    let p = app.provider()?;
-
     match cmd {
+        LabelCmdCommand::Template { command } => match command {
+            LabelTemplateCommand::List => service::labels::list_templates(app.renderer()),
+            LabelTemplateCommand::Show { name } => {
+                service::labels::show_template(app.renderer(), &name)
+            }
+        },
+
         LabelCmdCommand::List { repo } => {
+            let p = app.provider()?;
             let repo_str = crate::repo_util::resolve_repo(&repo)?;
 
             service::labels::list(p, app.renderer(), &repo_str).await
@@ -50,6 +95,7 @@ pub async fn run(cmd: LabelCmdCommand, app: &App) -> Result<(), GitfleetError> {
             description,
             repo,
         } => {
+            let p = app.provider()?;
             let repo_str = crate::repo_util::resolve_repo(&repo)?;
 
             let label = gitfleet_core::types::Label {
@@ -78,6 +124,7 @@ pub async fn run(cmd: LabelCmdCommand, app: &App) -> Result<(), GitfleetError> {
         }
 
         LabelCmdCommand::Delete { name, repo, yes } => {
+            let p = app.provider()?;
             let repo_str = crate::repo_util::resolve_repo(&repo)?;
 
             if app.dry_run() {
@@ -116,6 +163,44 @@ pub async fn run(cmd: LabelCmdCommand, app: &App) -> Result<(), GitfleetError> {
 
             Ok(())
         }
+
+        LabelCmdCommand::Rename {
+            old_name,
+            new_name,
+            repo,
+        } => {
+            let p = app.provider()?;
+            let repo_str = crate::repo_util::resolve_repo(&repo)?;
+            service::labels::rename(
+                p,
+                app.renderer(),
+                &repo_str,
+                &old_name,
+                &new_name,
+                app.dry_run(),
+            )
+            .await
+        }
+
+        LabelCmdCommand::Sync {
+            template,
+            file,
+            repo,
+            replace,
+        } => {
+            let p = app.provider()?;
+            let repo_str = crate::repo_util::resolve_repo(&repo)?;
+            let source = service::labels::load_template(template.as_deref(), file.as_deref())?;
+            service::labels::sync(
+                p,
+                app.renderer(),
+                &repo_str,
+                &source,
+                replace,
+                app.dry_run(),
+            )
+            .await
+        }
     }
 }
 
@@ -130,6 +215,69 @@ mod tests {
 
         run(
             LabelCmdCommand::List {
+                repo: Some("org/repo".into()),
+            },
+            &app,
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_label_template_list_without_provider() {
+        let app = test_helpers::make_app_no_caps();
+
+        run(
+            LabelCmdCommand::Template {
+                command: LabelTemplateCommand::List,
+            },
+            &app,
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_label_sync_dry_run_json() {
+        let app = test_helpers::make_app_dry_run_json();
+
+        run(
+            LabelCmdCommand::Sync {
+                template: Some("gitfleet".into()),
+                file: None,
+                repo: Some("org/repo".into()),
+                replace: true,
+            },
+            &app,
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_label_rename_dry_run_json() {
+        let app = test_helpers::make_app_dry_run_json();
+
+        run(
+            LabelCmdCommand::Rename {
+                old_name: "bug".into(),
+                new_name: "defect".into(),
+                repo: Some("org/repo".into()),
+            },
+            &app,
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_label_rename_case_only_dry_run_json() {
+        let app = test_helpers::make_app_dry_run_json();
+
+        run(
+            LabelCmdCommand::Rename {
+                old_name: "bug".into(),
+                new_name: "BUG".into(),
                 repo: Some("org/repo".into()),
             },
             &app,

@@ -672,6 +672,15 @@ impl LabelOps for MockProvider {
         Ok(serde_json::json!({}))
     }
 
+    async fn update_label(
+        &self,
+        _current_name: &str,
+        label: &Label,
+        _repo: &str,
+    ) -> Result<Label, GitfleetError> {
+        Ok(label.clone())
+    }
+
     async fn delete_label(&self, _name: &str, _repo: &str) -> Result<(), GitfleetError> {
         Ok(())
     }
