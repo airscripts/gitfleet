@@ -9,6 +9,27 @@ pub struct Label {
     pub description: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LabelTemplate {
+    pub version: u32,
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
+    pub labels: Vec<LabelTemplateEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct LabelTemplateEntry {
+    pub name: String,
+    #[serde(default)]
+    pub rename_from: Vec<String>,
+    pub color: String,
+    #[serde(default)]
+    pub description: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RepoSummary {
     pub id: u64,

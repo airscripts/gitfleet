@@ -654,6 +654,12 @@ pub trait LabelOps: Send + Sync {
         label: &Label,
         repo: &str,
     ) -> Result<serde_json::Value, GitfleetError>;
+    async fn update_label(
+        &self,
+        current_name: &str,
+        label: &Label,
+        repo: &str,
+    ) -> Result<Label, GitfleetError>;
     async fn delete_label(&self, name: &str, repo: &str) -> Result<(), GitfleetError>;
 }
 

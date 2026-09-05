@@ -7,6 +7,7 @@ pub mod errors;
 pub(crate) mod file_lock;
 pub mod git;
 pub mod icons;
+pub mod labels;
 pub mod logger;
 pub mod operations;
 pub mod output;

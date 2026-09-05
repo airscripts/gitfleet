@@ -1,0 +1,60 @@
+version = 1
+name = "gitfleet"
+description = "Gitfleet's repository issue and change taxonomy."
+
+[[labels]]
+name = "build"
+color = "0052cc"
+description = "Changes that affect the build system or external dependencies."
+
+[[labels]]
+name = "chore"
+color = "8c8c8c"
+description = "General maintenance such as dependency updates."
+
+[[labels]]
+name = "ci"
+color = "6a3d1c"
+description = "Continuous integration changes."
+
+[[labels]]
+name = "documentation"
+color = "0e8a16"
+description = "Improvements or additions to documentation."
+
+[[labels]]
+name = "feature"
+rename_from = ["enhancement"]
+color = "1d7a1d"
+description = "New feature or request."
+
+[[labels]]
+name = "bug"
+color = "d73a49"
+description = "A defect or incorrect behavior report."
+
+[[labels]]
+name = "fix"
+color = "b60205"
+description = "A change that corrects a confirmed defect."
+
+[[labels]]
+name = "performance"
+color = "b60205"
+description = "Code changes that improve performance."
+
+[[labels]]
+name = "refactor"
+color = "fbca04"
+description = "Changes that improve code without changing behavior."
+
+[[labels]]
+name = "style"
+color = "fef2c0"
+description = "Changes related to code style, like formatting."
+
+[[labels]]
+name = "test"
+rename_from = ["tests"]
+color = "d4c5f9"
+description = "Adding or updating tests."
