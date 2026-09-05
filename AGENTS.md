@@ -1,158 +1,69 @@
 # AGENTS.md
 
-## Overview
+## Mission And Repository Map
 
-Gitfleet is a Rust CLI for provider-neutral repository
-management. GitHub and GitLab are built-in providers.
+Gitfleet is a provider-neutral Rust CLI for managing GitHub and GitLab repositories.
 
-`PLAN.md` and `ROADMAP.md` are reserved for implementation planning and
-deferred milestones.
+- `gitfleet-core/` owns domain types, provider contracts, infrastructure, output, and prompts.
+- `gitfleet-providers/` owns provider clients, wire payloads, normalization, and capabilities.
+- `gitfleet/` owns the thin CLI surface and service orchestration.
+- `gitfleet-playbooks/` contains Bash live API checks; it is not a Cargo crate.
+- `gitfleet-docs/` contains user-facing command, workflow, and provider documentation.
 
-## Crates And Supporting Directories
+## Non-Negotiables
 
-- `gitfleet-core` contains provider-neutral entities, identifiers, capabilities,
-  errors, operations, and all infrastructure (config, git, output, prompts,
-  secrets, workspace).
-- `gitfleet-providers` owns provider clients, wire types, endpoint wrappers,
-  normalization, and capability implementations for GitHub and GitLab. This is
-  the only crate that calls reqwest.
-- `gitfleet` is the product CLI crate and a thin surface over shared operations.
-- `gitfleet-playbooks` is not a Rust crate. It contains live API test scripts
-  (Bash, not Cargo).
+- Keep provider-neutral DTOs and contracts in `gitfleet-core`; keep provider wire types and all `reqwest` calls in `gitfleet-providers`.
+- Normalize provider responses before they cross into `gitfleet-core` or `gitfleet`.
+- Route expected failures through `GitfleetError` and unsupported capabilities through `UnsupportedCapabilityError`.
+- Keep command handlers thin, use shared services, render through `output::Renderer`, and send tracing to stderr.
+- Update the relevant documentation whenever public commands, flags, output, or provider capability support changes.
 
-## Boundaries
+## Don’ts
 
-- `gitfleet-core/provider.rs` contains the GitProvider trait and capability
-  subtraits. This is the contract that providers implement.
-- `gitfleet-providers` is the only crate that calls reqwest. Normalize provider
-  payloads before they leave the crate. Unsupported behavior must use
-  `UnsupportedCapabilityError` instead of emulating another provider.
-- `gitfleet/commands/` is a thin surface
-  over shared operations. No business logic in command handlers.
-- `gitfleet-core/types.rs` are the canonical DTOs. Provider wire types live
-  inside `gitfleet-providers` and must be normalized to domain types before
-  crossing the boundary.
+- Do not add raw `println!` or `eprintln!` outside established output boundaries.
+- Do not call `reqwest` outside provider client modules.
+- Do not add provider wire types to `gitfleet-core` or `gitfleet`.
+- Do not add public commands outside the operation registry or restore legacy aliases.
+- Do not emulate unsupported provider behavior.
 
-## Product Conventions
-
-- Human-readable output is the default; `--json` is explicit.
-- Use `output::Renderer` for rendering and `tracing` for status/logging.
-- `tracing` writes to stderr. Structured output writes to stdout.
-- Use `GitfleetError` enum variants for expected failures.
-- Destructive human-mode operations require confirmation via `inquire`.
-- Destructive JSON or non-interactive operations require `--yes`.
-- Bulk mutations provide `--dry-run` behavior when a preview is meaningful.
-- CLI command labels use provider-neutral terminology from the
-  operation registry.
-- Product and command behavior changes must update `gitfleet-docs/` in the same
-  workflow. New or changed command families update the relevant command page,
-  workflow docs when user behavior changes, provider notes when capability
-  support changes, and README links when navigation changes.
-- No legacy aliases. Canonical names only.
-- Configuration lives under `~/.config/gitfleet/`; environment variables use
-  the `GITFLEET_` prefix. Config format is TOML.
-- Exit codes: 0 for success, 1 for general error, 2 for usage errors.
-
-## Code Style
-
-- rustfmt defaults: 4-space indentation, 100-column width.
-- snake_case for functions, variables, and modules.
-- PascalCase for types, structs, enums, and traits.
-- SCREAMING_SNAKE_CASE for constants.
-- Group imports as std, external crates, then crate-internal with blank lines.
-- Format Rust with breathing room between logical code blocks. A block of code
-  that is preceded and followed by code should normally have a blank line on
-  both sides.
-- Separate enum variants, match arms, trait methods, impl methods, and test
-  cases with blank lines.
-- Separate setup, validation, execution, rendering, and return phases inside
-  functions. For example, keep provider lookup, capability lookup, request
-  execution, response shaping, renderer calls, and `Ok(())` visually distinct.
-- Separate completed multiline expressions from the next operation. This
-  includes chains ending in `.await?`, `.collect()`, `.map_err(...)`, request
-  calls, renderer calls, and destructive confirmation calls.
-- In provider API code, keep endpoint construction, request body construction,
-  request execution, response parsing, and return values as separate visual
-  blocks.
-- In command handlers, keep command parsing/resolution, dry-run handling,
-  confirmation, provider operation calls, rendering, and final return separated.
-- In tests, separate arrange, act, assert, and cleanup phases. Keep related
-  assertions together only when they describe the same object or behavior.
-- Do not insert blank lines inside tight syntax-bound constructs where they
-  reduce clarity, such as simple struct literals, short argument lists, chained
-  method calls, or adjacent assertions that intentionally read as one group.
-- Prefer readable grouping over sorting by line length. Import ordering is by
-  group, not by visual shape.
-- Keep command registration thin and business behavior typed.
-- Never add raw `println!` or `eprintln!` outside established output
-  boundaries.
-- Never call `reqwest` outside a provider client module.
-- Cargo.toml crate names use kebab-case. Module imports use snake_case.
-- Flat module layout in `gitfleet-core`: one file per concept at `src/` root.
-- Nested subsystem layout in `gitfleet-providers`: each provider is a folder.
-- Technical group layout in `gitfleet`: `commands/` then topic files.
-
-## Testing
-
-Unit tests live inside source files in `#[cfg(test)] mod tests {}` blocks.
-Integration tests live in each crate's `tests/` directory. Coverage must remain
-at or above 80 percent.
-
-- `gitfleet-core/tests/` — integration tests + fixtures
-- `gitfleet-providers/tests/` — provider integration tests + fixtures
-- `gitfleet/tests/` — CLI integration tests (assert_cmd)
-- `gitfleet-playbooks/` — live API playbooks (Bash, not Cargo)
-
-Do not make real HTTP requests in automated tests. Mock provider clients with
-wiremock and use insta for normalization snapshots. Every retained command
-family must have unit, integration, and reversible live-playbook coverage.
-
-Required gates:
+## Quick Start
 
 ```bash
-cargo fmt --check
-CARGO_BUILD_JOBS=4 cargo clippy -- -D warnings
-CARGO_BUILD_JOBS=4 cargo check --workspace
-CARGO_BUILD_JOBS=4 cargo test --workspace
-CARGO_BUILD_JOBS=4 cargo llvm-cov --fail-under-lines 80 --workspace
-CARGO_BUILD_JOBS=4 cargo build --release
+make install
+make verify
 ```
 
-After every implementation or test change, refresh the repository metrics as
-part of the same workflow: run `gitfleet-scripts/loc.sh` and
-`gitfleet-scripts/tests.sh`, update the LOC and tests shields in
-`README.md`, and update the coverage percentage shield from the resulting
-`cargo llvm-cov` report. Keep all three values current with the checked-out
-source and tests.
+The required gates are formatting, warnings-as-errors Clippy, workspace check and tests, 80% line coverage, release build, and repository metrics.
 
-## Playbooks
+## Change Routing
 
-Playbooks live under `gitfleet-playbooks/`, source `gitfleet-playbooks/env.sh`,
-test positive and negative cases, and always clean up mutations with
-`trap teardown EXIT`. Resources use a `gitfleet-test-` or `gitfleet_` prefix.
-Output uses `[INFO]`, `[OK]`, `[ERROR]`, `[WARN]`, and `[DEBUG]` without
-decorative lines.
+Put shared behavior and canonical DTOs in `gitfleet-core`, provider behavior in `gitfleet-providers`, CLI parsing and orchestration in `gitfleet`, live API coverage in `gitfleet-playbooks`, and user behavior changes in `gitfleet-docs`.
 
-## Release and Git Rules
+## Architecture Rules
 
-- Keep implementation changes unstaged unless the owner explicitly requests
-  staging or publication.
-- Do not commit, tag, push, publish, alter remotes, rename the remote
-  repository, or delete releases.
-- Release metadata must agree across `VERSION`, all `Cargo.toml` files,
-  `CITATION.cff`, `CHANGELOG.md`, and documentation.
-- Conventional commits use a lowercase prefix, colon, space, and a short
-  imperative subject.
+Use provider capability traits from `gitfleet-core/src/provider.rs`. Keep `gitfleet/src/commands/` as a thin surface over typed services. Configuration is TOML under the user configuration directory, with `GITFLEET_` environment variables. Human output is the default; JSON is explicit. Destructive operations require confirmation, or `--yes` in JSON and non-interactive modes. Bulk mutations should provide meaningful `--dry-run` previews.
 
-## Red Lines
+## Implementation Conventions
 
-- Never call `reqwest` outside a provider client module.
-- Never add provider wire types to gitfleet-core or gitfleet.
-- Never bypass the shared output layer for structured rendering.
-- Never use bare `Error` or `anyhow` for expected failures.
-- Never add a public command family outside the operation registry.
-- Never add a command without tests and a corresponding playbook.
-- Never restore legacy `ghg`, automatic `gh` proxying, or parity-only
-  behavior.
-- Never assume unsupported provider capabilities.
-- Never stage or publish as part of the Gitfleet 0.1.0 implementation handoff.
+Use four-space Rust formatting with a 100-column limit, grouped imports, snake_case functions and variables, PascalCase types, and SCREAMING_SNAKE_CASE constants. Keep setup, validation, execution, rendering, and return phases visually separated. Use one concept per file in `gitfleet-core` and nested provider folders in `gitfleet-providers`.
+
+## Testing And Validation
+
+Keep unit tests beside source, integration tests in `gitfleet-core/tests/`, `gitfleet-providers/tests/`, and `gitfleet/tests/`, and Bash playbooks under `gitfleet-playbooks/`. Mock HTTP with wiremock and use insta for normalization snapshots; automated tests must not make live requests. Refresh LOC, test-count, and coverage shields after implementation or test changes.
+
+## Common Change Playbooks
+
+For provider changes, update the trait, both implementations where supported, normalization tests, and provider notes. For a command family, update the operation registry, service, command tests, documentation, and reversible playbook. For destructive bulk behavior, implement confirmation, `--yes`, and a dry-run path together.
+
+## Free Region
+
+Maintainer policy: keep implementation changes unstaged unless explicitly requested. Do not commit, tag, push, publish, alter remotes, rename repositories, or delete releases. Keep `PLAN.md` and `ROADMAP.md` for planning only. Use conventional commits with a lowercase prefix and optional submodule scope. Keep release metadata synchronized across `VERSION`, Cargo manifests, `CITATION.cff`, `CHANGELOG.md`, and documentation.
+
+## Further Context
+
+See [AGENTS.reference.md](AGENTS.reference.md) for provenance, detailed boundaries, evidence, workflows, and unresolved decisions.
+
+---
+
+> Generated and maintained by [Agentskill](https://github.com/airscripts/agentskill).
+> Do not touch this file. It is automatically managed by Agentskill.

@@ -7,6 +7,9 @@ Semantic Versioning.
 
 ### Added
 
+- Added declarative label templates, safe in-place label renaming, additive or
+  replacement synchronization for GitHub and GitLab, and a root Makefile for
+  the standard development workflow.
 - Added a `gitfleet-docs/` documentation set with command, workflow,
   provider, configuration, testing, release, and troubleshooting pages so users
   can understand each command family by purpose, timing, examples, provider
