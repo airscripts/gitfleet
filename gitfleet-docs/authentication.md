@@ -84,8 +84,14 @@ package scopes for registry operations, `security_events` for security alerts,
 `codespace` for development environments, and `delete_repo` for repository
 deletion.
 
+For fine-grained GitHub tokens, label listing requires repository `Issues: read`
+or `Pull requests: read`, while creating, updating, renaming, and deleting
+labels requires `Issues: write` or `Pull requests: write`.
+
 For GitLab, `api` gives the complete Gitfleet command surface. Narrower tokens
 such as `read_api`, `read_user`, `read_repository`, `write_repository`,
-`create_runner`, and `manage_runner` can be used for smaller workflows.
+`create_runner`, and `manage_runner` can be used for smaller workflows. Label
+template synchronization needs API access that can read and write project
+labels.
 
 Do not grant GitLab `sudo` or `admin_mode` for normal Gitfleet use.

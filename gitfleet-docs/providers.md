@@ -32,6 +32,12 @@ Provider APIs can still differ inside a supported command family. Check
 `gitfleet auth status` to inspect the active provider and declared
 capabilities.
 
+Both providers support label templates, in-place label renaming, and
+`label sync`. GitHub and GitLab preserve issue/change references when a label is
+renamed through their label-update APIs. A template rename is refused when the
+destination already exists, rather than deleting either label or attempting an
+implicit merge.
+
 ## How To Choose a Profile
 
 Use one profile per account and host. A personal GitHub account, a work GitHub

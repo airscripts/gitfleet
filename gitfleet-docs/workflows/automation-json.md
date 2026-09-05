@@ -12,6 +12,8 @@ GITFLEET_GITHUB_TOKEN=github_pat_... gitfleet repo list --json
 GITFLEET_PROFILE=work gitfleet issue list --repo owner/repository --limit 50 --page 1 --json
 gitfleet repo clone --all --org platform --directory repos --dry-run --json
 gitfleet repo delete owner/old-repository --json --yes
+gitfleet label sync --template gitfleet --repo owner/repository --json --yes
+gitfleet label sync --file labels.toml --repo owner/repository --dry-run --json
 ```
 
 Status and debug logs go to stderr. Structured output goes to stdout.

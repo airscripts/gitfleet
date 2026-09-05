@@ -2,7 +2,7 @@
 name: Tests
 about: Let’s add or fix some tests!
 title: ""
-labels: tests
+labels: test
 ---
 
 **What needs testing?**
