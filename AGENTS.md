@@ -59,6 +59,8 @@ For provider changes, update the trait, both implementations where supported, no
 
 Maintainer policy: keep implementation changes unstaged unless explicitly requested. Do not commit, tag, push, publish, alter remotes, rename repositories, or delete releases. Keep `PLAN.md` and `ROADMAP.md` for planning only. Use conventional commits with a lowercase prefix and optional submodule scope. Keep release metadata synchronized across `VERSION`, Cargo manifests, `CITATION.cff`, `CHANGELOG.md`, and documentation.
 
+For every implementation handoff, include ready-to-run conventional commit commands grouped by affected submodule. Use only submodule scopes without the `gitfleet-` prefix; use unscoped commits for root or CI changes. Do not run the commands unless explicitly requested.
+
 ## Further Context
 
 See [AGENTS.reference.md](AGENTS.reference.md) for provenance, detailed boundaries, evidence, workflows, and unresolved decisions.
