@@ -26,8 +26,9 @@ Install hooks once after cloning:
 lefthook install
 ```
 
-The configured pre-commit hook runs formatting, clippy, a workspace build, and
-the workspace coverage gate. There is no configured pre-push hook.
+The configured pre-commit hook runs fast formatting and compilation checks plus
+unit tests. Full linting, integration tests, coverage, and release builds are
+available through `make verify`. There is no configured pre-push hook.
 
 ## Architecture
 

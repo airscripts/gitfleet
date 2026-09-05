@@ -3,14 +3,8 @@ pre-commit:
   follow: true
 
   commands:
-    fmt:
-      run: cargo fmt --check
+    verify:
+      run: cargo fmt --check && CARGO_BUILD_JOBS=4 cargo check --workspace
 
-    clippy:
-      run: CARGO_BUILD_JOBS=4 cargo clippy -- -D warnings
-
-    build:
-      run: CARGO_BUILD_JOBS=4 cargo build --workspace
-
-    test:
-      run: CARGO_BUILD_JOBS=4 cargo llvm-cov --fail-under-lines 80 --workspace
+    unit:
+      run: CARGO_BUILD_JOBS=4 cargo test --workspace --lib --bins
