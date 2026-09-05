@@ -765,6 +765,15 @@ impl gitfleet_core::provider::LabelOps for ProviderClient {
         crate::github::api::LabelsApi::create(self, label, repo).await
     }
 
+    async fn update_label(
+        &self,
+        current_name: &str,
+        label: &gitfleet_core::types::Label,
+        repo: &str,
+    ) -> Result<gitfleet_core::types::Label, gitfleet_core::errors::GitfleetError> {
+        crate::github::api::LabelsApi::update(self, current_name, label, repo).await
+    }
+
     async fn delete_label(
         &self,
         name: &str,

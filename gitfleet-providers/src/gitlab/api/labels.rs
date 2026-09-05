@@ -13,33 +13,27 @@ impl LabelsApi {
     pub async fn list(client: &ProviderClient, project: &str) -> Result<Vec<Label>, GitfleetError> {
         let encoded = encode_path(project);
 
-        let endpoint = format!("/projects/{encoded}/labels?per_page=100");
+        let endpoint = format!("/projects/{encoded}/labels");
 
-        let response = client
-            .request_optional_token(reqwest::Method::GET, &endpoint, None, None, None)
-            .await?;
-
-        let data: Vec<serde_json::Value> = crate::parse_json(response)
-            .await
-            .map_err(|e| GitfleetError::new(format!("Failed to list labels: {e}")))?;
+        let data: Vec<serde_json::Value> = client.get_paginated(&endpoint, None, None).await?;
 
         Ok(data
             .iter()
             .map(|raw| Label {
                 name: raw
                     .get("name")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
+                    .and_then(|value| value.as_str())
+                    .unwrap_or_default()
                     .to_string(),
                 color: raw
                     .get("color")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
+                    .and_then(|value| value.as_str())
+                    .unwrap_or_default()
                     .to_string(),
                 description: raw
                     .get("description")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
+                    .and_then(|value| value.as_str())
+                    .unwrap_or_default()
                     .to_string(),
                 new_name: None,
             })
@@ -76,6 +70,37 @@ impl LabelsApi {
         Ok(data)
     }
 
+    pub async fn update(
+        client: &ProviderClient,
+        current_name: &str,
+        label: &Label,
+        project: &str,
+    ) -> Result<Label, GitfleetError> {
+        let encoded = encode_path(project);
+        let enc_name = urlencoding::encode(current_name);
+        let endpoint = format!("/projects/{encoded}/labels/{enc_name}");
+        let color = if label.color.starts_with('#') {
+            label.color.clone()
+        } else {
+            format!("#{}", label.color)
+        };
+        let json = serde_json::json!({
+            "new_name": label.name,
+            "color": color,
+            "description": label.description,
+        });
+
+        let response = client
+            .request_token_required(reqwest::Method::PUT, &endpoint, Some(json), None, None)
+            .await?;
+
+        let data: serde_json::Value = crate::parse_json(response)
+            .await
+            .map_err(|e| GitfleetError::new(format!("Failed to update label: {e}")))?;
+
+        Ok(normalize_label(&data))
+    }
+
     pub async fn delete(
         client: &ProviderClient,
         name: &str,
@@ -91,6 +116,28 @@ impl LabelsApi {
             .await?;
 
         Ok(())
+    }
+}
+
+fn normalize_label(raw: &serde_json::Value) -> Label {
+    Label {
+        name: raw
+            .get("name")
+            .and_then(|value| value.as_str())
+            .unwrap_or_default()
+            .to_string(),
+        color: raw
+            .get("color")
+            .and_then(|value| value.as_str())
+            .unwrap_or_default()
+            .trim_start_matches('#')
+            .to_ascii_lowercase(),
+        description: raw
+            .get("description")
+            .and_then(|value| value.as_str())
+            .unwrap_or_default()
+            .to_string(),
+        new_name: None,
     }
 }
 

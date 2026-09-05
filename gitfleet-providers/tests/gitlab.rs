@@ -745,6 +745,50 @@ async fn test_gitlab_delete_label() {
 
 #[tokio::test]
 #[serial]
+async fn test_gitlab_update_preserves_existing_label() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("PUT"))
+        .and(path("/projects/testgroup%2Fmy-project/labels/enhancement"))
+        .and(header("PRIVATE-TOKEN", "testtoken"))
+        .and(body_json(serde_json::json!({
+            "new_name": "feature",
+            "color": "#1d7a1d",
+            "description": "New feature or request"
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "name": "feature",
+            "color": "#1d7a1d",
+            "description": "New feature or request"
+        })))
+        .mount(&server)
+        .await;
+
+    setup_token();
+
+    let provider = GitLabProvider::with_base_url(&server.uri());
+    let ops = provider.label_ops().expect("label ops");
+    let label = gitfleet_core::types::Label {
+        name: "feature".to_string(),
+        color: "1d7a1d".to_string(),
+        description: "New feature or request".to_string(),
+        new_name: None,
+    };
+
+    let result = ops
+        .update_label("enhancement", &label, "testgroup/my-project")
+        .await;
+
+    teardown_token();
+
+    let result = result.expect("normalized label");
+    assert_eq!(result.name, "feature");
+    assert_eq!(result.color, "1d7a1d");
+    assert_eq!(result.description, "New feature or request");
+}
+
+#[tokio::test]
+#[serial]
 async fn test_gitlab_list_pipelines() {
     let server = MockServer::start().await;
 
