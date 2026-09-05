@@ -34,3 +34,7 @@ jobs:
   security:
     name: Security
     uses: ./.github/workflows/security.yml
+    permissions:
+      contents: read
+      checks: write
+      issues: write

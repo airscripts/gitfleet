@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: read
+  checks: write
+  issues: write
 
 jobs:
   dependencies:
