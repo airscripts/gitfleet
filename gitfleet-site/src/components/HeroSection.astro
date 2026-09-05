@@ -1,15 +1,17 @@
 ---
 import { Download, Star } from "@lucide/astro";
 
-import { banner, releaseUrl, repoUrl } from "../data/site";
+import { bannerLines, releaseUrl, repoUrl } from "../data/site";
+
+const bannerSplitIndex = 21;
 ---
 
 <section class="site-reveal flex max-w-3xl flex-col justify-center">
   <h1 class="sr-only">Gitfleet</h1>
 
   <pre
-    class="ascii-title max-w-full overflow-hidden whitespace-pre font-mono font-semibold leading-none text-ink"
-    aria-hidden="true">{banner}</pre>
+    class="ascii-title max-w-full overflow-hidden whitespace-pre font-mono font-semibold leading-none"
+    aria-hidden="true">{bannerLines.map((line) => <span class="block"><span class="text-ink">{line.slice(0, bannerSplitIndex)}</span><span class="text-fleet">{line.slice(bannerSplitIndex)}</span></span>)}</pre>
 
   <p class="mt-5 max-w-2xl text-base leading-7 text-muted sm:text-lg sm:leading-8">
     Command every repository as one fleet with a provider-neutral CLI for GitHub and GitLab. Use the
@@ -19,7 +21,7 @@ import { banner, releaseUrl, repoUrl } from "../data/site";
 
   <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
     <a
-      class="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-ink bg-ink px-5 py-3 text-sm font-semibold text-canvas no-underline transition hover:bg-canvas hover:text-ink"
+      class="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-fleet bg-fleet px-5 py-3 text-sm font-semibold text-surface no-underline transition hover:bg-surface hover:text-fleet"
       href={releaseUrl}
     >
       <Download class="h-4 w-4" aria-hidden="true" />

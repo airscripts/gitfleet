@@ -24,8 +24,8 @@
   --site-ink: #000000;
   --site-muted: #000000;
   --site-line: #000000;
-  --site-fleet: #000000;
-  --site-signal: #000000;
+  --site-fleet: #007c91;
+  --site-signal: #007c91;
   --site-code: #000000;
   --site-code-line: #ffffff;
 }
@@ -38,8 +38,8 @@
   --site-ink: #ffffff;
   --site-muted: #ffffff;
   --site-line: #ffffff;
-  --site-fleet: #ffffff;
-  --site-signal: #ffffff;
+  --site-fleet: #22d3ee;
+  --site-signal: #22d3ee;
   --site-code: #ffffff;
   --site-code-line: #000000;
 }
@@ -120,6 +120,12 @@ button:hover {
   transform: translateY(-1px);
 }
 
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--site-fleet);
+  outline-offset: 3px;
+}
+
 @keyframes site-reveal {
   from {
     opacity: 0;
@@ -159,11 +165,6 @@ button:hover {
 }
 
 ::selection {
-  background: var(--site-ink);
-  color: var(--site-canvas);
-}
-
-[data-theme="dark"] ::selection {
-  background: var(--site-ink);
-  color: var(--site-canvas);
+  background: var(--site-fleet);
+  color: var(--site-surface);
 }
