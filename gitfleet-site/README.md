@@ -4,8 +4,8 @@ Static Astro homepage for discovering Gitfleet, downloading releases, and
 reaching the GitHub-hosted documentation.
 
 The page keeps a fixed skeleton: header, ASCII hero, live terminal preview, and
-footer. The GITFLEET banner is an SVG so box-drawing columns stay aligned when
-mobile browsers substitute fonts or inflate small text. Visual language is sonar
+footer. The GITFLEET banner is drawn as SVG geometry so box-drawing columns stay
+aligned without depending on mobile fonts. Visual language is sonar
 cyan on light and dark surfaces, with Plus Jakarta Sans, IBM Plex Mono, and the
 Gitfleet hexagon mark.
 
@@ -75,13 +75,16 @@ CI installs Chromium with OS dependencies before `pnpm test:e2e`.
   mocked star counts.
 - `public/` — site-served copies of the logo, favicon, and cover.
 
+Source modules import from `src/` with the `@/` alias (`@/data/site`,
+`@/components/SiteHeader.astro`).
+
 Canonical brand files live in [`gitfleet-assets/`](../gitfleet-assets/):
 
-| File                          | Role                                 |
-| ----------------------------- | ------------------------------------ |
-| `gitfleet-assets/cover.png`   | 1280×640 README and Open Graph cover |
-| `gitfleet-assets/logo.png`    | 1024×1024 transparent hex mark       |
-| `gitfleet-assets/favicon.png` | 64×64 favicon                        |
+| File                          | Role                                                            |
+| ----------------------------- | --------------------------------------------------------------- |
+| `gitfleet-assets/cover.png`   | 1280×640 README and Open Graph cover with light rounded corners |
+| `gitfleet-assets/logo.png`    | 1024×1024 transparent hex mark                                  |
+| `gitfleet-assets/favicon.png` | 64×64 favicon                                                   |
 
 `public/logo.png` is a smaller header copy so the homepage does not ship the
 full 1024px asset.
