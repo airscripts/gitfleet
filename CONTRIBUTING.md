@@ -54,6 +54,18 @@ the real GitHub and GitLab APIs. They require an explicit token and test
 repository for the active provider, and clean up mutations during teardown.
 Run them only against a dedicated test repository.
 
+The static homepage in `gitfleet-site/` has its own Node.js gate:
+
+```bash
+cd gitfleet-site
+pnpm verify
+```
+
+That command runs Prettier, ESLint, `astro check`, Vitest unit tests, the
+Astro build, build-output integration tests, and Playwright. Site tests must mock
+the GitHub stars API and must not make live HTTP requests.
+
+
 ## Commit Convention
 
 All commit messages must use a lowercase prefix followed by a colon and space:

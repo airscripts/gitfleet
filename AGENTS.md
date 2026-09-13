@@ -9,6 +9,10 @@ Gitfleet is a provider-neutral Rust CLI for managing GitHub and GitLab repositor
 - `gitfleet/` owns the thin CLI surface and service orchestration.
 - `gitfleet-playbooks/` contains Bash live API checks; it is not a Cargo crate.
 - `gitfleet-docs/` contains user-facing command, workflow, and provider documentation.
+- `gitfleet-site/` owns the static Astro homepage.
+- `gitfleet-assets/` contains canonical cover, logo, and favicon graphics.
+
+Scoped `AGENTS.md` files exist in `gitfleet-core/`, `gitfleet-providers/`, `gitfleet/`, and `gitfleet-site/`. They inherit this document additively.
 
 ## Non-Negotiables
 
@@ -16,7 +20,7 @@ Gitfleet is a provider-neutral Rust CLI for managing GitHub and GitLab repositor
 - Normalize provider responses before they cross into `gitfleet-core` or `gitfleet`.
 - Route expected failures through `GitfleetError` and unsupported capabilities through `UnsupportedCapabilityError`.
 - Keep command handlers thin, use shared services, render through `output::Renderer`, and send tracing to stderr.
-- Update the relevant documentation whenever public commands, flags, output, or provider capability support changes.
+- Update the relevant documentation whenever public commands, flags, output, provider capability support, or homepage behavior changes.
 
 ## Don’ts
 
@@ -33,27 +37,27 @@ make install
 make verify
 ```
 
-The required gates are formatting, warnings-as-errors Clippy, workspace check and tests, 80% line coverage, release build, and repository metrics.
+The required CLI gates are formatting, warnings-as-errors Clippy, workspace check and tests, 80% line coverage, release build, and repository metrics. The homepage gate is `pnpm verify` inside `gitfleet-site/`.
 
 ## Change Routing
 
-Put shared behavior and canonical DTOs in `gitfleet-core`, provider behavior in `gitfleet-providers`, CLI parsing and orchestration in `gitfleet`, live API coverage in `gitfleet-playbooks`, and user behavior changes in `gitfleet-docs`.
+Put shared behavior and canonical DTOs in `gitfleet-core`, provider behavior in `gitfleet-providers`, CLI parsing and orchestration in `gitfleet`, live API coverage in `gitfleet-playbooks`, user behavior changes in `gitfleet-docs`, homepage and visual changes in `gitfleet-site`, and brand graphics in `gitfleet-assets`.
 
 ## Architecture Rules
 
-Use provider capability traits from `gitfleet-core/src/provider.rs`. Keep `gitfleet/src/commands/` as a thin surface over typed services. Configuration is TOML under the user configuration directory, with `GITFLEET_` environment variables. Human output is the default; JSON is explicit. Destructive operations require confirmation, or `--yes` in JSON and non-interactive modes. Bulk mutations should provide meaningful `--dry-run` previews.
+Use provider capability traits from `gitfleet-core/src/provider.rs`. Keep `gitfleet/src/commands/` as a thin surface over typed services. Configuration is TOML under the user configuration directory, with `GITFLEET_` environment variables. Human output is the default; JSON is explicit. Destructive operations require confirmation, or `--yes` in JSON and non-interactive modes. Bulk mutations should provide meaningful `--dry-run` previews. The Astro homepage is not the CLI `gitfleet site` command family.
 
 ## Implementation Conventions
 
-Use four-space Rust formatting with a 100-column limit, grouped imports, snake_case functions and variables, PascalCase types, and SCREAMING_SNAKE_CASE constants. Keep setup, validation, execution, rendering, and return phases visually separated. Use one concept per file in `gitfleet-core` and nested provider folders in `gitfleet-providers`.
+Use four-space Rust formatting with a 100-column limit, grouped imports, snake_case functions and variables, PascalCase types, and SCREAMING_SNAKE_CASE constants. Keep setup, validation, execution, rendering, and return phases visually separated. Use one concept per file in `gitfleet-core` and nested provider folders in `gitfleet-providers`. Format `gitfleet-site` with Prettier at print width 100.
 
 ## Testing And Validation
 
-Keep unit tests beside source, integration tests in `gitfleet-core/tests/`, `gitfleet-providers/tests/`, and `gitfleet/tests/`, and Bash playbooks under `gitfleet-playbooks/`. Mock HTTP with wiremock and use insta for normalization snapshots; automated tests must not make live requests. Refresh LOC, test-count, and coverage shields after implementation or test changes.
+Keep unit tests beside source, integration tests in `gitfleet-core/tests/`, `gitfleet-providers/tests/`, and `gitfleet/tests/`, and Bash playbooks under `gitfleet-playbooks/`. Mock HTTP with wiremock and use insta for normalization snapshots. Site tests use Vitest beside `gitfleet-site/src/`, build-output checks in `gitfleet-site/tests/`, and Playwright against the Astro production preview. Automated tests must not make live requests. Refresh LOC, test-count, and coverage shields after CLI implementation or test changes.
 
 ## Common Change Playbooks
 
-For provider changes, update the trait, both implementations where supported, normalization tests, and provider notes. For a command family, update the operation registry, service, command tests, documentation, and reversible playbook. For destructive bulk behavior, implement confirmation, `--yes`, and a dry-run path together.
+For provider changes, update the trait, both implementations where supported, normalization tests, and provider notes. For a command family, update the operation registry, service, command tests, documentation, and reversible playbook. For destructive bulk behavior, implement confirmation, `--yes`, and a dry-run path together. For homepage changes, keep the header, ASCII hero, terminal, and footer skeleton, lock sonar cyan tokens, mock the GitHub stars API, and update `gitfleet-site/README.md`.
 
 ## Free Region
 

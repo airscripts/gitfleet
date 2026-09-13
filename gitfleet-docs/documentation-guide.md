@@ -151,3 +151,9 @@ Keep the root `README.md` concise. It should help a new reader understand what
 Gitfleet is, install it, run the first commands, and find the full docs. Move
 long command tables, provider details, configuration details, and workflows into
 `gitfleet-docs/`.
+
+The marketing homepage lives in `gitfleet-site/`. Keep its README, tests, and
+`gitfleet-assets/` graphics synchronized when public site behavior, links, or
+brand files change. User-facing CLI command pages stay in `gitfleet-docs/`;
+`gitfleet-docs/commands/site.md` documents the CLI `gitfleet site` family, not
+the Astro homepage.

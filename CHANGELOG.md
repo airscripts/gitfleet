@@ -30,10 +30,14 @@ Semantic Versioning.
   reaching the GitHub-hosted docs.
 - Added Gitfleet site jobs to the existing verify, build, and test workflows
   with pnpm install, Prettier format checks, ESLint source linting, Astro
-  lint/type checks, Vitest unit tests, static build, and build-output
-  integration tests.
+  lint/type checks, Vitest unit tests, static build, build-output integration
+  tests, and Playwright end-to-end tests against a mocked GitHub stars API.
 - Added typed site content fixtures and tests for homepage links, terminal tips,
-  metadata, footer theme toggle placement, and static output behavior.
+  metadata, footer theme toggle placement, skip-link landmarks, and static
+  output behavior.
+- Added nested Agentskill guidance for `gitfleet-core/`,
+  `gitfleet-providers/`, `gitfleet/`, and `gitfleet-site/`, with the root
+  documents remaining the nearest parent.
 
 ### Changed
 
@@ -50,14 +54,27 @@ Semantic Versioning.
   credential.
 - Reduced bulk operation memory use by sharing the prepared work list across
   concurrent workers instead of cloning it once per worker.
-- Finalized the Gitfleet homepage visual system around a monochrome Inter-based
-  layout, CLI ASCII banner hero, animated terminal panel, footer theme toggle,
-  and icon-supported navigation and calls to action.
+- Restyled the Gitfleet homepage around the existing header, ASCII hero,
+  terminal, and footer skeleton with layered sonar atmosphere, Plus Jakarta Sans
+  and IBM Plex Mono, refined light and dark surfaces, and glass terminal chrome.
+- Polished Gitfleet homepage viewports so phone, tablet, and desktop layouts
+  feel native, with a compact mobile nav, a later two-column split, and
+  touch-safe controls.
+- Replaced the homepage radar glyph with the Gitfleet hexagon ship mark as
+  resized PNG assets for the header and favicon.
+- Added a 1280x640 cyan Open Graph cover with the white GF mark, and gathered
+  cover, logo, and favicon files under `gitfleet-assets/`.
 - Structured the Astro homepage with dedicated layout, component, data, and
   browser-script modules so the site can scale beyond a single page without
   concentrating markup, content, and behavior in one file.
 - Updated Gitfleet site CI jobs to run on Node.js 24 with Node 24-compatible
   `actions/setup-node@v7` and `pnpm/action-setup@v6` actions.
+- Loaded the GitHub star count on the homepage Star On GitHub button in the
+  browser after page load, keeping the count empty in static HTML.
+- Hardened homepage landmarks, skip-link keyboard access, tap targets, and
+  assistive names so the production build can meet a 95 Lighthouse floor.
+- Added a system color theme to the homepage footer control, cycling light,
+  dark, and operating-system preference.
 
 ## [0.1.0] - 2026-07-17
 
