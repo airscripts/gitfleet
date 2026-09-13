@@ -8,7 +8,7 @@
 
 Command every repository as one fleet.
 
-![Gitfleet](gitfleet-assets/gitfleet.png)
+![Gitfleet](gitfleet-assets/cover.png)
 
 ## Overview
 
@@ -80,6 +80,8 @@ gitfleet help pipeline list-runs
 
 The full Markdown documentation lives in [gitfleet-docs/](./gitfleet-docs/).
 The static homepage source lives in [gitfleet-site/](./gitfleet-site/).
+Canonical cover, logo, and favicon files live in
+[gitfleet-assets/](./gitfleet-assets/).
 
 - [Concepts](./gitfleet-docs/concepts.md)
 - [Providers](./gitfleet-docs/providers.md)
@@ -124,7 +126,8 @@ pnpm verify
 
 The site gate uses Prettier for formatting, ESLint plus `astro check` for
 linting/type diagnostics, Vitest for unit and build-output integration tests,
-and Astro's static build.
+Playwright for mocked browser coverage, and Astro's static build. Brand
+graphics live in [gitfleet-assets/](./gitfleet-assets/).
 
 ## Security
 
