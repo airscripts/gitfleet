@@ -70,7 +70,7 @@ jobs:
   site:
     name: Site
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     defaults:
       run:
@@ -101,6 +101,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
         name: Install Dependencies
 
+      - run: pnpm exec playwright install --with-deps chromium
+        name: Install Playwright Browser
+
       - run: pnpm build
         name: Build Static Site Fixture
 
@@ -112,3 +115,15 @@ jobs:
 
       - run: pnpm test:integration
         name: Run Integration Tests
+
+      - run: pnpm test:e2e
+        name: Run End-to-End Tests
+
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        name: Upload Playwright Report
+
+        with:
+          name: gitfleet-site-playwright-${{ github.run_id }}
+          path: gitfleet-site/playwright-report/
+          if-no-files-found: ignore
