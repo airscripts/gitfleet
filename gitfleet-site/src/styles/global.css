@@ -362,7 +362,6 @@ a {
 
 .ascii-accent {
   fill: var(--site-fleet);
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--site-fleet) 55%, transparent));
 }
 
 .site-mark {

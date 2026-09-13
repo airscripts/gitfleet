@@ -80,6 +80,7 @@ Semantic Versioning.
 - Drew the homepage GITFLEET banner as font-independent SVG geometry so
   box-drawing columns stay aligned on mobile browsers that substitute fonts or
   inflate small text.
+- Removed the glow from the cyan FLEET letters in the homepage ASCII banner.
 - Pointed gitfleet-site source imports at `src/` through the `@/` alias.
 - Installed Agentskill in CI from the GitHub release action instead of
   crates.io, where the CLI is not published.
