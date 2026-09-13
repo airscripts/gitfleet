@@ -26,9 +26,34 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
 
-      - uses: airscripts/agentskill/agentskill-actions/validate@2.1.0
-        name: Validate Agentskill Documents
+      - name: Install Agentskill
 
-        with:
-          version: "2.1.0"
-          signature: auto
+        env:
+          AGENTSKILL_VERSION: "2.1.0"
+
+        run: |
+          set -euo pipefail
+
+          target="x86_64-unknown-linux-gnu"
+          package="agentskill-${AGENTSKILL_VERSION}-${target}"
+          archive="${package}.tar.gz"
+          work="${RUNNER_TEMP}/agentskill"
+          mkdir -p "${work}/bin"
+
+          curl --fail --silent --show-error --location \
+            "https://github.com/airscripts/agentskill/releases/download/${AGENTSKILL_VERSION}/${archive}" \
+            --output "${work}/${archive}"
+          curl --fail --silent --show-error --location \
+            "https://github.com/airscripts/agentskill/releases/download/${AGENTSKILL_VERSION}/SHA256SUMS" \
+            --output "${work}/SHA256SUMS"
+
+          expected="$(awk -v archive="$archive" '$2 == archive { print $1 }' "${work}/SHA256SUMS")"
+          test -n "$expected"
+          printf '%s  %s\n' "$expected" "${work}/${archive}" | sha256sum --check --strict
+
+          tar -xzf "${work}/${archive}" -C "$work"
+          install -m 0755 "${work}/${package}/agentskill" "${work}/bin/agentskill"
+          echo "${work}/bin" >> "$GITHUB_PATH"
+
+      - run: agentskill validate --signature auto
+        name: Validate Agentskill Documents
