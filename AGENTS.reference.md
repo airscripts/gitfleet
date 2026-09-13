@@ -19,7 +19,7 @@ The root `Makefile` exposes install, formatting, Clippy, workspace check, tests,
 
 ## Testing Topology
 
-Rust unit tests are colocated in source modules. Crate integration tests live in `gitfleet-core/tests/`, `gitfleet-providers/tests/`, and `gitfleet/tests/`; CLI tests use `assert_cmd`. Provider tests use wiremock and insta snapshots. Playbooks under `gitfleet-playbooks/` are live API checks and must test positive and negative cases while cleaning created resources with `trap teardown EXIT`. Site unit tests live beside `gitfleet-site/src/`. Site integration tests read `gitfleet-site/dist/`. Playwright covers keyboard navigation, theme toggle, and mocked GitHub star counts. Automated tests must not make live HTTP requests.
+Rust unit tests are colocated in source modules. Crate integration tests live in `gitfleet-core/tests/`, `gitfleet-providers/tests/`, and `gitfleet/tests/`; CLI tests use `assert_cmd`. Provider tests use wiremock and insta snapshots. Playbooks under `gitfleet-playbooks/` are live API checks and must test positive and negative cases while cleaning created resources with `trap teardown EXIT`. Site unit tests live beside `gitfleet-site/src/`. Site integration tests read the Astro build output. Playwright covers keyboard navigation, theme toggle, and mocked GitHub star counts. Automated tests must not make live HTTP requests.
 
 ## Product Safety
 
