@@ -1,4 +1,8 @@
 node_modules/
 dist/
 .astro/
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
 
