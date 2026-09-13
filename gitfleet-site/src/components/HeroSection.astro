@@ -1,9 +1,8 @@
 ---
 import { Download, Star } from "@lucide/astro";
 
-import { bannerLines, releaseUrl, repoUrl } from "../data/site";
-
-const bannerSplitIndex = 21;
+import { releaseUrl, repoUrl } from "../data/site";
+import AsciiBanner from "./AsciiBanner.astro";
 ---
 
 <section class="site-reveal flex max-w-3xl flex-col justify-center" aria-labelledby="site-heading">
@@ -15,9 +14,7 @@ const bannerSplitIndex = 21;
   </p>
 
   <div class="ascii-frame">
-    <pre
-      class="ascii-title max-w-full overflow-hidden whitespace-pre font-mono font-semibold leading-none"
-      aria-hidden="true">{bannerLines.map((line) => <span class="block"><span>{line.slice(0, bannerSplitIndex)}</span><span class="ascii-accent">{line.slice(bannerSplitIndex)}</span></span>)}</pre>
+    <AsciiBanner />
   </div>
 
   <p class="hero-copy">

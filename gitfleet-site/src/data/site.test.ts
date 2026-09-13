@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   bannerLines,
+  bannerSplitIndex,
   docsBlobUrl,
   docsTreeUrl,
   githubRepoApiUrl,
@@ -23,6 +24,9 @@ describe("site content", () => {
     expect(bannerLines).toHaveLength(6);
     expect(bannerLines[0]).toContain("██████");
     expect(bannerLines.join("\n")).toContain("████████");
+    expect(new Set(bannerLines.map((line) => line.length)).size).toBe(1);
+    expect(bannerSplitIndex).toBeGreaterThan(0);
+    expect(bannerSplitIndex).toBeLessThan(bannerLines[0].length);
   });
 
   it("keeps terminal tips useful without pre-rendering visible output", () => {

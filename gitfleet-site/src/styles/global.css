@@ -344,7 +344,29 @@ a {
 .ascii-frame {
   margin-top: 0.9rem;
   max-width: 100%;
-  overflow: hidden;
+  overflow: visible;
+}
+
+.ascii-title {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  color: var(--site-ink);
+  fill: currentColor;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-kerning: none;
+  font-variant-ligatures: none;
+  text-rendering: geometricPrecision;
+  pointer-events: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+.ascii-accent {
+  fill: var(--site-fleet);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--site-fleet) 55%, transparent));
 }
 
 .site-mark {
@@ -386,17 +408,6 @@ a {
 
 .site-reveal {
   animation: site-reveal 760ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-.ascii-title {
-  display: block;
-  font-size: clamp(0.38rem, 0.2rem + 1.35vw, 0.82rem);
-  color: var(--site-ink);
-}
-
-.ascii-accent {
-  color: var(--site-fleet);
-  text-shadow: 0 0 22px color-mix(in srgb, var(--site-fleet) 42%, transparent);
 }
 
 .site-button {

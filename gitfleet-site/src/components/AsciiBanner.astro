@@ -1,0 +1,40 @@
+---
+import { bannerLines, bannerSplitIndex } from "../data/site";
+
+const columns = bannerLines[0]?.length ?? 0;
+const charWidth = 8;
+const fontSize = 11;
+const lineHeight = 13;
+const prefixLength = bannerSplitIndex * charWidth;
+const suffixLength = (columns - bannerSplitIndex) * charWidth;
+const width = columns * charWidth;
+const height = bannerLines.length * lineHeight;
+---
+
+<svg
+  class="ascii-title"
+  viewBox={`0 0 ${width} ${height}`}
+  preserveAspectRatio="xMinYMid meet"
+  role="presentation"
+  aria-hidden="true"
+  focusable="false"
+>
+  {
+    bannerLines.map((line, index) => (
+      <text x="0" y={fontSize + index * lineHeight} font-size={fontSize} xml:space="preserve">
+        <tspan x="0" textLength={prefixLength} lengthAdjust="spacingAndGlyphs">
+          {line.slice(0, bannerSplitIndex)}
+        </tspan>
+
+        <tspan
+          class="ascii-accent"
+          x={prefixLength}
+          textLength={suffixLength}
+          lengthAdjust="spacingAndGlyphs"
+        >
+          {line.slice(bannerSplitIndex)}
+        </tspan>
+      </text>
+    ))
+  }
+</svg>

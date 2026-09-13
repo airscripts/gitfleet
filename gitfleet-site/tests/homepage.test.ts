@@ -12,6 +12,12 @@ describe("homepage build output", () => {
     );
   });
 
+  it("renders the GITFLEET banner as a scaled SVG", () => {
+    expect(html).toContain('class="ascii-title"');
+    expect(html).toContain('lengthAdjust="spacingAndGlyphs"');
+    expect(html).toContain("██████");
+  });
+
   it("renders the primary navigation and calls to action", () => {
     expect(html).toContain('href="https://github.com/airscripts/gitfleet/tree/main/gitfleet-docs"');
     expect(html).toContain('href="https://github.com/airscripts/gitfleet/releases"');

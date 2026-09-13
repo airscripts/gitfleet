@@ -14,6 +14,7 @@ export const bannerLines = [
 ];
 
 export const banner = bannerLines.join("\n");
+export const bannerSplitIndex = 21;
 
 export const terminalTips = [
   "Install Gitfleet with Cargo and start managing repositories from one small CLI.",

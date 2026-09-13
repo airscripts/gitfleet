@@ -4,8 +4,10 @@ Static Astro homepage for discovering Gitfleet, downloading releases, and
 reaching the GitHub-hosted documentation.
 
 The page keeps a fixed skeleton: header, ASCII hero, live terminal preview, and
-footer. Visual language is sonar cyan on light and dark surfaces, with Plus
-Jakarta Sans, IBM Plex Mono, and the Gitfleet hexagon mark.
+footer. The GITFLEET banner is an SVG so box-drawing columns stay aligned when
+mobile browsers substitute fonts or inflate small text. Visual language is sonar
+cyan on light and dark surfaces, with Plus Jakarta Sans, IBM Plex Mono, and the
+Gitfleet hexagon mark.
 
 ## Requirements
 
