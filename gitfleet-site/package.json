@@ -18,7 +18,8 @@
     "format:check": "prettier --check .",
     "test": "vitest run src --reporter=default",
     "test:integration": "vitest run tests --reporter=default",
-    "verify": "pnpm format:check && pnpm lint && pnpm test && pnpm build && pnpm test:integration"
+    "test:e2e": "playwright test",
+    "verify": "pnpm format:check && pnpm lint && pnpm test && pnpm build && pnpm test:integration && pnpm test:e2e"
   },
   "dependencies": {
     "@lucide/astro": "^1.25.0",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^26.1.1",
     "eslint": "^10.7.0",
     "eslint-plugin-astro": "^3.0.1",
