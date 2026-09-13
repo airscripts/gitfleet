@@ -64,6 +64,8 @@ Semantic Versioning.
   resized PNG assets for the header and favicon.
 - Added a 1280x640 cyan Open Graph cover with the white GF mark, and gathered
   cover, logo, and favicon files under `gitfleet-assets/`.
+- Rounded the README cover image corners enough to read as a card without
+  changing the 1280x640 layout.
 - Structured the Astro homepage with dedicated layout, component, data, and
   browser-script modules so the site can scale beyond a single page without
   concentrating markup, content, and behavior in one file.
@@ -75,8 +77,10 @@ Semantic Versioning.
   assistive names so the production build can meet a 95 Lighthouse floor.
 - Added a system color theme to the homepage footer control, cycling light,
   dark, and operating-system preference.
-- Rendered the homepage GITFLEET banner as a scaled SVG so box-drawing columns
-  stay aligned on mobile browsers that substitute fonts or inflate small text.
+- Drew the homepage GITFLEET banner as font-independent SVG geometry so
+  box-drawing columns stay aligned on mobile browsers that substitute fonts or
+  inflate small text.
+- Pointed gitfleet-site source imports at `src/` through the `@/` alias.
 - Installed Agentskill in CI from the GitHub release action instead of
   crates.io, where the CLI is not published.
 
