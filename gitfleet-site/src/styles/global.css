@@ -353,15 +353,11 @@ a {
   height: auto;
   overflow: visible;
   color: var(--site-ink);
-  fill: currentColor;
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-kerning: none;
-  font-variant-ligatures: none;
-  text-rendering: geometricPrecision;
   pointer-events: none;
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
+}
+
+.ascii-glyph {
+  fill: currentColor;
 }
 
 .ascii-accent {

@@ -1,40 +1,29 @@
 ---
-import { bannerLines, bannerSplitIndex } from "../data/site";
+import { banner, bannerLines } from "@/data/site";
+import { bannerGlyphPaths, bannerViewBox } from "@/scripts/banner";
 
-const columns = bannerLines[0]?.length ?? 0;
-const charWidth = 8;
-const fontSize = 11;
-const lineHeight = 13;
-const prefixLength = bannerSplitIndex * charWidth;
-const suffixLength = (columns - bannerSplitIndex) * charWidth;
-const width = columns * charWidth;
-const height = bannerLines.length * lineHeight;
+const paths = bannerGlyphPaths(bannerLines);
+const viewBox = bannerViewBox(bannerLines[0]?.length ?? 0, bannerLines.length);
 ---
 
 <svg
   class="ascii-title"
-  viewBox={`0 0 ${width} ${height}`}
-  preserveAspectRatio="xMinYMid meet"
-  role="presentation"
-  aria-hidden="true"
-  focusable="false"
+  viewBox={viewBox}
+  role="img"
+  aria-label="Gitfleet"
+  preserveAspectRatio="xMidYMid meet"
+  shape-rendering="crispEdges"
+  data-ascii-banner="vector"
 >
+  <title>Gitfleet</title>
+  <desc>{banner}</desc>
   {
-    bannerLines.map((line, index) => (
-      <text x="0" y={fontSize + index * lineHeight} font-size={fontSize} xml:space="preserve">
-        <tspan x="0" textLength={prefixLength} lengthAdjust="spacingAndGlyphs">
-          {line.slice(0, bannerSplitIndex)}
-        </tspan>
-
-        <tspan
-          class="ascii-accent"
-          x={prefixLength}
-          textLength={suffixLength}
-          lengthAdjust="spacingAndGlyphs"
-        >
-          {line.slice(bannerSplitIndex)}
-        </tspan>
-      </text>
+    paths.map((path) => (
+      <path
+        class:list={["ascii-glyph", path.accent && "ascii-accent"]}
+        d={path.d}
+        transform={`translate(${path.x} ${path.y})`}
+      />
     ))
   }
 </svg>

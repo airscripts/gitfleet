@@ -17,6 +17,7 @@ test.describe("homepage", () => {
 
     await expect(page).toHaveTitle("Gitfleet");
     await expect(page.getByRole("heading", { level: 1, name: "Gitfleet" })).toBeAttached();
+    await expect(page.locator('[data-ascii-banner="vector"]')).toBeVisible();
     await expect(page.getByRole("link", { name: "Download Releases" })).toBeVisible();
     await expect(page.getByRole("link", { name: /Star On GitHub/ })).toBeVisible();
     await expect(page.locator("[data-star-count]")).toHaveText("1.3K");

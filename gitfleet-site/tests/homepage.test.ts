@@ -12,9 +12,11 @@ describe("homepage build output", () => {
     );
   });
 
-  it("renders the GITFLEET banner as a scaled SVG", () => {
+  it("renders the GITFLEET banner as font-independent SVG geometry", () => {
     expect(html).toContain('class="ascii-title"');
-    expect(html).toContain('lengthAdjust="spacingAndGlyphs"');
+    expect(html).toContain('data-ascii-banner="vector"');
+    expect(html).toContain('viewBox="0 0 496 96"');
+    expect(html).not.toContain("lengthAdjust");
     expect(html).toContain("██████");
   });
 
