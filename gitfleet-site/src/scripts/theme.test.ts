@@ -6,7 +6,7 @@ import {
   readThemePreference,
   resolveRenderedTheme,
   themeButtonLabel,
-} from "./theme";
+} from "@/scripts/theme";
 
 describe("readThemePreference", () => {
   it("accepts stored light, dark, and system values", () => {

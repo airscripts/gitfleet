@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { formatStarCount, loadStargazersCount, readStargazersCount } from "./stars";
+import { formatStarCount, loadStargazersCount, readStargazersCount } from "@/scripts/stars";
 
 describe("readStargazersCount", () => {
   it("reads a finite non-negative GitHub stargazers_count", () => {

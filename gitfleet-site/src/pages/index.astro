@@ -1,9 +1,9 @@
 ---
-import HeroSection from "../components/HeroSection.astro";
-import SiteFooter from "../components/SiteFooter.astro";
-import SiteHeader from "../components/SiteHeader.astro";
-import TerminalPanel from "../components/TerminalPanel.astro";
-import BaseLayout from "../layouts/BaseLayout.astro";
+import HeroSection from "@/components/HeroSection.astro";
+import SiteFooter from "@/components/SiteFooter.astro";
+import SiteHeader from "@/components/SiteHeader.astro";
+import TerminalPanel from "@/components/TerminalPanel.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
 
 const description =
   "Gitfleet is a provider-neutral CLI for managing repositories across GitHub and GitLab.";
@@ -33,6 +33,6 @@ const description =
   </div>
 
   <script>
-    import "../scripts/homepage";
+    import "@/scripts/homepage";
   </script>
 </BaseLayout>

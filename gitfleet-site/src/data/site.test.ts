@@ -9,7 +9,7 @@ import {
   releaseUrl,
   repoUrl,
   terminalTips,
-} from "./site";
+} from "@/data/site";
 
 describe("site content", () => {
   it("keeps public links anchored to the Gitfleet repository", () => {

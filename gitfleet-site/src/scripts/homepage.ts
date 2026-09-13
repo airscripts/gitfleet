@@ -1,5 +1,5 @@
-import { githubRepoApiUrl } from "../data/site";
-import { formatStarCount, loadStargazersCount } from "./stars";
+import { githubRepoApiUrl } from "@/data/site";
+import { formatStarCount, loadStargazersCount } from "@/scripts/stars";
 import {
   applyThemePreference,
   nextThemePreference,
@@ -7,7 +7,7 @@ import {
   THEME_STORAGE_KEY,
   themeButtonLabel,
   type ThemePreference,
-} from "./theme";
+} from "@/scripts/theme";
 
 const themeButton = document.querySelector("[data-theme-toggle]");
 const terminalTip = document.querySelector("[data-terminal-tip]");
