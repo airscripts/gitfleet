@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { bannerLines, docsBlobUrl, docsTreeUrl, releaseUrl, repoUrl, terminalTips } from "./site";
+import {
+  bannerLines,
+  docsBlobUrl,
+  docsTreeUrl,
+  githubRepoApiUrl,
+  releaseUrl,
+  repoUrl,
+  terminalTips,
+} from "./site";
 
 describe("site content", () => {
   it("keeps public links anchored to the Gitfleet repository", () => {
@@ -8,6 +16,7 @@ describe("site content", () => {
     expect(docsTreeUrl).toBe(`${repoUrl}/tree/main/gitfleet-docs`);
     expect(docsBlobUrl).toBe(`${repoUrl}/blob/main/gitfleet-docs`);
     expect(releaseUrl).toBe(`${repoUrl}/releases`);
+    expect(githubRepoApiUrl).toBe("https://api.github.com/repos/airscripts/gitfleet");
   });
 
   it("keeps the CLI banner stable enough for the homepage hero", () => {

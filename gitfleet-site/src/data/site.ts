@@ -2,6 +2,7 @@ export const repoUrl = "https://github.com/airscripts/gitfleet";
 export const docsTreeUrl = `${repoUrl}/tree/main/gitfleet-docs`;
 export const docsBlobUrl = `${repoUrl}/blob/main/gitfleet-docs`;
 export const releaseUrl = `${repoUrl}/releases`;
+export const githubRepoApiUrl = "https://api.github.com/repos/airscripts/gitfleet";
 
 export const bannerLines = [
   " ██████╗ ██╗████████╗███████╗██╗     ███████╗███████╗████████╗",

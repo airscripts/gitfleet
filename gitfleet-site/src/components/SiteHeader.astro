@@ -2,35 +2,28 @@
 import { BookOpen, Download, ExternalLink } from "@lucide/astro";
 
 import { docsTreeUrl, releaseUrl, repoUrl } from "../data/site";
+import SiteMark from "./SiteMark.astro";
 ---
 
-<header class="flex flex-col gap-4 pb-4 sm:flex-row sm:items-center sm:justify-between">
-  <a href="/" class="flex items-center gap-3 no-underline" aria-label="Gitfleet home">
-    <div>
-      <p class="text-base font-semibold tracking-normal text-ink">Gitfleet</p>
-      <p class="text-sm text-muted">Command Every Repository As One Fleet</p>
+<header class="site-header">
+  <a href="/" class="site-brand" aria-label="Gitfleet home">
+    <SiteMark />
+    <div class="site-brand-copy">
+      <p class="site-brand-name">Gitfleet</p>
+      <p class="site-brand-tagline">Command Every Repository As One Fleet</p>
     </div>
   </a>
 
-  <nav class="flex flex-wrap gap-2 text-sm" aria-label="Primary links">
-    <a
-      class="inline-flex items-center gap-2 rounded-md border border-line bg-surface px-3 py-2 font-medium text-ink no-underline transition hover:border-fleet hover:text-fleet"
-      href={docsTreeUrl}
-    >
+  <nav class="site-nav" aria-label="Primary links">
+    <a class="site-nav-link" href={docsTreeUrl}>
       <BookOpen class="h-4 w-4" aria-hidden="true" />
       Docs
     </a>
-    <a
-      class="inline-flex items-center gap-2 rounded-md border border-line bg-surface px-3 py-2 font-medium text-ink no-underline transition hover:border-fleet hover:text-fleet"
-      href={repoUrl}
-    >
+    <a class="site-nav-link" href={repoUrl}>
       <ExternalLink class="h-4 w-4" aria-hidden="true" />
       GitHub
     </a>
-    <a
-      class="inline-flex items-center gap-2 rounded-md border border-fleet bg-fleet px-3 py-2 font-medium text-surface no-underline transition hover:bg-surface hover:text-fleet"
-      href={releaseUrl}
-    >
+    <a class="site-button site-button-primary site-nav-cta" href={releaseUrl}>
       <Download class="h-4 w-4" aria-hidden="true" />
       Releases
     </a>

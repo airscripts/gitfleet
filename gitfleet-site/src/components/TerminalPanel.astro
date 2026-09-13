@@ -2,22 +2,29 @@
 import { terminalTips } from "../data/site";
 ---
 
-<aside class="site-reveal [animation-delay:120ms]">
+<aside class="site-reveal [animation-delay:120ms]" aria-label="Gitfleet command preview">
   <div
-    class="terminal-panel overflow-hidden rounded-lg border border-line bg-canvas text-sm leading-7 text-ink sm:text-base"
+    class="terminal-panel overflow-hidden rounded-[1.15rem] font-mono text-sm leading-7 text-ink sm:rounded-2xl sm:text-base"
   >
-    <div class="flex items-center gap-2 border-b border-line px-5 py-3 sm:px-7">
-      <span class="h-2.5 w-2.5 rounded-full border border-line" aria-hidden="true"></span>
-      <span class="h-2.5 w-2.5 rounded-full border border-line" aria-hidden="true"></span>
-      <span class="h-2.5 w-2.5 rounded-full border border-line" aria-hidden="true"></span>
+    <div class="terminal-chrome">
+      <div class="terminal-dots" aria-hidden="true">
+        <span class="terminal-dot terminal-dot-close"></span>
+        <span class="terminal-dot terminal-dot-minimize"></span>
+        <span class="terminal-dot terminal-dot-zoom"></span>
+      </div>
+      <p class="terminal-title">
+        <span class="terminal-title-short">gf discover</span>
+        <span class="terminal-title-full">airscript@gitfleet — gf discover</span>
+      </p>
     </div>
 
-    <div class="p-5 sm:p-7">
-      <p>
+    <div class="terminal-body">
+      <p class="sr-only">Example session: gf discover, with rotating usage tips.</p>
+      <p aria-hidden="true">
         <span class="text-muted">airscript@gitfleet:~$ </span>
-        <span class="text-fleet">gf discover</span>
+        <span class="font-semibold text-fleet">gf discover</span>
       </p>
-      <p class="mt-5 min-h-20 text-ink" aria-live="polite">
+      <p class="mt-5 min-h-20 text-ink" aria-hidden="true">
         <span data-terminal-tip></span><span class="terminal-cursor" aria-hidden="true"></span>
       </p>
     </div>

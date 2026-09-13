@@ -1,35 +1,59 @@
+import { githubRepoApiUrl } from "../data/site";
+import { formatStarCount, loadStargazersCount } from "./stars";
+import {
+  applyThemePreference,
+  nextThemePreference,
+  readThemePreference,
+  THEME_STORAGE_KEY,
+  themeButtonLabel,
+  type ThemePreference,
+} from "./theme";
+
 const themeButton = document.querySelector("[data-theme-toggle]");
 const terminalTip = document.querySelector("[data-terminal-tip]");
 const terminalTipsSource = document.querySelector("#terminal-tips");
-const themeLabels = {
-  light: "Dark",
-  dark: "Light",
-};
+const starCount = document.querySelector("[data-star-count]");
+const themeMedia = window.matchMedia("(prefers-color-scheme: dark)");
 
-function currentTheme() {
-  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+function currentPreference(): ThemePreference {
+  return readThemePreference(document.documentElement.dataset.themePreference ?? null);
+}
+
+function prefersDarkTheme(): boolean {
+  return themeMedia.matches;
+}
+
+function persistThemePreference(preference: ThemePreference) {
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, preference);
+  } catch {
+    // Theme changes still apply for the current page even when storage is unavailable.
+  }
 }
 
 function syncThemeButton(button: Element) {
-  const theme = currentTheme();
+  button.setAttribute("aria-label", themeButtonLabel(currentPreference()));
+}
 
-  button.setAttribute("aria-label", `Switch to ${themeLabels[theme].toLowerCase()} theme`);
+function applyCurrentTheme() {
+  applyThemePreference(document.documentElement, currentPreference(), prefersDarkTheme());
 }
 
 function installThemeToggle(button: Element) {
   button.addEventListener("click", () => {
-    const nextTheme = currentTheme() === "dark" ? "light" : "dark";
+    const nextPreference = nextThemePreference(currentPreference());
 
-    document.documentElement.dataset.theme = nextTheme;
-    try {
-      localStorage.setItem("gitfleet-site-theme", nextTheme);
-    } catch {
-      // Theme changes still apply for the current page even when storage is unavailable.
-    }
-
+    applyThemePreference(document.documentElement, nextPreference, prefersDarkTheme());
+    persistThemePreference(nextPreference);
     syncThemeButton(button);
   });
 
+  themeMedia.addEventListener("change", () => {
+    applyCurrentTheme();
+    syncThemeButton(button);
+  });
+
+  applyCurrentTheme();
   syncThemeButton(button);
 }
 
@@ -78,10 +102,30 @@ function installTerminalTips(target: Element, source: Element) {
   window.setTimeout(typeTerminalTip, 700);
 }
 
+async function installStarCount(target: Element) {
+  const count = await loadStargazersCount(fetch, githubRepoApiUrl);
+
+  if (count === null) {
+    return;
+  }
+
+  const label = formatStarCount(count);
+
+  if (label.length === 0) {
+    return;
+  }
+
+  target.textContent = label;
+}
+
 if (themeButton) {
   installThemeToggle(themeButton);
 }
 
 if (terminalTip && terminalTipsSource) {
   installTerminalTips(terminalTip, terminalTipsSource);
+}
+
+if (starCount) {
+  void installStarCount(starCount);
 }

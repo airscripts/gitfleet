@@ -26,6 +26,17 @@ describe("homepage build output", () => {
     expect(html).toContain("airscript@gitfleet:~$");
   });
 
+  it("keeps the star count empty until the client script fills it", () => {
+    expect(html).toContain("<span data-star-count></span>");
+    expect(html).toContain("data-star-link");
+  });
+
+  it("exposes landmarks and a skip link for keyboard navigation", () => {
+    expect(html).toContain('href="#main-content">Skip to content</a>');
+    expect(html).toMatch(/<header[\s>][\s\S]*<main id="main-content"/);
+    expect(html).toMatch(/<\/main>[\s\S]*<footer/);
+  });
+
   it("keeps the theme toggle in the footer link group", () => {
     const sponsorIndex = html.indexOf("Sponsor</a>");
     const toggleIndex = html.indexOf("data-theme-toggle", sponsorIndex);

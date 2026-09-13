@@ -10,20 +10,27 @@ const description =
 ---
 
 <BaseLayout title="Gitfleet" description={description}>
-  <main class="min-h-dvh overflow-x-hidden bg-canvas text-ink">
-    <section class="mx-auto flex min-h-dvh w-full max-w-7xl flex-col px-5 py-5 sm:px-8 lg:px-10">
+  <div class="site-shell min-h-dvh overflow-x-hidden bg-canvas text-ink">
+    <div class="site-atmosphere" aria-hidden="true">
+      <div class="site-atmosphere-glow"></div>
+      <div class="site-atmosphere-grid"></div>
+      <div class="site-atmosphere-radar"></div>
+      <div class="site-atmosphere-noise"></div>
+    </div>
+
+    <a class="skip-link" href="#main-content">Skip to content</a>
+
+    <div class="site-frame">
       <SiteHeader />
 
-      <div
-        class="grid flex-1 items-center gap-8 py-6 md:grid-cols-[1.06fr_0.94fr] md:py-7 lg:gap-12"
-      >
+      <main id="main-content" class="site-stage" tabindex="-1">
         <HeroSection />
         <TerminalPanel />
-      </div>
+      </main>
 
       <SiteFooter />
-    </section>
-  </main>
+    </div>
+  </div>
 
   <script>
     import "../scripts/homepage";
