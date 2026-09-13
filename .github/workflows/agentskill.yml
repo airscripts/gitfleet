@@ -1,0 +1,39 @@
+name: Agentskill
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+        default: ""
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout Code
+
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: dtolnay/rust-toolchain@stable
+        name: Install Rust Toolchain
+
+      - uses: Swatinem/rust-cache@v2
+        name: Cache Cargo
+
+      - run: cargo install agentskill --locked --version 2.1.0
+        name: Install Agentskill
+
+      - run: agentskill validate --signature auto
+        name: Validate Agentskill Documents

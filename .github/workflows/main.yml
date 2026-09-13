@@ -21,6 +21,10 @@ jobs:
     name: Verify
     uses: ./.github/workflows/verify.yml
 
+  agentskill:
+    name: Agentskill
+    uses: ./.github/workflows/agentskill.yml
+
   build:
     name: Build
     needs: verify
