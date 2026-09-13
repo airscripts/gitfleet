@@ -26,14 +26,9 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
 
-      - uses: dtolnay/rust-toolchain@stable
-        name: Install Rust Toolchain
-
-      - uses: Swatinem/rust-cache@v2
-        name: Cache Cargo
-
-      - run: cargo install agentskill --locked --version 2.1.0
-        name: Install Agentskill
-
-      - run: agentskill validate --signature auto
+      - uses: airscripts/agentskill/agentskill-actions/validate@2.1.0
         name: Validate Agentskill Documents
+
+        with:
+          version: "2.1.0"
+          signature: auto

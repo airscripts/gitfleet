@@ -75,6 +75,8 @@ Semantic Versioning.
   assistive names so the production build can meet a 95 Lighthouse floor.
 - Added a system color theme to the homepage footer control, cycling light,
   dark, and operating-system preference.
+- Installed Agentskill in CI from the GitHub release action instead of
+  crates.io, where the CLI is not published.
 
 ## [0.1.0] - 2026-07-17
 
